@@ -1,0 +1,158 @@
+## Feature 1 — Row Highlight (Ctrl+Click Color Picker)
+
+### Behavior
+- Ctrl+Click on any data row → opens color palette popup near the row
+- User picks color → row gets colored border + tinted background
+- Highlight persists across sorts, page reloads, data re-uploads
+- Click X in palette → removes highlight from that row
+
+### Data Structure
+
+let highlights = {}  // { [fundName: string]: colorHex }
+// fundName = row's SHM_KUPA value (raw, no HTML escaping)
+// Persisted to: localStorage.setItem('gamel_hl', JSON.stringify(highlights))
+// Loaded on boot separately from main data key
+// CRITICAL: use a SEPARATE localStorage key from main data,
+//           so highlights survive STORAGE_KEY version bumps
+
+
+### Row Click Handler
+
+function rowClick(event, fundName, rowEl) {
+  if (!event.ctrlKey) return
+  event.stopPropagation()
+  palTarget = { fundName, rowEl }
+  // position palette near row (getBoundingClientRect)
+  const rect = rowEl.getBoundingClientRect()
+  const pal = document.getElementById('color-palette')
+  pal.style.top  = (rect.top + window.scrollY - 10) + 'px'
+  pal.style.right = '20px'   // fixed to right edge (RTL layout)
+  pal.classList.add('show')
+}
+
+
+### Apply Highlight
+
+function applyHighlight(color) {
+  const { fundName, rowEl } = palTarget
+  rowEl.style.boxShadow = `inset 0 0 0 2px ${color}`
+  rowEl.style.background = color + '22'   // hex + alpha 13%
+  highlights[fundName] = color
+  localStorage.setItem('gamel_hl', JSON.stringify(highlights))
+}
+
+function clearHighlight() {
+  const { fundName, rowEl } = palTarget
+  rowEl.style.boxShadow = ''
+  rowEl.style.background = ''
+  delete highlights[fundName]
+  localStorage.setItem('gamel_hl', JSON.stringify(highlights))
+}
+
+
+### Re-apply on Render
+Every time a card re-renders (sort, filter), re-apply highlights:
+
+// inside row-building loop:
+const rawName = row.SHM_KUPA
+const hl = highlights[rawName]
+const hlStyle = hl
+  ? `box-shadow:inset 0 0 0 2px ${hl};background:${hl}22;`
+  : ''
+// inject hlStyle into <tr style="...">
+
+
+### Palette HTML
+
+<div id="color-palette">
+  <div class="pal-swatches" id="pal-swatches"></div>
+  <button onclick="clearHighlight()">X הסר הדגשה</button>
+</div>
+
+Close palette: click outside or Escape key.
+
+---
+
+## Feature 2 — Per-Card Independent Sort
+
+### The Problem to Avoid
+A naive approach stores ONE global sort state → clicking sort on card A
+re-sorts ALL cards. Must be per-card.
+
+### Correct Approach
+
+// Sort state keyed by card ID (derived from SUG_KUPA + HITMAHUT_MISHNIT)
+let sortState = {}   // { [cardId: string]: { col: string, dir: 'asc'|'desc' } }
+let cardData  = {}   // { [cardId: string]: Row[] }
+
+function cardKey(sug, hit) {
+  return (sug + '__' + hit).replace(/\s+/g, '_').replace(/[^\w֐-׿]/g, '_')
+}
+
+
+### Initialize Card
+
+function buildCard(sug, hit, rows) {
+  const id = cardKey(sug, hit)
+  cardData[id] = rows                                      // store rows by card
+  if (!sortState[id]) {
+    sortState[id] = { col: 'TSUA_MITZTABERET_60_HODASHIM', dir: 'desc' }
+  }
+  const div = document.createElement('div')
+  div.id = id
+  div.innerHTML = buildCardHTML(id, sug, hit, rows)
+  return div
+}
+
+
+### Sort Handler
+
+function onSort(cardId, field) {
+  const s = sortState[cardId]
+  if (s.col === field) {
+    s.dir = s.dir === 'desc' ? 'asc' : 'desc'
+  } else {
+    s.col = field
+    s.dir = 'desc'
+  }
+  // Re-render ONLY this card, not all cards
+  const cardEl = document.getElementById(cardId)
+  const [sug, hit] = findSugHit(cardId)    // recover sug+hit from byProduct
+  cardEl.innerHTML = buildCardHTML(cardId, sug, hit, cardData[cardId])
+}
+
+function findSugHit(id) {
+  for (const sug of Object.keys(byProduct))
+    for (const hit of Object.keys(byProduct[sug]))
+      if (cardKey(sug, hit) === id) return [sug, hit]
+  return ['', '']
+}
+
+
+### Sort Logic
+
+function sortRows(rows, state) {
+  return [...rows].sort((a, b) => {
+    const av = a[state.col]
+    const bv = b[state.col]
+    if (av == null && bv == null) return 0
+    if (av == null) return 1    // nulls always last
+    if (bv == null) return -1
+    return state.dir === 'desc' ? bv - av : av - bv
+  })
+}
+
+
+### Clickable Headers (inline onclick)
+
+// In buildCardHTML(), generate th with onclick referencing this card's ID only:
+`<th onclick="onSort('${cardId}', '${col.field}')">${col.label}</th>`
+// cardId is scoped to this card's render — other cards unaffected
+
+
+### Visual Sort Indicator
+
+// In header loop:
+const isActive = state.col === col.field
+const arrow    = isActive ? (state.dir === 'desc' ? 'v' : '^') : ''
+// Add CSS class 'sort-active' to active th
