@@ -14112,10 +14112,11 @@
     })).filter((item) => item.worksheet);
 
     for (const candidate of candidates.sort((a, b) => b.score - a.score)) {
+      expandWorksheetRefToActualCells(candidate.worksheet);
       const rows = window.XLSX.utils.sheet_to_json(candidate.worksheet, {
         header: 1,
         blankrows: false,
-        raw: false,
+        raw: true,
         defval: ""
       });
       const headerIndex = findHarHabituachHeaderIndex(rows);
@@ -14124,6 +14125,26 @@
       }
     }
     return null;
+  }
+
+  function expandWorksheetRefToActualCells(worksheet) {
+    if (!worksheet || !window.XLSX || !window.XLSX.utils) return;
+    const cellKeys = Object.keys(worksheet).filter((key) => /^[A-Z]+\d+$/i.test(key));
+    if (!cellKeys.length) return;
+
+    let range = worksheet["!ref"]
+      ? window.XLSX.utils.decode_range(worksheet["!ref"])
+      : { s: { r: Infinity, c: Infinity }, e: { r: -1, c: -1 } };
+
+    cellKeys.forEach((key) => {
+      const cell = window.XLSX.utils.decode_cell(key);
+      range.s.r = Math.min(range.s.r, cell.r);
+      range.s.c = Math.min(range.s.c, cell.c);
+      range.e.r = Math.max(range.e.r, cell.r);
+      range.e.c = Math.max(range.e.c, cell.c);
+    });
+
+    worksheet["!ref"] = window.XLSX.utils.encode_range(range);
   }
 
   function findHarHabituachHeaderIndex(rows) {
@@ -16067,7 +16088,7 @@
   }
 
   function getTextFromCell(value) {
-    return String(value || "").trim();
+    return value === null || value === undefined ? "" : String(value).trim();
   }
 
   function isWorkbookPlaceholder(value) {
