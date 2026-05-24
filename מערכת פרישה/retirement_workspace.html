@@ -4342,57 +4342,6 @@
     font-weight: 800;
   }
 
-  body.settings-density-compact .panel,
-  body.settings-density-compact .settings-card,
-  body.settings-density-compact .summary-card {
-    padding: 14px !important;
-  }
-
-  body.settings-density-spacious .panel,
-  body.settings-density-spacious .settings-card,
-  body.settings-density-spacious .summary-card {
-    padding: 28px !important;
-  }
-
-  body.settings-table-small .managed-table,
-  body.settings-table-small .funds-table,
-  body.settings-table-small .sim-table {
-    font-size: 12px !important;
-  }
-
-  body.settings-table-large .managed-table,
-  body.settings-table-large .funds-table,
-  body.settings-table-large .sim-table {
-    font-size: 15px !important;
-  }
-
-  body.settings-animations-off *,
-  body.settings-animations-off *::before,
-  body.settings-animations-off *::after {
-    animation: none !important;
-    transition: none !important;
-  }
-
-  .settings-brand-preview {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    padding: 14px;
-    border: 1px dashed rgba(111, 183, 244, 0.35);
-    border-radius: 16px;
-    background: rgba(8, 120, 247, 0.06);
-  }
-
-  .settings-brand-preview img {
-    width: 58px;
-    height: 58px;
-    object-fit: contain;
-    border-radius: 14px;
-    background: #fff;
-    border: 1px solid rgba(111, 183, 244, 0.24);
-    padding: 6px;
-  }
-
   @media (max-width: 1180px) {
     .settings-page {
       grid-template-columns: 1fr;
@@ -6664,7 +6613,7 @@
       <div class="abd-sidebar-footer">
         <button class="abd-settings-nav-button" type="button" data-sidebar-tab="settings" aria-label="הגדרות">
           <span class="nav-icon"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15.5A3.5 3.5 0 1 0 12 8a3.5 3.5 0 0 0 0 7.5z"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6 1.7 1.7 0 0 0-.4 1.1V21a2 2 0 1 1-4 0v-.1A1.7 1.7 0 0 0 8.6 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-.6-1A1.7 1.7 0 0 0 2.9 13H3a2 2 0 1 1 0-4h-.1A1.7 1.7 0 0 0 4.6 8.6a1.7 1.7 0 0 0-.34-1.88l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-.6 1.7 1.7 0 0 0 .4-1.1V3a2 2 0 1 1 4 0v-.1A1.7 1.7 0 0 0 15.4 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9c.2.37.43.7.6 1a1.7 1.7 0 0 0 1.1.4H21a2 2 0 1 1 0 4h.1a1.7 1.7 0 0 0-1.7.6z"/></svg></span>
-          <span class="nav-label">הגדרות</span>
+          <span class="nav-label">Settings</span>
         </button>
       </div>
     </aside>
@@ -7070,18 +7019,30 @@
   const SETTINGS_POLICY_TYPES = ["רכב", "דירה", "מבנה", "תכולה", "חיים", "בריאות", "מחלות קשות", "סיעודי", "תאונות אישיות", "נסיעות לחו\"ל", "עסק", "אחר"];
 
   const SETTINGS_TABS = [
-    { id: "meeting", title: "סיכום פגישה", subtitle: "נוסחים, תבניות ומקטעים במסמך", icon: "▤", category: "מסמכים" },
-    { id: "importExport", title: "ייבוא וייצוא", subtitle: "טעינת קבצים, תבניות וגיבוי נתונים", icon: "⇄", category: "נתונים" },
-    { id: "trackingExcel", title: "אקסל לתיעוד", subtitle: "עמודות, סדר ותצוגת קובץ מעקב", icon: "X", category: "מעקב" },
-    { id: "policyTypes", title: "סוגי פוליסות", subtitle: "סינון סוגי ביטוח שמוצגים במערכת", icon: "◇", category: "ביטוח" },
-    { id: "returns", title: "תשואות והשקעות", subtitle: "ברירות מחדל לטבלאות התשואות והמסלולים", icon: "↗", category: "השקעות" },
-    { id: "display", title: "תצוגה ומיתוג", subtitle: "שם המערכת, צבעים וצפיפות תצוגה", icon: "◐", category: "מערכת" }
+    { id: "meeting", title: "סיכום פגישה", subtitle: "נוסחים, Templates ו-AI", icon: "▤", category: "מסמכים" },
+    { id: "importExport", title: "ייבוא / ייצוא", subtitle: "Excel, Mapping וגיבויים", icon: "⇄", category: "נתונים" },
+    { id: "filingEmail", title: "מייל לתיוק", subtitle: "IMAP, SMTP וחוקים", icon: "@", category: "תקשורת" },
+    { id: "trackingExcel", title: "אקסל לתיעוד", subtitle: "עמודות, סדר וייצוא", icon: "X", category: "נתונים" },
+    { id: "policyTypes", title: "סוגי פוליסות ביטוח", subtitle: "תצוגה בטפסים וסיכומים", icon: "◇", category: "ביטוח" },
+    { id: "ai", title: "AI והמלצות חכמות", subtitle: "Prompts, מודלים ולוגים", icon: "AI", category: "חכם" },
+    { id: "users", title: "משתמשים והרשאות", subtitle: "Roles ו-Activity Logs", icon: "👤", category: "ניהול" },
+    { id: "returns", title: "תשואות והשקעות", subtitle: "Smart Score וסיכון", icon: "↗", category: "השקעות" },
+    { id: "rules", title: "מנוע חוקים ואוטומציות", subtitle: "Triggers ו-Alerts", icon: "⚡", category: "אוטומציה" },
+    { id: "documents", title: "מסמכים וקבצים", subtitle: "OCR, Tags וגרסאות", icon: "□", category: "מסמכים" },
+    { id: "workflow", title: "Workflow ומשימות", subtitle: "Kanban, SLA והקצאות", icon: "✓", category: "תפעול" },
+    { id: "branding", title: "מיתוג והתאמה אישית", subtitle: "Logo, צבעים ו-White Label", icon: "◆", category: "מותג" },
+    { id: "security", title: "אבטחה", subtitle: "2FA, Audit וגיבויים", icon: "⌘", category: "אבטחה" },
+    { id: "notifications", title: "התראות", subtitle: "Email, Push ו-WhatsApp", icon: "●", category: "תקשורת" },
+    { id: "integrations", title: "אינטגרציות", subtitle: "Gmail, OpenAI ו-Webhooks", icon: "∞", category: "מערכות" },
+    { id: "system", title: "מערכת ותצוגה", subtitle: "Theme, Density ושפה", icon: "◐", category: "תצוגה" },
+    { id: "analytics", title: "דוחות ואנליטיקה", subtitle: "KPI, Charts וייצוא", icon: "▥", category: "דוחות" },
+    { id: "developer", title: "Developer / Advanced", subtitle: "Debug, Logs ו-Performance", icon: "</>", category: "מתקדם" }
   ];
 
   const DEFAULT_SETTINGS_STATE = {
     activeSection: "meeting",
     search: "",
-    favorites: [],
+    favorites: ["meeting", "trackingExcel", "policyTypes"],
     recentlyEdited: [],
     dirty: false,
     lastSavedAt: "",
@@ -7093,7 +7054,8 @@
       disclosure: "המידע במסמך זה אינו מהווה ייעוץ מס או ייעוץ משפטי ומבוסס על הנתונים שנמסרו בפגישה.",
       signature: "ABD Finance",
       promptTemplate: "כתוב סיכום פגישה פיננסי מקצועי, ברור וממוקד פעולה.",
-      writingTone: "מקצועי וברור",
+      aiStyle: "מקצועי",
+      aiSummaryEnabled: true,
       sections: {
         intro: true,
         facts: true,
@@ -7106,12 +7068,20 @@
       }
     },
     importExport: {
-      defaultImportTab: "זיהוי אוטומטי",
-      mappingMode: "התאמה חכמה לפי שמות עמודות",
-      duplicateHandling: "מיזוג לפי לקוח ומספר קופה",
-      exportFormat: "Excel",
-      backupNote: "גיבוי ידני דרך ייצוא נתונים מהמערכת",
-      supportedFiles: "xlsx, xls, xlsm, zip"
+      excelImport: true,
+      exportData: true,
+      mappingMode: "smart",
+      backupFrequency: "daily",
+      fileFormat: "xlsx",
+      downloadTemplates: true
+    },
+    filingEmail: {
+      filingAddress: "archive@abd-finance.local",
+      imapReady: false,
+      smtpReady: false,
+      autoClientMatch: true,
+      defaultFolder: "לקוחות/פגישות",
+      rulesEngine: true
     },
     trackingExcel: {
       profileName: "ברירת מחדל",
@@ -7119,31 +7089,37 @@
       freezeHeader: true,
       zebraRows: true,
       autoFit: true,
-      headerStyle: "כחול פיננסי",
+      headerStyle: "premium-blue",
       columns: SETTINGS_EXCEL_COLUMNS.map((column, index) => ({ ...column, enabled: true, locked: index < 2, order: index }))
     },
     policyTypes: {
       enabled: Object.fromEntries(SETTINGS_POLICY_TYPES.map((type) => [type, true]))
     },
-    returns: {
-      defaultProductType: "כל סוגי המוצרים",
-      defaultSort: "תשואה 5 שנים",
-      rowsPerTable: 10,
-      cardsPerRow: 3,
-      negativeReturnColor: "#d93025",
-      highlightStorageKey: "gamel_hl"
+    ai: {
+      enabled: true,
+      model: "GPT-4.1",
+      creativity: 35,
+      writingStyle: "פיננסי מקצועי",
+      insights: true,
+      missingDataDetection: true,
+      smartRecommendations: true,
+      whatsappDrafts: true,
+      emailGenerator: true,
+      usageStats: true,
+      logs: true
     },
-    display: {
-      companyName: "ABD Finance",
-      primaryColor: "#0878f7",
-      density: "נוחה",
-      tableSize: "בינונית",
-      animations: "עדינות",
-      language: "עברית",
-      logoData: "",
-      logoName: "",
-      footerText: "ABD Finance"
-    }
+    users: { multiRole: true, activityLogs: true, loginHistory: true, accessControl: true, defaultRole: "Advisor" },
+    returns: { dataSources: true, benchmarks: true, smartScore: true, heatmap: true, graphs: true, preferredTracks: true, equityExposure: true, riskAnalysis: true },
+    rules: { visualBuilder: true, triggers: true, actions: true, notifications: true, autoTasks: true, retirementAlerts: true, highFeeAlerts: true, missingFormsAlerts: true },
+    documents: { ocr: true, pdfProcessing: true, dragDrop: true, autoClientDetection: true, tags: true, versioning: true, search: true, preview: true },
+    workflow: { kanban: true, timeline: true, sla: true, statusColors: true, autoTasks: true, assignments: true },
+    branding: { companyName: "ABD Finance", logoUpload: true, favicon: true, themeColor: "#0878f7", font: "Heebo", whiteLabel: true, footer: "ABD Finance" },
+    security: { twoFactor: false, sessionTimeout: 45, auditLogs: true, encryption: true, backups: true, securityDashboard: true, deviceHistory: true },
+    notifications: { email: true, push: false, whatsapp: true, notificationCenter: true, userPreferences: true },
+    integrations: { gmail: false, outlook: false, googleDrive: false, openai: false, supabase: false, crm: false, whatsapp: false, apiKeys: false, webhooks: false, syncStatus: true },
+    system: { mode: "light", density: "comfortable", tableSize: "medium", animations: true, language: "he", systemColor: "#0878f7" },
+    analytics: { kpiDashboard: true, financialReports: true, clientReports: true, exportPdfExcel: true, charts: true },
+    developer: { featureFlags: true, debugMode: false, apiMonitor: false, logs: true, performanceMetrics: true, cacheManagement: true }
   };
 
   const MIGRATION_RULES = {
@@ -7828,7 +7804,6 @@
     });
 
     loadSettingsState();
-    applyDisplaySettings();
     renderSettingsPage();
     window.addEventListener("beforeunload", saveWorkspaceSnapshot);
     if (!restoreWorkspaceSnapshot()) {
@@ -8306,7 +8281,6 @@
     }
     syncMeetingSummaryLiveData();
     renderSettingsModal();
-    applyDisplaySettings();
     renderHeader();
     renderTabs();
     renderSummary();
@@ -11423,31 +11397,6 @@
     }
   }
 
-  function applyDisplaySettings() {
-    const settings = state.settings?.display || {};
-    const primary = settings.primaryColor || "#0878f7";
-    document.body.style.setProperty("--premium-blue", primary);
-    document.body.style.setProperty("--abd-blue", primary);
-    document.body.style.setProperty("--premium-blue-2", primary);
-    document.documentElement.style.setProperty("--premium-blue", primary);
-
-    document.body.classList.toggle("settings-density-compact", settings.density === "קומפקטית");
-    document.body.classList.toggle("settings-density-spacious", settings.density === "מרווחת");
-    document.body.classList.toggle("settings-table-small", settings.tableSize === "קטנה");
-    document.body.classList.toggle("settings-table-large", settings.tableSize === "גדולה");
-    document.body.classList.toggle("settings-animations-off", settings.animations === "ללא");
-
-    const brandName = settings.companyName || "ABD Finance";
-    document.title = brandName;
-    document.querySelectorAll(".brand-logo-img, .abd-sidebar-logo img").forEach((img) => {
-      img.src = settings.logoData || "assets/abd-finance-logo.png";
-      img.alt = brandName;
-    });
-    if (state.meetingSummary && (!state.meetingSummary.brandName || state.meetingSummary.brandName === "ABD-finance" || state.meetingSummary.brandName === "ABD Finance")) {
-      state.meetingSummary.brandName = brandName;
-    }
-  }
-
   function mergeSettingsState(base, next) {
     Object.entries(next || {}).forEach(([key, value]) => {
       if (Array.isArray(value)) {
@@ -11519,6 +11468,7 @@
 
     const active = getSettingsTab();
     const visibleTabs = getVisibleSettingsTabs();
+    const favoriteSet = new Set(state.settings.favorites || []);
     const activeContent = renderSettingsSection(active.id);
     dom.settingsRoot.innerHTML = `
       <div class="settings-page">
@@ -11536,11 +11486,12 @@
                   <span class="settings-tab-title">${escapeHtml(tab.title)}</span>
                   <span class="settings-tab-subtitle">${escapeHtml(tab.subtitle)}</span>
                 </span>
+                <span class="settings-favorite ${favoriteSet.has(tab.id) ? "active" : ""}" data-settings-favorite="${tab.id}" title="מועדפים">★</span>
               </button>
             `).join("") || `<div class="empty-state">לא נמצאו הגדרות תואמות.</div>`}
           </div>
           <div class="settings-rail-foot">
-            הגדרות פעילות במערכת הפרישה
+            מועדפים: ${(state.settings.favorites || []).length} · נערכו לאחרונה: ${(state.settings.recentlyEdited || []).length}
           </div>
         </aside>
         <main class="settings-content-shell">
@@ -11571,12 +11522,13 @@
 
   function renderSettingsSection(sectionId) {
     if (sectionId === "meeting") return renderMeetingSettingsComponent();
-    if (sectionId === "importExport") return renderImportExportSettingsComponent();
     if (sectionId === "trackingExcel") return renderTrackingExcelSettingsComponent();
     if (sectionId === "policyTypes") return renderPolicyTypesSettingsComponent();
-    if (sectionId === "returns") return renderReturnsSettingsComponent();
-    if (sectionId === "display") return renderDisplaySettingsComponent();
-    return `<div class="empty-state">אין הגדרות זמינות לטאב זה.</div>`;
+    if (sectionId === "ai") return renderAiSettingsComponent();
+    if (sectionId === "branding") return renderBrandingSettingsComponent();
+    if (sectionId === "security") return renderSecuritySettingsComponent();
+    if (sectionId === "system") return renderSystemSettingsComponent();
+    return renderGenericSettingsComponent(sectionId);
   }
 
   function renderMeetingSettingsComponent() {
@@ -11594,8 +11546,8 @@
     return `
       <div class="settings-section-grid">
         <section class="settings-card">
-          <h3>נוסחים קבועים למסמך</h3>
-          <p>טקסטים שמופיעים בסיכום הפגישה ונשמרים כתבנית עבודה קבועה.</p>
+          <h3>נוסחים קבועים</h3>
+          <p>הטקסטים האלו משמשים בסיס למסמך סיכום הפגישה ולתבניות ה-AI.</p>
           <div class="settings-form-grid">
             ${renderSettingsTextarea("meeting.openingText", "טקסט פתיחה", settings.openingText)}
             ${renderSettingsTextarea("meeting.closingText", "טקסט סיום", settings.closingText)}
@@ -11604,16 +11556,17 @@
           </div>
         </section>
         <section class="settings-card">
-          <h3>סגנון וניסוח</h3>
-          <p>הנחיית כתיבה פנימית לניסוח סיכומי פגישה והמלצות.</p>
+          <h3>Templates ו-Prompt Templates</h3>
+          <p>הגדרות כתיבה עבור סיכום חכם והמלצות מותאמות לקוח.</p>
           <div class="settings-form-grid">
-            ${renderSettingsTextarea("meeting.promptTemplate", "הנחיית ניסוח", settings.promptTemplate)}
-            ${renderSettingsSelect("meeting.writingTone", "סגנון כתיבה", settings.writingTone, ["מקצועי וברור", "תמציתי", "מפורט", "רשמי"])}
+            ${renderSettingsTextarea("meeting.promptTemplate", "Prompt Template", settings.promptTemplate)}
+            ${renderSettingsSelect("meeting.aiStyle", "סגנון כתיבה", settings.aiStyle, ["מקצועי", "תמציתי", "יוקרתי", "שיווקי עדין"])}
+            ${renderSettingsToggle("meeting.aiSummaryEnabled", "AI Summary Settings", settings.aiSummaryEnabled)}
           </div>
           <div class="settings-pill-row">
-            <span class="settings-pill">משתנים זמינים: {fundLabel}</span>
-            <span class="settings-pill">{productLabel}</span>
-            <span class="settings-pill">{manufacturerLabel}</span>
+            <span class="settings-pill">Prompt Builder</span>
+            <span class="settings-pill">Template Library</span>
+            <span class="settings-pill">Auto Recommendations</span>
           </div>
         </section>
         <section class="settings-card">
@@ -11685,37 +11638,6 @@
     `).join("") || `<div class="empty-state">אין תבניות להצגה.</div>`;
   }
 
-  function renderImportExportSettingsComponent() {
-    const settings = state.settings.importExport;
-    return `
-      <div class="settings-section-grid">
-        <section class="settings-card">
-          <h3>טעינת קבצי לקוח</h3>
-          <p>הגדרות שמתאימות למנגנון הייבוא הקיים: דוח פרישה, הר הביטוח וקבצי מסלקה.</p>
-          <div class="settings-form-grid">
-            ${renderSettingsSelect("importExport.defaultImportTab", "אופן זיהוי קובץ", settings.defaultImportTab, ["זיהוי אוטומטי", "דוח פרישה", "הר הביטוח", "מסלקה ZIP"])}
-            ${renderSettingsSelect("importExport.mappingMode", "התאמת שדות", settings.mappingMode, ["התאמה חכמה לפי שמות עמודות", "שמות עמודות מדויקים בלבד"])}
-            ${renderSettingsSelect("importExport.duplicateHandling", "טיפול בכפילויות", settings.duplicateHandling, ["מיזוג לפי לקוח ומספר קופה", "החלפת נתונים קיימים", "שמירת שתי הרשומות"])}
-            ${renderSettingsInput("importExport.supportedFiles", "סוגי קבצים נתמכים", settings.supportedFiles)}
-          </div>
-        </section>
-        <section class="settings-card">
-          <h3>ייצוא וגיבוי</h3>
-          <p>הגדרות בסיסיות לייצוא נתונים מהמערכת. הגדרות עמודות המעקב נמצאות בטאב “אקסל לתיעוד”.</p>
-          <div class="settings-form-grid">
-            ${renderSettingsSelect("importExport.exportFormat", "פורמט ייצוא ברירת מחדל", settings.exportFormat, ["Excel", "CSV"])}
-            ${renderSettingsTextarea("importExport.backupNote", "הערת גיבוי פנימית", settings.backupNote)}
-          </div>
-          <div class="settings-pill-row">
-            <span class="settings-pill">הר הביטוח</span>
-            <span class="settings-pill">מסלקה ZIP</span>
-            <span class="settings-pill">דוח פרישה Excel</span>
-          </div>
-        </section>
-      </div>
-    `;
-  }
-
   function renderTrackingExcelSettingsComponent() {
     const settings = state.settings.trackingExcel;
     const columns = getTrackingExcelColumns();
@@ -11724,23 +11646,23 @@
         <section class="settings-card" style="grid-column:1 / -1;">
           <div class="panel-head" style="margin:0;">
             <div>
-              <h3>מבנה קובץ המעקב</h3>
-              <p>בחר אילו עמודות יופיעו בקובץ, שנה סדר בגרירה, וקבע רוחב ויישור לכל עמודה.</p>
+              <h3>Export Engine דינמי</h3>
+              <p>בחר עמודות, שנה סדר ב-Drag & Drop, קבע רוחב, יישור ונעילה. רק עמודות שסומנו יופיעו בייצוא.</p>
             </div>
             <div class="top-actions">
-              <button class="button button-secondary" type="button" data-settings-columns="all">בחר הכל</button>
-              <button class="button button-secondary" type="button" data-settings-columns="none">נקה בחירה</button>
-              <button class="button button-secondary" type="button" data-settings-columns="reset">איפוס ברירת מחדל</button>
-              <button class="button button-primary" type="button" data-settings-trial-export>ייצוא ניסיון</button>
+              <button class="button button-secondary" type="button" data-settings-columns="all">Select All</button>
+              <button class="button button-secondary" type="button" data-settings-columns="none">Clear All</button>
+              <button class="button button-secondary" type="button" data-settings-columns="reset">Reset Default</button>
+              <button class="button button-primary" type="button" data-settings-trial-export>Trial Export</button>
             </div>
           </div>
           <div class="settings-form-grid">
-            ${renderSettingsInput("trackingExcel.profileName", "שם פרופיל ייצוא", settings.profileName)}
-            ${renderSettingsSelect("trackingExcel.headerStyle", "סגנון כותרת", settings.headerStyle, ["כחול פיננסי", "נייבי כהה", "אפור נקי"])}
-            ${renderSettingsToggle("trackingExcel.rtl", "כיוון גיליון מימין לשמאל", settings.rtl)}
-            ${renderSettingsToggle("trackingExcel.freezeHeader", "נעילת שורת כותרת", settings.freezeHeader)}
-            ${renderSettingsToggle("trackingExcel.zebraRows", "צביעת שורות לסירוגין", settings.zebraRows)}
-            ${renderSettingsToggle("trackingExcel.autoFit", "התאמת רוחב אוטומטית", settings.autoFit)}
+            ${renderSettingsInput("trackingExcel.profileName", "Export Profile", settings.profileName)}
+            ${renderSettingsSelect("trackingExcel.headerStyle", "Header Style", settings.headerStyle, ["premium-blue", "dark-navy", "clean-gray"])}
+            ${renderSettingsToggle("trackingExcel.rtl", "RTL Excel", settings.rtl)}
+            ${renderSettingsToggle("trackingExcel.freezeHeader", "Freeze Header", settings.freezeHeader)}
+            ${renderSettingsToggle("trackingExcel.zebraRows", "Zebra Rows", settings.zebraRows)}
+            ${renderSettingsToggle("trackingExcel.autoFit", "Auto Fit Columns", settings.autoFit)}
           </div>
           <div class="settings-column-builder">
             ${columns.map((column) => `
@@ -11750,12 +11672,12 @@
                   <span>${escapeHtml(column.label)}</span>
                   <input type="checkbox" ${column.enabled ? "checked" : ""} data-settings-column-enabled="${escapeAttribute(column.id)}">
                 </label>
-                <input type="number" min="8" max="60" value="${escapeAttribute(column.width)}" data-settings-column-width="${escapeAttribute(column.id)}" title="רוחב עמודה">
+                <input type="number" min="8" max="60" value="${escapeAttribute(column.width)}" data-settings-column-width="${escapeAttribute(column.id)}" title="Column Width">
                 <select data-settings-column-align="${escapeAttribute(column.id)}">
-                  ${[["right", "ימין"], ["center", "מרכז"], ["left", "שמאל"]].map(([align, label]) => `<option value="${align}" ${column.align === align ? "selected" : ""}>${label}</option>`).join("")}
+                  ${["right", "center", "left"].map((align) => `<option value="${align}" ${column.align === align ? "selected" : ""}>${align}</option>`).join("")}
                 </select>
-                <label class="settings-checkbox-row" title="עמודה נעולה">
-                  <span>נעילה</span>
+                <label class="settings-checkbox-row" title="Locked Columns">
+                  <span>נעול</span>
                   <input type="checkbox" ${column.locked ? "checked" : ""} data-settings-column-locked="${escapeAttribute(column.id)}">
                 </label>
               </div>
@@ -11763,8 +11685,8 @@
           </div>
         </section>
         <section class="settings-card" style="grid-column:1 / -1;">
-          <h3>תצוגה מקדימה</h3>
-          <p>כך ייראה קובץ התיעוד לפי ההגדרות הנוכחיות.</p>
+          <h3>Live Preview</h3>
+          <p>תצוגה מקדימה של קובץ התיעוד לפי העמודות שסומנו.</p>
           ${renderTrackingExcelPreview()}
         </section>
       </div>
@@ -11796,74 +11718,86 @@
     `;
   }
 
-  function renderReturnsSettingsComponent() {
-    const settings = state.settings.returns;
-    return `
-      <div class="settings-section-grid">
-        <section class="settings-card">
-          <h3>ברירות מחדל בטבלת התשואות</h3>
-          <p>הגדרות שמשפיעות על מסך “תשואות ABD FINANCE” ועל פריסת טבלאות המסלולים.</p>
-          <div class="settings-form-grid">
-            ${renderSettingsSelect("returns.defaultProductType", "סוג מוצר בפתיחה", settings.defaultProductType, ["כל סוגי המוצרים", "קופת גמל", "קרן השתלמות", "קרן פנסיה", "פוליסה פיננסית", "קופת גמל להשקעה", "חיסכון לכל ילד"])}
-            ${renderSettingsSelect("returns.defaultSort", "מיון ברירת מחדל", settings.defaultSort, ["תשואה 5 שנים", "תשואה 3 שנים", "תשואה שנה", "תשואה חודש"])}
-            ${renderSettingsInput("returns.rowsPerTable", "מספר שורות בכל טבלה", settings.rowsPerTable, "number")}
-            ${renderSettingsInput("returns.cardsPerRow", "מספר טבלאות בשורה", settings.cardsPerRow, "number")}
-          </div>
-        </section>
-        <section class="settings-card">
-          <h3>צביעה והדגשות</h3>
-          <p>הגדרות משלימות למנגנון סימון המסלולים והצגת תשואות שליליות.</p>
-          <div class="settings-form-grid">
-            ${renderSettingsInput("returns.negativeReturnColor", "צבע לתשואה שלילית", settings.negativeReturnColor, "color")}
-            ${renderSettingsInput("returns.highlightStorageKey", "מפתח שמירת הדגשות", settings.highlightStorageKey)}
-          </div>
-          <div class="settings-pill-row">
-            <span class="settings-pill">Ctrl + Click לצביעת מסלול</span>
-            <span class="settings-pill">מיון עצמאי לכל טבלה</span>
-          </div>
-        </section>
-      </div>
-    `;
+  function renderAiSettingsComponent() {
+    const settings = state.settings.ai;
+    return renderSettingsCards("ai", [
+      { title: "AI Core", description: "הפעלת AI, בחירת מודל ורמת יצירתיות.", fields: [
+        renderSettingsToggle("ai.enabled", "AI Enable", settings.enabled),
+        renderSettingsSelect("ai.model", "Model Selection", settings.model, ["GPT-4.1", "GPT-4o", "GPT-5 mini", "Local Mock"]),
+        renderSettingsInput("ai.creativity", "Creativity Level", settings.creativity, "range"),
+        renderSettingsSelect("ai.writingStyle", "Writing Style", settings.writingStyle, ["פיננסי מקצועי", "תמציתי", "יוקרתי", "שפה פשוטה"])
+      ]},
+      { title: "Smart Generators", description: "מחוללי המלצות, WhatsApp ומיילים.", fields: [
+        renderSettingsToggle("ai.insights", "AI Insights", settings.insights),
+        renderSettingsToggle("ai.missingDataDetection", "Missing Data Detection", settings.missingDataDetection),
+        renderSettingsToggle("ai.smartRecommendations", "Smart Recommendations", settings.smartRecommendations),
+        renderSettingsToggle("ai.whatsappDrafts", "WhatsApp Draft Generator", settings.whatsappDrafts),
+        renderSettingsToggle("ai.emailGenerator", "Email Generator", settings.emailGenerator),
+        renderSettingsToggle("ai.usageStats", "AI Usage Stats", settings.usageStats),
+        renderSettingsToggle("ai.logs", "AI Logs", settings.logs)
+      ]}
+    ]);
   }
 
-  function renderDisplaySettingsComponent() {
-    const settings = state.settings.display;
-    const logoSrc = settings.logoData || "assets/abd-finance-logo.png";
-    return `
-      <div class="settings-section-grid">
-        <section class="settings-card">
-          <h3>מיתוג אישי</h3>
-          <p>שם המותג והלוגו מוחלים בפועל על המערכת ונשמרים בדפדפן.</p>
-          <div class="settings-form-grid">
-            ${renderSettingsInput("display.companyName", "שם מערכת / חברה", settings.companyName)}
-            ${renderSettingsInput("display.primaryColor", "צבע מוביל", settings.primaryColor, "color")}
-            ${renderSettingsInput("display.footerText", "טקסט תחתון / חתימה", settings.footerText)}
-            <div class="settings-control">
-              <label>לוגו אישי</label>
-              <input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" data-settings-logo-upload>
-            </div>
-          </div>
-          <div class="settings-brand-preview">
-            <img src="${escapeAttribute(logoSrc)}" alt="${escapeAttribute(settings.companyName || "ABD Finance")}">
-            <div>
-              <strong>${escapeHtml(settings.companyName || "ABD Finance")}</strong>
-              <p>${settings.logoName ? `לוגו נטען: ${escapeHtml(settings.logoName)}` : "יוצג לוגו ברירת המחדל עד להעלאת לוגו אישי."}</p>
-            </div>
-            ${settings.logoData ? `<button class="button button-secondary" type="button" data-settings-clear-logo>הסר לוגו אישי</button>` : ""}
-          </div>
-        </section>
-        <section class="settings-card">
-          <h3>תצוגת מערכת</h3>
-          <p>הגדרות שמשפיעות מיד על נראות המסכים והטבלאות.</p>
-          <div class="settings-form-grid">
-            ${renderSettingsSelect("display.density", "צפיפות מסכים", settings.density, ["נוחה", "קומפקטית", "מרווחת"])}
-            ${renderSettingsSelect("display.tableSize", "גודל טבלאות", settings.tableSize, ["קטנה", "בינונית", "גדולה"])}
-            ${renderSettingsSelect("display.animations", "אנימציות", settings.animations, ["ללא", "עדינות"])}
-            ${renderSettingsSelect("display.language", "שפה", settings.language, ["עברית"])}
-          </div>
-        </section>
-      </div>
-    `;
+  function renderBrandingSettingsComponent() {
+    const settings = state.settings.branding;
+    return renderSettingsCards("branding", [
+      { title: "מיתוג", description: "התאמת המערכת לשפה המותגית של החברה.", fields: [
+        renderSettingsInput("branding.companyName", "Company Name", settings.companyName),
+        renderSettingsInput("branding.themeColor", "Theme Colors", settings.themeColor, "color"),
+        renderSettingsSelect("branding.font", "Fonts", settings.font, ["Heebo", "Arial", "Assistant", "Rubik"]),
+        renderSettingsInput("branding.footer", "Footer", settings.footer)
+      ]},
+      { title: "Assets", description: "הכנה להעלאת קבצי מותג.", fields: [
+        renderSettingsToggle("branding.logoUpload", "Logo Upload", settings.logoUpload),
+        renderSettingsToggle("branding.favicon", "Favicon", settings.favicon),
+        renderSettingsToggle("branding.whiteLabel", "White Label", settings.whiteLabel)
+      ]}
+    ]);
+  }
+
+  function renderSecuritySettingsComponent() {
+    const settings = state.settings.security;
+    return renderSettingsCards("security", [
+      { title: "Security Dashboard", description: "בקרות אבטחה, תיעוד וגיבויים.", fields: [
+        renderSettingsToggle("security.twoFactor", "Two Factor Authentication", settings.twoFactor),
+        renderSettingsInput("security.sessionTimeout", "Session Timeout", settings.sessionTimeout, "number"),
+        renderSettingsToggle("security.auditLogs", "Audit Logs", settings.auditLogs),
+        renderSettingsToggle("security.encryption", "Encryption", settings.encryption),
+        renderSettingsToggle("security.backups", "Backup System", settings.backups),
+        renderSettingsToggle("security.securityDashboard", "Security Dashboard", settings.securityDashboard),
+        renderSettingsToggle("security.deviceHistory", "Device History", settings.deviceHistory)
+      ]}
+    ]);
+  }
+
+  function renderSystemSettingsComponent() {
+    const settings = state.settings.system;
+    return renderSettingsCards("system", [
+      { title: "מערכת ותצוגה", description: "התאמת חוויית העבודה, צפיפות וטבלאות.", fields: [
+        renderSettingsSelect("system.mode", "Dark / Light Mode", settings.mode, ["light", "dark"]),
+        renderSettingsSelect("system.density", "Density", settings.density, ["comfortable", "compact", "spacious"]),
+        renderSettingsSelect("system.tableSize", "Table Sizes", settings.tableSize, ["small", "medium", "large"]),
+        renderSettingsToggle("system.animations", "Animations", settings.animations),
+        renderSettingsSelect("system.language", "Language", settings.language, ["he", "en"]),
+        renderSettingsInput("system.systemColor", "System Colors", settings.systemColor, "color")
+      ]}
+    ]);
+  }
+
+  function renderGenericSettingsComponent(sectionId) {
+    const section = state.settings[sectionId] || {};
+    const tab = getSettingsTab(sectionId);
+    const controls = Object.entries(section).map(([key, value]) => {
+      const label = key.replace(/([A-Z])/g, " $1").replace(/^./, (char) => char.toUpperCase());
+      if (typeof value === "boolean") return renderSettingsToggle(`${sectionId}.${key}`, label, value);
+      if (typeof value === "number") return renderSettingsInput(`${sectionId}.${key}`, label, value, "number");
+      return renderSettingsInput(`${sectionId}.${key}`, label, value);
+    }).join("");
+    return renderSettingsCards(sectionId, [
+      { title: tab.title, description: `${tab.subtitle}. בנוי כ-component מודולרי עם state עצמאי, validation, audit ו-auto save.`, fields: controls },
+      { title: "Recently Edited", description: "השינויים האחרונים ב-settings store.", fields: renderRecentlyEditedSettings() }
+    ]);
   }
 
   function renderSettingsCards(sectionId, cards) {
@@ -11990,7 +11924,6 @@
     const path = input.dataset.settingsPath;
     setSettingsPath(path, normalizeSettingsInputValue(input));
     markSettingsEdited(path.split(".")[0], path);
-    if (path.startsWith("display.")) applyDisplaySettings();
     if (!["TEXTAREA", "INPUT"].includes(input.tagName) || input.type === "checkbox" || input.type === "range") {
       renderSettingsPage();
     }
@@ -11998,11 +11931,6 @@
 
   function handleSettingsChange(event) {
     if (handleSettingsColumnControls(event)) return;
-    const logoInput = event.target.closest("[data-settings-logo-upload]");
-    if (logoInput) {
-      handleSettingsLogoUpload(logoInput);
-      return;
-    }
     const templateInput = event.target.closest("[data-settings-fund-template-field]");
     if (templateInput) {
       updateSettingsFundTemplate(templateInput);
@@ -12013,7 +11941,6 @@
     if (!input) return;
     setSettingsPath(input.dataset.settingsPath, normalizeSettingsInputValue(input));
     markSettingsEdited(input.dataset.settingsPath.split(".")[0], input.dataset.settingsPath);
-    if (input.dataset.settingsPath.startsWith("display.")) applyDisplaySettings();
     renderSettingsPage();
   }
 
@@ -12037,15 +11964,6 @@
     }
     if (event.target.closest("[data-settings-save]")) {
       commitSettingsSave("ההגדרות נשמרו.");
-      return;
-    }
-    if (event.target.closest("[data-settings-clear-logo]")) {
-      state.settings.display.logoData = "";
-      state.settings.display.logoName = "";
-      markSettingsEdited("display", "logo.clear");
-      applyDisplaySettings();
-      renderSettingsPage();
-      showToast("הלוגו האישי הוסר.");
       return;
     }
     if (event.target.closest("[data-settings-undo]")) {
@@ -12094,26 +12012,6 @@
     template[field] = input.value;
     markSettingsEdited("meeting", `template.${type}.${field}`);
     renderFundsTab();
-  }
-
-  function handleSettingsLogoUpload(input) {
-    const file = input.files && input.files[0];
-    if (!file) return;
-    if (!/^image\//.test(file.type)) {
-      showToast("יש לבחור קובץ תמונה בלבד.", true);
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = () => {
-      state.settings.display.logoData = String(reader.result || "");
-      state.settings.display.logoName = file.name;
-      markSettingsEdited("display", "logo.upload");
-      applyDisplaySettings();
-      renderSettingsPage();
-      showToast("הלוגו האישי נשמר והוחל על המערכת.");
-    };
-    reader.onerror = () => showToast("לא ניתן לקרוא את קובץ הלוגו.", true);
-    reader.readAsDataURL(file);
   }
 
   function addSettingsFundTemplate(type) {
