@@ -6,7 +6,7 @@
 <title>ABD-finance</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Assistant:wght@300;400;600;700;800&family=Heebo:wght@300;400;500;700;800&family=Playfair+Display:wght@500;700;900&family=Rubik:wght@300;400;500;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700;900&family=Heebo:wght@300;400;500;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="assets/returns-data.js"></script>
 <style>
@@ -3715,7 +3715,7 @@
   }
 
   .abd-returns-table .neg {
-    color: var(--abd-negative-return, #d93050);
+    color: #d93050;
     font-weight: 800;
   }
 
@@ -4344,56 +4344,26 @@
 
   body.settings-density-compact .panel,
   body.settings-density-compact .settings-card,
-  body.settings-density-compact .summary-card,
-  body.settings-density-compact .sim-card,
-  body.settings-density-compact .details-panel,
-  body.settings-density-compact .managed-table th,
-  body.settings-density-compact .managed-table td {
+  body.settings-density-compact .summary-card {
     padding: 14px !important;
   }
 
   body.settings-density-spacious .panel,
   body.settings-density-spacious .settings-card,
-  body.settings-density-spacious .summary-card,
-  body.settings-density-spacious .sim-card,
-  body.settings-density-spacious .details-panel,
-  body.settings-density-spacious .managed-table th,
-  body.settings-density-spacious .managed-table td {
+  body.settings-density-spacious .summary-card {
     padding: 28px !important;
   }
 
   body.settings-table-small .managed-table,
   body.settings-table-small .funds-table,
-  body.settings-table-small .sim-table,
-  body.settings-table-small .summary-preview-table {
+  body.settings-table-small .sim-table {
     font-size: 12px !important;
   }
 
   body.settings-table-large .managed-table,
   body.settings-table-large .funds-table,
-  body.settings-table-large .sim-table,
-  body.settings-table-large .summary-preview-table {
+  body.settings-table-large .sim-table {
     font-size: 15px !important;
-  }
-
-  body.settings-font-assistant {
-    font-family: "Assistant", "Heebo", Arial, sans-serif !important;
-  }
-
-  body.settings-font-rubik {
-    font-family: "Rubik", "Heebo", Arial, sans-serif !important;
-  }
-
-  body.settings-font-arial {
-    font-family: Arial, "Heebo", sans-serif !important;
-  }
-
-  body.settings-density-compact .workspace-shell {
-    padding: 22px 28px 30px !important;
-  }
-
-  body.settings-density-spacious .workspace-shell {
-    padding: 42px 54px 54px !important;
   }
 
   body.settings-animations-off *,
@@ -4421,103 +4391,6 @@
     background: #fff;
     border: 1px solid rgba(111, 183, 244, 0.24);
     padding: 6px;
-  }
-
-  .settings-live-preview {
-    border: 1px solid rgba(111, 183, 244, 0.28);
-    border-radius: 20px;
-    background: #f8fbff;
-    padding: var(--preview-gap, 18px);
-    display: grid;
-    gap: var(--preview-gap, 18px);
-    font-family: var(--preview-font, "Heebo", sans-serif);
-    color: #123462;
-  }
-
-  .settings-live-preview-head {
-    display: flex;
-    justify-content: space-between;
-    gap: 12px;
-    align-items: center;
-    padding: calc(var(--preview-gap, 18px) * .8);
-    border-radius: 16px;
-    background: #fff;
-    border: 1px solid rgba(111, 183, 244, 0.22);
-  }
-
-  .settings-live-preview-logo {
-    width: 46px;
-    height: 46px;
-    border-radius: 13px;
-    object-fit: contain;
-    background: #fff;
-    border: 1px solid rgba(111, 183, 244, 0.22);
-    padding: 5px;
-  }
-
-  .settings-live-preview-title {
-    margin: 0;
-    color: var(--preview-color, #0878f7);
-    font-size: var(--preview-title, 22px);
-    font-weight: 950;
-  }
-
-  .settings-live-preview-sub {
-    margin: 3px 0 0;
-    color: #7898bd;
-    font-size: var(--preview-small, 12px);
-    font-weight: 800;
-  }
-
-  .settings-live-preview-grid {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: calc(var(--preview-gap, 18px) * .65);
-  }
-
-  .settings-live-preview-card {
-    border-radius: 16px;
-    background: linear-gradient(145deg, #fff, #f4f9ff);
-    border: 1px solid rgba(111, 183, 244, 0.22);
-    padding: calc(var(--preview-gap, 18px) * .75);
-  }
-
-  .settings-live-preview-card span {
-    color: #7898bd;
-    font-size: var(--preview-small, 12px);
-    font-weight: 900;
-  }
-
-  .settings-live-preview-card strong {
-    display: block;
-    margin-top: 7px;
-    color: #123c78;
-    font-size: var(--preview-value, 20px);
-  }
-
-  .settings-live-preview-table {
-    width: 100%;
-    border-collapse: collapse;
-    overflow: hidden;
-    border-radius: 14px;
-    background: #fff;
-    font-size: var(--preview-table, 13px);
-  }
-
-  .settings-live-preview-table th {
-    background: var(--preview-color, #0878f7);
-    color: #fff;
-    padding: calc(var(--preview-gap, 18px) * .45);
-    text-align: right;
-  }
-
-  .settings-live-preview-table td {
-    padding: calc(var(--preview-gap, 18px) * .42);
-    border-bottom: 1px solid rgba(111, 183, 244, 0.16);
-  }
-
-  .settings-live-preview-table tr:nth-child(even) td {
-    background: #f5f9ff;
   }
 
   @media (max-width: 1180px) {
@@ -7267,7 +7140,6 @@
       tableSize: "בינונית",
       animations: "עדינות",
       language: "עברית",
-      fontFamily: "Heebo",
       logoData: "",
       logoName: "",
       footerText: "ABD Finance"
@@ -7956,7 +7828,7 @@
     });
 
     loadSettingsState();
-    applyEffectiveSettings();
+    applyDisplaySettings();
     renderSettingsPage();
     window.addEventListener("beforeunload", saveWorkspaceSnapshot);
     if (!restoreWorkspaceSnapshot()) {
@@ -8434,7 +8306,7 @@
     }
     syncMeetingSummaryLiveData();
     renderSettingsModal();
-    applyEffectiveSettings();
+    applyDisplaySettings();
     renderHeader();
     renderTabs();
     renderSummary();
@@ -9696,21 +9568,21 @@
     const needsSections = buildMeetingSummaryNeedsSections();
     const pensionResult = buildTrackResult(state.calc.activeTrack);
     const screenshots = (state.meetingSummary.screenshots || []).filter((item) => item.imageData);
-    const visibleFacts = isMeetingSectionEnabled("facts") ? (state.meetingSummary.facts || []).filter((item) => hasMeaningfulText(item.label) || hasMeaningfulText(item.value)) : [];
-    const visibleRecommendations = isMeetingSectionEnabled("recommendations") ? (state.meetingSummary.recommendations || []).filter((item) => hasMeaningfulText(item.text)) : [];
-    const followUpEntries = isMeetingSectionEnabled("followUps") ? buildMeetingSummaryFollowUps() : [];
-    const infrastructurePreview = isMeetingSectionEnabled("infrastructure") ? renderInfrastructureSummaryPreview() : "";
-    const insurancePreview = isMeetingSectionEnabled("insurance") ? renderInsuranceSummaryPreview() : "";
+    const visibleFacts = (state.meetingSummary.facts || []).filter((item) => hasMeaningfulText(item.label) || hasMeaningfulText(item.value));
+    const visibleRecommendations = (state.meetingSummary.recommendations || []).filter((item) => hasMeaningfulText(item.text));
+    const followUpEntries = buildMeetingSummaryFollowUps();
+    const infrastructurePreview = renderInfrastructureSummaryPreview();
+    const insurancePreview = renderInsuranceSummaryPreview();
     const migrationPreview = renderMigrationSummaryTable();
-    const actionPreview = isMeetingSectionEnabled("recommendations") ? renderActionSummaryTables() : "";
+    const actionPreview = renderActionSummaryTables();
     const adviceType = state.meetingSummary.adviceType || "pension";
     const isRetirementAdvice = adviceType === "retirement";
-    const showFundsSummaryTable = isMeetingSectionEnabled("facts") && state.meetingSummary.showFundsSummaryTable !== false;
-    const showNeedsSection = isMeetingSectionEnabled("facts") && state.meetingSummary.showNeedsSection !== false;
-    const showFactsTable = isMeetingSectionEnabled("facts") && state.meetingSummary.showFactsTable !== false;
-    const showPensionSnapshotTable = isRetirementAdvice && isMeetingSectionEnabled("infrastructure") && state.meetingSummary.showPensionSnapshotTable !== false;
-    const showInfrastructureTable = isRetirementAdvice && isMeetingSectionEnabled("infrastructure") && state.meetingSummary.showInfrastructureTable !== false;
-    const showMigrationTable = isMeetingSectionEnabled("recommendations") && state.meetingSummary.showMigrationTable !== false;
+    const showFundsSummaryTable = state.meetingSummary.showFundsSummaryTable !== false;
+    const showNeedsSection = state.meetingSummary.showNeedsSection !== false;
+    const showFactsTable = state.meetingSummary.showFactsTable !== false;
+    const showPensionSnapshotTable = isRetirementAdvice && state.meetingSummary.showPensionSnapshotTable !== false;
+    const showInfrastructureTable = isRetirementAdvice && state.meetingSummary.showInfrastructureTable !== false;
+    const showMigrationTable = state.meetingSummary.showMigrationTable !== false;
     const firstRecommendation = visibleRecommendations[0] || null;
     const remainingRecommendations = firstRecommendation ? visibleRecommendations.slice(1) : [];
     return `
@@ -9954,7 +9826,7 @@
           </section>
         ` : ""}
 
-        ${isMeetingSectionEnabled("followUps") ? `<section>
+        <section>
           <div class="summary-paper-title">
             <h3>הערות / הנחיות להמשך</h3>
             <div class="summary-section-actions">
@@ -9973,7 +9845,7 @@
           ` : `
             <div class="muted">אין שורות כרגע. לחץ על + כדי להוסיף.</div>
           `}
-        </section>` : ""}
+        </section>
 
         ${showPensionSnapshotTable && (selectedFunds.length || pensionResult.capital > 0) ? `
           <section>
@@ -10021,22 +9893,6 @@
                 </figure>
               `).join("")}
             </div>
-          </section>
-        ` : ""}
-        ${hasMeaningfulText(state.settings?.meeting?.closingText) ? `
-          <section>
-            <p class="summary-inline-paragraph" style="white-space:pre-line;">${escapeHtml(state.settings.meeting.closingText)}</p>
-          </section>
-        ` : ""}
-        ${isMeetingSectionEnabled("disclosure") && hasMeaningfulText(state.settings?.meeting?.disclosure) ? `
-          <section>
-            <div class="summary-paper-title"><h3>גילוי נאות</h3></div>
-            <p class="summary-inline-paragraph" style="white-space:pre-line;">${escapeHtml(state.settings.meeting.disclosure)}</p>
-          </section>
-        ` : ""}
-        ${isMeetingSectionEnabled("signature") ? `
-          <section>
-            <p>בברכה,<br>${escapeHtml(getSettingsSignature())}</p>
           </section>
         ` : ""}
       </article>
@@ -11256,7 +11112,7 @@
       title = "הוספת מוצר ביטוח";
       body = `
         <h4>איזה מוצר ביטוח?</h4>
-        ${renderWorkflowCards(getEnabledInsuranceProductTypes(), "productType", data.productType)}
+        ${renderWorkflowCards(INSURANCE_PRODUCT_TYPES, "productType", data.productType)}
         <h4>באיזה יצרן?</h4>
         ${renderWorkflowList(["כלל", "איילון", "הראל", "מנורה", "הפניקס", "הכשרה", "מגדל"], "manufacturer", data.manufacturer)}
         <div class="workflow-form">
@@ -11504,15 +11360,8 @@
     try {
       await ensureXLSX();
       const workbook = XLSX.utils.book_new();
-      const trackingRows = buildTrackingSettingsExportRows();
-      const trackingSheet = buildTrackingSettingsWorksheetRows(trackingRows);
-      const dealWorksheet = XLSX.utils.aoa_to_sheet(trackingSheet.aoa);
-      dealWorksheet["!cols"] = trackingSheet.columns.map((column) => ({ wch: state.settings.trackingExcel.autoFit ? Math.max(Number(column.width) || 16, String(column.label || "").length + 2) : Number(column.width) || 16 }));
-      dealWorksheet["!freeze"] = state.settings.trackingExcel.freezeHeader ? { xSplit: 0, ySplit: 1 } : undefined;
-      dealWorksheet["!dir"] = state.settings.trackingExcel.rtl ? "rtl" : "ltr";
-      XLSX.utils.book_append_sheet(workbook, dealWorksheet, "תיעוד");
+      XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([TRACKING_DEALS_HEADERS, ...dealRows]), "עסקאות");
       XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([TRACKING_RISKS_HEADERS, ...riskRows]), "סיכונים");
-      workbook.Workbook = { Views: [{ RTL: Boolean(state.settings.trackingExcel.rtl) }] };
       const clientName = sanitizeFileName(state.client?.fullName || "לקוח");
       XLSX.writeFile(workbook, `מעקב_${clientName}_${formatDateForInput(new Date())}.xlsx`);
       showToast("קובץ המעקב נוצר בהצלחה.");
@@ -11587,10 +11436,6 @@
     document.body.classList.toggle("settings-table-small", settings.tableSize === "קטנה");
     document.body.classList.toggle("settings-table-large", settings.tableSize === "גדולה");
     document.body.classList.toggle("settings-animations-off", settings.animations === "ללא");
-    document.body.classList.toggle("settings-font-assistant", settings.fontFamily === "Assistant");
-    document.body.classList.toggle("settings-font-rubik", settings.fontFamily === "Rubik");
-    document.body.classList.toggle("settings-font-arial", settings.fontFamily === "Arial");
-    document.body.style.fontFamily = getDisplayFontStack(settings.fontFamily);
 
     const brandName = settings.companyName || "ABD Finance";
     document.title = brandName;
@@ -11600,81 +11445,6 @@
     });
     if (state.meetingSummary && (!state.meetingSummary.brandName || state.meetingSummary.brandName === "ABD-finance" || state.meetingSummary.brandName === "ABD Finance")) {
       state.meetingSummary.brandName = brandName;
-    }
-  }
-
-  function getSettingsMeetingSections() {
-    return state.settings?.meeting?.sections || {};
-  }
-
-  function isMeetingSectionEnabled(sectionId) {
-    const sections = getSettingsMeetingSections();
-    return sections[sectionId] !== false;
-  }
-
-  function getSettingsSignature() {
-    return state.settings?.meeting?.signature || state.settings?.display?.footerText || state.settings?.display?.companyName || "ABD Finance";
-  }
-
-  function getSettingsHighlightStorageKey() {
-    const key = String(state.settings?.returns?.highlightStorageKey || "gamel_hl").trim();
-    return key || "gamel_hl";
-  }
-
-  function getSettingsReturnSortKey() {
-    const label = state.settings?.returns?.defaultSort || "";
-    if (String(label).includes("3")) return "annual3";
-    if (String(label).includes("שנה") && !String(label).includes("שנים")) return "periodAccumulated";
-    if (String(label).includes("חודש")) return "periodAvg";
-    return "annual5";
-  }
-
-  function getSettingsRowsPerReturnTable() {
-    return clamp(Number(state.settings?.returns?.rowsPerTable) || 10, 3, 30);
-  }
-
-  function getSettingsReturnCardsPerRow() {
-    return clamp(Number(state.settings?.returns?.cardsPerRow) || 3, 1, 4);
-  }
-
-  function applyReturnsSettings() {
-    const returnsSettings = state.settings?.returns || {};
-    document.body.style.setProperty("--abd-negative-return", returnsSettings.negativeReturnColor || "#d93025");
-    if (state.simulations?.abdReturns && state.simulations.abdReturns.productType === "all" && returnsSettings.defaultProductType && returnsSettings.defaultProductType !== "כל סוגי המוצרים") {
-      state.simulations.abdReturns.productType = normalizeProductType(returnsSettings.defaultProductType);
-    }
-    const defaultSortKey = getSettingsReturnSortKey();
-    Object.keys(abdReturnsSortState || {}).forEach((cardId) => {
-      if (!abdReturnsSortState[cardId]?.userChanged) {
-        abdReturnsSortState[cardId] = { col: defaultSortKey, dir: "desc" };
-      }
-    });
-  }
-
-  function applyImportExportSettings() {
-    const supported = String(state.settings?.importExport?.supportedFiles || "xlsx, xls, xlsm, zip")
-      .split(/[,\s]+/)
-      .map((item) => item.trim().replace(/^\./, ""))
-      .filter(Boolean)
-      .map((item) => `.${item}`)
-      .join(",");
-    if (dom.fileInput && supported) {
-      dom.fileInput.accept = supported;
-    }
-  }
-
-  function applyEffectiveSettings() {
-    applyDisplaySettings();
-    applyReturnsSettings();
-    applyImportExportSettings();
-  }
-
-  function getDisplayFontStack(fontName) {
-    switch (fontName) {
-      case "Assistant": return '"Assistant", "Heebo", Arial, sans-serif';
-      case "Rubik": return '"Rubik", "Heebo", Arial, sans-serif';
-      case "Arial": return 'Arial, "Heebo", sans-serif';
-      default: return '"Heebo", Arial, sans-serif';
     }
   }
 
@@ -12061,11 +11831,6 @@
     const logoSrc = settings.logoData || "assets/abd-finance-logo.png";
     return `
       <div class="settings-section-grid">
-        <section class="settings-card" style="grid-column:1 / -1;">
-          <h3>תצוגה מקדימה</h3>
-          <p>כאן אפשר לראות מיד איך הצבע, הפונט, המרווחים וגודל הטבלאות ישפיעו על מסכי המערכת.</p>
-          ${renderDisplaySettingsPreview()}
-        </section>
         <section class="settings-card">
           <h3>מיתוג אישי</h3>
           <p>שם המותג והלוגו מוחלים בפועל על המערכת ונשמרים בדפדפן.</p>
@@ -12094,59 +11859,9 @@
             ${renderSettingsSelect("display.density", "צפיפות מסכים", settings.density, ["נוחה", "קומפקטית", "מרווחת"])}
             ${renderSettingsSelect("display.tableSize", "גודל טבלאות", settings.tableSize, ["קטנה", "בינונית", "גדולה"])}
             ${renderSettingsSelect("display.animations", "אנימציות", settings.animations, ["ללא", "עדינות"])}
-            ${renderSettingsSelect("display.fontFamily", "פונט", settings.fontFamily, ["Heebo", "Assistant", "Rubik", "Arial"])}
             ${renderSettingsSelect("display.language", "שפה", settings.language, ["עברית"])}
           </div>
         </section>
-      </div>
-    `;
-  }
-
-  function renderDisplaySettingsPreview() {
-    const settings = state.settings.display || {};
-    const color = settings.primaryColor || "#0878f7";
-    const densityMap = {
-      "קומפקטית": { gap: 12, title: 19, value: 17, table: 11, small: 10 },
-      "מרווחת": { gap: 24, title: 25, value: 24, table: 15, small: 13 },
-      "נוחה": { gap: 18, title: 22, value: 20, table: 13, small: 12 }
-    };
-    const tableSize = settings.tableSize === "קטנה" ? -1 : settings.tableSize === "גדולה" ? 2 : 0;
-    const view = densityMap[settings.density] || densityMap["נוחה"];
-    const style = [
-      `--preview-color:${color}`,
-      `--preview-gap:${view.gap}px`,
-      `--preview-title:${view.title}px`,
-      `--preview-value:${view.value}px`,
-      `--preview-table:${view.table + tableSize}px`,
-      `--preview-small:${view.small}px`,
-      `--preview-font:${getDisplayFontStack(settings.fontFamily)}`
-    ].join(";");
-    const logoSrc = settings.logoData || "assets/abd-finance-logo.png";
-    return `
-      <div class="settings-live-preview" style="${escapeAttribute(style)}">
-        <div class="settings-live-preview-head">
-          <div style="display:flex;align-items:center;gap:12px;">
-            <img class="settings-live-preview-logo" src="${escapeAttribute(logoSrc)}" alt="${escapeAttribute(settings.companyName || "ABD Finance")}">
-            <div>
-              <h4 class="settings-live-preview-title">${escapeHtml(settings.companyName || "ABD Finance")}</h4>
-              <p class="settings-live-preview-sub">דשבורד פיננסי · ${escapeHtml(settings.density || "נוחה")} · ${escapeHtml(settings.tableSize || "בינונית")}</p>
-            </div>
-          </div>
-          <button class="button button-primary" type="button" style="background:${escapeAttribute(color)} !important;">פעולה ראשית</button>
-        </div>
-        <div class="settings-live-preview-grid">
-          <div class="settings-live-preview-card"><span>צבירה כוללת</span><strong>₪1.42M</strong></div>
-          <div class="settings-live-preview-card"><span>קופות פעילות</span><strong>8</strong></div>
-          <div class="settings-live-preview-card"><span>תשואה 12 חודשים</span><strong style="color:${escapeAttribute(color)};">12.4%</strong></div>
-        </div>
-        <table class="settings-live-preview-table">
-          <thead><tr><th>יצרן</th><th>מסלול</th><th>תשואה</th><th>דמי ניהול</th></tr></thead>
-          <tbody>
-            <tr><td>כלל</td><td>השתלמות כללי</td><td>12.40%</td><td>0.55%</td></tr>
-            <tr><td>הראל</td><td>S&P500</td><td>18.20%</td><td>0.42%</td></tr>
-            <tr><td>מיטב</td><td>כללי</td><td style="color:#d93025;">-1.15%</td><td>0.60%</td></tr>
-          </tbody>
-        </table>
       </div>
     `;
   }
@@ -12237,38 +11952,6 @@
     ];
   }
 
-  function buildTrackingSettingsExportRows() {
-    const sourceRows = buildTrackingDealsRows();
-    const toObject = (row) => ({
-      sourceManufacturer: row[8] || row[6] || "",
-      sourceFundNumber: row[9] || "",
-      activeDeposits: row[10] || "",
-      targetManufacturer: row[11] || "",
-      targetTrack: row[12] || "",
-      targetManagementCompany: row[13] || "",
-      managementFees: row[14] || "",
-      memberNumber: row[15] || "",
-      estimatedAmount: row[16] || "",
-      transferredAmount: row[17] || "",
-      monthlyDeposit: row[18] || "",
-      executionDate: row[0] || row[19] || "",
-      referringAgent: state.settings?.trackingExcel?.profileName || state.settings?.display?.companyName || "",
-      notes: row[20] || ""
-    });
-    return sourceRows.map(toObject);
-  }
-
-  function buildTrackingSettingsWorksheetRows(rows) {
-    const columns = getTrackingExcelColumns().filter((column) => column.enabled);
-    return {
-      columns,
-      aoa: [
-        columns.map((column) => column.label),
-        ...rows.map((row) => columns.map((column) => row[column.id] || ""))
-      ]
-    };
-  }
-
   function getSettingsPath(path) {
     return String(path || "").split(".").reduce((obj, key) => obj ? obj[key] : undefined, state.settings);
   }
@@ -12307,7 +11990,7 @@
     const path = input.dataset.settingsPath;
     setSettingsPath(path, normalizeSettingsInputValue(input));
     markSettingsEdited(path.split(".")[0], path);
-    if (path.startsWith("display.") || path.startsWith("returns.") || path.startsWith("importExport.")) applyEffectiveSettings();
+    if (path.startsWith("display.")) applyDisplaySettings();
     if (!["TEXTAREA", "INPUT"].includes(input.tagName) || input.type === "checkbox" || input.type === "range") {
       renderSettingsPage();
     }
@@ -12330,7 +12013,7 @@
     if (!input) return;
     setSettingsPath(input.dataset.settingsPath, normalizeSettingsInputValue(input));
     markSettingsEdited(input.dataset.settingsPath.split(".")[0], input.dataset.settingsPath);
-    if (input.dataset.settingsPath.startsWith("display.") || input.dataset.settingsPath.startsWith("returns.") || input.dataset.settingsPath.startsWith("importExport.")) applyEffectiveSettings();
+    if (input.dataset.settingsPath.startsWith("display.")) applyDisplaySettings();
     renderSettingsPage();
   }
 
@@ -12360,7 +12043,7 @@
       state.settings.display.logoData = "";
       state.settings.display.logoName = "";
       markSettingsEdited("display", "logo.clear");
-      applyEffectiveSettings();
+      applyDisplaySettings();
       renderSettingsPage();
       showToast("הלוגו האישי הוסר.");
       return;
@@ -12425,7 +12108,7 @@
       state.settings.display.logoData = String(reader.result || "");
       state.settings.display.logoName = file.name;
       markSettingsEdited("display", "logo.upload");
-      applyEffectiveSettings();
+      applyDisplaySettings();
       renderSettingsPage();
       showToast("הלוגו האישי נשמר והוחל על המערכת.");
     };
@@ -14709,7 +14392,7 @@
 
   function loadAbdReturnsHighlights() {
     try {
-      const stored = localStorage.getItem(getSettingsHighlightStorageKey());
+      const stored = localStorage.getItem("gamel_hl");
       abdReturnsHighlights = stored ? JSON.parse(stored) || {} : {};
     } catch (error) {
       abdReturnsHighlights = {};
@@ -14719,7 +14402,7 @@
 
   function saveAbdReturnsHighlights() {
     try {
-      localStorage.setItem(getSettingsHighlightStorageKey(), JSON.stringify(abdReturnsHighlights || {}));
+      localStorage.setItem("gamel_hl", JSON.stringify(abdReturnsHighlights || {}));
     } catch (error) {
       // localStorage can be unavailable in private contexts.
     }
@@ -14735,7 +14418,7 @@
 
   function ensureAbdCardSortState(cardId) {
     if (!abdReturnsSortState[cardId]) {
-      abdReturnsSortState[cardId] = { col: getSettingsReturnSortKey(), dir: "desc" };
+      abdReturnsSortState[cardId] = { col: "annual5", dir: "desc" };
     }
     return abdReturnsSortState[cardId];
   }
@@ -15269,7 +14952,6 @@
 
   function renderSimulationsAbdReturnsView() {
     loadAbdReturnsHighlights();
-    applyReturnsSettings();
     const rows = getAbdReturnsRows();
     const filters = state.simulations.abdReturns;
     const productTypes = ["all", ...uniqueValues(rows.map((row) => normalizeProductType(row.productType)).filter(Boolean))];
@@ -15297,7 +14979,7 @@
           ${productTypes.map((value) => `<button class="sim-chip ${filters.productType === value ? "active" : ""}" type="button" data-abd-product-filter="${escapeAttribute(value)}">${value === "all" ? "כל סוגי המוצר" : escapeHtml(value)}</button>`).join("")}
         </div>
       </div>
-      <div class="abd-returns-grid" style="grid-template-columns:repeat(${getSettingsReturnCardsPerRow()}, minmax(0, 1fr));">
+      <div class="abd-returns-grid">
         ${groupedRows.map(([groupName, groupRows]) => {
           const cardId = getAbdCardKey(filters.productType === "all" ? "all" : filters.productType, groupName);
           abdReturnsCardData[cardId] = groupRows;
@@ -15320,7 +15002,7 @@
                   </tr>
                 </thead>
                 <tbody>
-                  ${sortedRows.slice(0, getSettingsRowsPerReturnTable()).map((row, index) => {
+                  ${sortedRows.slice(0, 10).map((row, index) => {
                     const fundName = getAbdFundName(row);
                     return `<tr style="${getAbdHighlightStyle(fundName)}" data-abd-row-fund="${escapeAttribute(fundName)}">
                     <td><button class="abd-color-square" style="background:${escapeAttribute(abdReturnsHighlights?.[fundName] || "#ffffff")};" type="button" title="Ctrl+לחיצה לבחירת צבע" data-abd-color-track="${escapeAttribute(fundName)}"></button></td>
@@ -15500,7 +15182,6 @@
         sortState.col = sortKey;
         sortState.dir = "desc";
       }
-      sortState.userChanged = true;
       renderSimulationsTab();
       return;
     }
@@ -16509,13 +16190,6 @@
   }
 
   function mergeInsurancePolicies(currentPolicies, nextPolicies) {
-    const duplicateMode = state.settings?.importExport?.duplicateHandling || "";
-    if (String(duplicateMode).includes("שמירת")) {
-      return [...(currentPolicies || []), ...(nextPolicies || [])];
-    }
-    if (String(duplicateMode).includes("החלפת")) {
-      return (nextPolicies || []).slice();
-    }
     const map = new Map();
     [...(currentPolicies || []), ...(nextPolicies || [])].forEach((policy) => {
       const key = [
@@ -16561,13 +16235,6 @@
   }
 
   function mergeFunds(currentFunds, nextFunds) {
-    const duplicateMode = state.settings?.importExport?.duplicateHandling || "";
-    if (String(duplicateMode).includes("שמירת")) {
-      return [...(currentFunds || []), ...(nextFunds || [])];
-    }
-    if (String(duplicateMode).includes("החלפת")) {
-      return (nextFunds || []).slice();
-    }
     const map = new Map();
     (currentFunds || []).forEach((fund) => {
       map.set(getFundMergeKey(fund), {
@@ -17136,8 +16803,6 @@
   }
 
   function getMeetingSummaryDefaultIntro() {
-    const configuredIntro = state.settings?.meeting?.openingText;
-    if (hasMeaningfulText(configuredIntro)) return configuredIntro;
     return (state.meetingSummary.adviceType || "pension") === "retirement"
       ? "מסמך זה מרכז את עיקרי הנתונים, הניתוח המקצועי והמלצות הפעולה כפי שסוכמו בפגישתנו, לטובת ניהול מיטבי של עתידך הפנסיוני."
       : "מסמך זה מרכז את עיקרי הנתונים, הניתוח המקצועי והמלצות הפעולה כפי שסוכמו בפגישתנו, לטובת קבלת החלטות מושכלת וניהול מיטבי של החיסכון הפנסיוני.";
@@ -17149,16 +16814,16 @@
     return {
       documentDate: formatDateForInput(new Date()),
       adviceType: "pension",
-      brandName: state.settings?.display?.companyName || "ABD-finance",
+      brandName: "ABD-finance",
       documentTitle: "הנדון: תכנון פנסיוני - מסמך מרכז",
       clientLine: `עבור ${clientName}${idNumber}`,
-      introText: getMeetingSummaryDefaultIntro(),
-      showFundsSummaryTable: isMeetingSectionEnabled("facts"),
-      showNeedsSection: isMeetingSectionEnabled("facts"),
-      showFactsTable: isMeetingSectionEnabled("facts"),
-      showPensionSnapshotTable: isMeetingSectionEnabled("infrastructure"),
-      showInfrastructureTable: isMeetingSectionEnabled("infrastructure"),
-      showMigrationTable: isMeetingSectionEnabled("recommendations"),
+      introText: "מסמך זה מרכז את עיקרי הנתונים, הניתוח המקצועי והמלצות הפעולה כפי שסוכמו בפגישתנו, לטובת ניהול מיטבי של עתידך הפנסיוני.",
+      showFundsSummaryTable: true,
+      showNeedsSection: true,
+      showFactsTable: true,
+      showPensionSnapshotTable: true,
+      showInfrastructureTable: true,
+      showMigrationTable: true,
       facts: buildMeetingSummaryFacts(),
       recommendations: buildMeetingSummaryRecommendations(),
       manualFollowUps: [],
@@ -17617,7 +17282,7 @@
   }
 
   function getSelectedInsurancePolicies() {
-    return state.insurancePolicies.filter((policy) => state.selectedInsurancePolicyIds.has(policy.id) && isPolicyAllowedBySettings(policy));
+    return state.insurancePolicies.filter((policy) => state.selectedInsurancePolicyIds.has(policy.id));
   }
 
   function renderInsuranceSummaryPreview() {
@@ -18034,11 +17699,6 @@
   function isPolicyAllowedBySettings(policy) {
     const enabled = state.settings?.policyTypes?.enabled || {};
     return enabled[getInsurancePolicySettingsType(policy)] !== false;
-  }
-
-  function getEnabledInsuranceProductTypes() {
-    const enabled = state.settings?.policyTypes?.enabled || {};
-    return INSURANCE_PRODUCT_TYPES.filter((type) => enabled[getInsurancePolicySettingsType({ productType: type, mainBranch: type, secondaryBranch: type })] !== false);
   }
 
   function mapClearinghouseStatus(code) {
