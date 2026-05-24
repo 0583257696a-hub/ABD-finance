@@ -1234,6 +1234,44 @@
     line-height: 1.2;
   }
 
+  .copy-number-button {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    font-weight: inherit;
+    padding: 0;
+    margin: 0;
+    cursor: copy;
+    text-align: inherit;
+  }
+
+  .copy-number-button:hover,
+  .copy-number-button:focus-visible {
+    text-decoration: underline;
+    outline: none;
+  }
+
+  .money-input-wrap {
+    position: relative;
+    display: block;
+  }
+
+  .money-input-wrap .input {
+    padding-inline-start: 32px;
+  }
+
+  .money-input-symbol {
+    position: absolute;
+    inset-inline-start: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-soft);
+    font-weight: 800;
+    pointer-events: none;
+  }
+
   .details-panel.is-open {
     display: block;
   }
@@ -7270,7 +7308,10 @@
       fontFamily: "Heebo",
       logoData: "",
       logoName: "",
-      footerText: "ABD Finance"
+      footerText: "ABD Finance",
+      emailSignatureText: "בברכה,\nABD Finance",
+      emailSignatureLogoData: "",
+      emailSignatureLogoName: ""
     }
   };
 
@@ -8999,7 +9040,7 @@
       <div class="panel-head">
         <div>
           <h2>${escapeHtml(fund.manufacturer || "ללא יצרן")}</h2>
-          <p>${escapeHtml(fund.productType || "ללא סוג מוצר")} | ${escapeHtml(fund.accountNumber || "ללא מספר חשבון")}</p>
+          <p>${escapeHtml(fund.productType || "ללא סוג מוצר")} | ${renderCopyNumberButton(fund.accountNumber || fund.policyNumber, "מספר קופה / פוליסה")}</p>
         </div>
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
           <button class="modal-close" type="button" data-close-fund-modal="true" aria-label="סגירה">×</button>
@@ -9017,7 +9058,7 @@
           </div>
           <div class="fund-compact-cell">
             <span class="fund-compact-label">מספר קופה</span>
-            <div class="fund-compact-value">${escapeHtml(fund.accountNumber || fund.policyNumber || "—")}</div>
+            <div class="fund-compact-value">${renderCopyNumberButton(fund.accountNumber || fund.policyNumber, "מספר קופה / פוליסה")}</div>
           </div>
           <div class="fund-compact-cell">
             <span class="fund-compact-label">מועד הצטרפות</span>
@@ -9045,7 +9086,7 @@
         <div class="fund-compact-row">
           <div class="fund-compact-cell">
             <label>סה"כ צבירה</label>
-            <input class="input" data-fund-field="currentBalance" type="number" min="0" step="1000" value="${numberInputValue(fund.currentBalance)}">
+            <span class="money-input-wrap"><span class="money-input-symbol">₪</span><input class="input" data-fund-field="currentBalance" type="number" min="0" step="1000" value="${numberInputValue(fund.currentBalance)}"></span>
             <div class="fund-compact-note">${fmtCurrency(compactTotalBalance)}</div>
           </div>
           <div class="fund-compact-cell">
@@ -10694,6 +10735,7 @@
     const typeLabel = adviceType === "retirement" ? "תכנון פרישה" : "תכנון פנסיוני";
     const greetingName = clientName || "לקוח";
     const subject = `סיכום פגישה - ${typeLabel}${clientName ? ` ${clientName}` : ""}${clientIdNumber ? ` ת.ז ${clientIdNumber}` : ""}`;
+    const emailSignatureText = state.settings?.display?.emailSignatureText || getSettingsSignature();
     const bodyLines = [
       `שלום ${greetingName},`,
       "",
@@ -10712,8 +10754,7 @@
       "",
       "עם קבלת האישור, אפעל מול הגופים הרלוונטיים למימוש התוכנית.",
       "",
-      "בברכה,",
-      (state.meetingSummary.brandName || "ABD-finance")
+      ...String(emailSignatureText || "").split(/\r?\n/)
     ];
     const rtlMark = "\u200F";
     const mailtoBody = bodyLines.map((line) => `${rtlMark}${line}`).join("\r\n");
@@ -10724,7 +10765,7 @@
         <p>${escapeHtml(adviceType === "retirement" ? "מצורף מסמך המרכז את המלצותיי המקצועיות כפי שסיכמנו, במטרה להבטיח ניצול אופטימלי של זכויותיך והיערכות כלכלית נכונה." : "מצורף מסמך המרכז את המלצותיי המקצועיות כפי שסיכמנו, במטרה לאפשר קבלת החלטות מושכלת והיערכות כלכלית נכונה.")}</p>
         <p>אנא השב למייל זה עם האישור הבא:<br><strong>${escapeHtml(adviceType === "retirement" ? "מאשר את המתווה המצורף ואת ביצוע התהליכים בתיק הפרישה." : "מאשר את המתווה המצורף ואת ביצוע התהליכים בתיק הפנסיוני.")}</strong></p>
         <p>עם קבלת האישור, אפעל מול הגופים הרלוונטיים למימוש התוכנית.</p>
-        <p>בברכה,<br>${escapeHtml(state.meetingSummary.brandName || "ABD-finance")}</p>
+        ${renderEmailSignatureHtml()}
       </div>
     `;
     const previewHtml = renderMeetingSummaryPreview();
@@ -10834,6 +10875,16 @@
   }
 
   function handleFundsClick(event) {
+    const copyNumberButton = event.target.closest("[data-copy-number]");
+    if (copyNumberButton) {
+      event.preventDefault();
+      event.stopPropagation();
+      copyTextToClipboard(copyNumberButton.dataset.copyNumber).then((copied) => {
+        showToast(copied ? "המספר הועתק." : "לא ניתן להעתיק את המספר בדפדפן הזה.", !copied);
+      });
+      return;
+    }
+
     const workflowButton = event.target.closest("[data-open-workflow]");
     if (workflowButton) {
       openWorkflowModal(workflowButton.dataset.openWorkflow);
@@ -11618,6 +11669,48 @@
     return state.settings?.meeting?.signature || state.settings?.display?.footerText || state.settings?.display?.companyName || "ABD Finance";
   }
 
+  function renderCopyNumberButton(value, label = "מספר") {
+    const text = String(value || "").trim();
+    if (!text) return "—";
+    return `<button class="copy-number-button" type="button" data-copy-number="${escapeAttribute(text)}" title="לחץ להעתקת ${escapeAttribute(label)}">${escapeHtml(text)}</button>`;
+  }
+
+  async function copyTextToClipboard(text) {
+    const value = String(text || "").trim();
+    if (!value) return false;
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(value);
+        return true;
+      }
+    } catch (error) {
+      // Fallback below handles local file contexts.
+    }
+    const textarea = document.createElement("textarea");
+    textarea.value = value;
+    textarea.setAttribute("readonly", "");
+    textarea.style.position = "fixed";
+    textarea.style.opacity = "0";
+    textarea.style.pointerEvents = "none";
+    document.body.appendChild(textarea);
+    textarea.select();
+    const copied = document.execCommand("copy");
+    textarea.remove();
+    return copied;
+  }
+
+  function renderEmailSignatureHtml() {
+    const settings = state.settings?.display || {};
+    const signatureText = settings.emailSignatureText || getSettingsSignature();
+    const logo = settings.emailSignatureLogoData || "";
+    return `
+      <div style="margin-top:22px;padding-top:14px;border-top:1px solid #d8e6f7;color:#1f3554;font-family:Arial,'Heebo',sans-serif;">
+        ${logo ? `<img src="${escapeAttribute(logo)}" alt="${escapeAttribute(settings.companyName || "ABD Finance")}" style="display:block;max-width:170px;max-height:82px;object-fit:contain;margin:0 0 10px auto;">` : ""}
+        <div style="white-space:pre-line;font-weight:700;">${escapeHtml(signatureText)}</div>
+      </div>
+    `;
+  }
+
   function getSettingsHighlightStorageKey() {
     const key = String(state.settings?.returns?.highlightStorageKey || "gamel_hl").trim();
     return key || "gamel_hl";
@@ -12090,6 +12183,26 @@
           </div>
         </section>
         <section class="settings-card">
+          <h3>חתימת מייל</h3>
+          <p>חתימה זו תצורף לגוף המייל בעת שליחת סיכום פגישה ללקוח.</p>
+          <div class="settings-form-grid">
+            ${renderSettingsTextarea("display.emailSignatureText", "טקסט חתימה", settings.emailSignatureText || "")}
+            <div class="settings-control">
+              <label>לוגו לחתימת מייל</label>
+              <input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" data-settings-email-signature-logo-upload>
+            </div>
+          </div>
+          <div class="settings-brand-preview">
+            ${settings.emailSignatureLogoData ? `<img src="${escapeAttribute(settings.emailSignatureLogoData)}" alt="חתימת מייל">` : `<img src="${escapeAttribute(logoSrc)}" alt="${escapeAttribute(settings.companyName || "ABD Finance")}">`}
+            <div>
+              <strong>תצוגת חתימה במייל</strong>
+              <p style="white-space:pre-line;">${escapeHtml(settings.emailSignatureText || getSettingsSignature())}</p>
+              <p>${settings.emailSignatureLogoName ? `לוגו חתימה נטען: ${escapeHtml(settings.emailSignatureLogoName)}` : "אפשר להעלות תמונת לוגו נפרדת לחתימת המייל."}</p>
+            </div>
+            ${settings.emailSignatureLogoData ? `<button class="button button-secondary" type="button" data-settings-clear-email-signature-logo>הסר לוגו חתימה</button>` : ""}
+          </div>
+        </section>
+        <section class="settings-card">
           <h3>תצוגת מערכת</h3>
           <p>הגדרות שמשפיעות מיד על נראות המסכים והטבלאות.</p>
           <div class="settings-form-grid">
@@ -12322,6 +12435,11 @@
       handleSettingsLogoUpload(logoInput);
       return;
     }
+    const emailSignatureLogoInput = event.target.closest("[data-settings-email-signature-logo-upload]");
+    if (emailSignatureLogoInput) {
+      handleSettingsEmailSignatureLogoUpload(emailSignatureLogoInput);
+      return;
+    }
     const templateInput = event.target.closest("[data-settings-fund-template-field]");
     if (templateInput) {
       updateSettingsFundTemplate(templateInput);
@@ -12365,6 +12483,14 @@
       applyEffectiveSettings();
       renderSettingsPage();
       showToast("הלוגו האישי הוסר.");
+      return;
+    }
+    if (event.target.closest("[data-settings-clear-email-signature-logo]")) {
+      state.settings.display.emailSignatureLogoData = "";
+      state.settings.display.emailSignatureLogoName = "";
+      markSettingsEdited("display", "emailSignatureLogo.clear");
+      renderSettingsPage();
+      showToast("לוגו חתימת המייל הוסר.");
       return;
     }
     if (event.target.closest("[data-settings-undo]")) {
@@ -12432,6 +12558,25 @@
       showToast("הלוגו האישי נשמר והוחל על המערכת.");
     };
     reader.onerror = () => showToast("לא ניתן לקרוא את קובץ הלוגו.", true);
+    reader.readAsDataURL(file);
+  }
+
+  function handleSettingsEmailSignatureLogoUpload(input) {
+    const file = input.files && input.files[0];
+    if (!file) return;
+    if (!/^image\//.test(file.type)) {
+      showToast("יש לבחור קובץ תמונה בלבד.", true);
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      state.settings.display.emailSignatureLogoData = String(reader.result || "");
+      state.settings.display.emailSignatureLogoName = file.name;
+      markSettingsEdited("display", "emailSignatureLogo.upload");
+      renderSettingsPage();
+      showToast("לוגו חתימת המייל נשמר.");
+    };
+    reader.onerror = () => showToast("לא ניתן לקרוא את קובץ לוגו החתימה.", true);
     reader.readAsDataURL(file);
   }
 
