@@ -6724,6 +6724,7 @@
         productType: "all",
         manufacturer: "all",
         specialization: "all",
+        returnMode: "average",
         selectedTrackId: "",
         sortKey: "annual5",
         sortDir: "desc",
@@ -7483,6 +7484,7 @@
         productType: "all",
         manufacturer: "all",
         specialization: "all",
+        returnMode: "average",
         selectedTrackId: "",
         sortKey: "annual5",
         sortDir: "desc",
@@ -12891,16 +12893,27 @@
   }
 
   function getAbdSortValue(row, key) {
-    const map = {
-      periodAvg: row?.returns?.periodAvg,
-      periodAccumulated: row?.returns?.periodAccumulated,
-      annual3: row?.returns?.annual3,
-      annual5: row?.returns?.annual5,
-      sharpe: row?.risk?.sharpe,
-      assets: row?.assets
-    };
-    const value = Number(map[key]);
+    const value = Number(getAbdReturnMetric(row, key));
     return Number.isFinite(value) ? value : -999999;
+  }
+
+  function getAbdReturnMode() {
+    return state.simulations?.abdReturns?.returnMode === "cumulative" ? "cumulative" : "average";
+  }
+
+  function getAbdReturnMetric(row, key) {
+    const mode = getAbdReturnMode();
+    if (key === "periodAvg") return row?.returns?.periodAvg;
+    if (key === "periodAccumulated") return row?.returns?.periodAccumulated;
+    if (key === "annual3") return mode === "cumulative" ? row?.returns?.months36Accumulated : row?.returns?.annual3;
+    if (key === "annual5") return mode === "cumulative" ? row?.returns?.months60Accumulated : row?.returns?.annual5;
+    if (key === "sharpe") return row?.risk?.sharpe;
+    if (key === "assets") return row?.assets;
+    return undefined;
+  }
+
+  function getAbdReturnModeLabel() {
+    return getAbdReturnMode() === "cumulative" ? "תשואות מצטברות" : "תשואה ממוצעת";
   }
 
   function loadAbdReturnsHighlights() {
@@ -13486,9 +13499,15 @@
         </div>
       `;
     }
+    const returnMode = getAbdReturnMode();
     return `
       <div class="sim-card abd-product-selector" style="padding:10px 12px;border-radius:12px;box-shadow:none;">
         <div class="sim-inline-controls">
+          <button class="sim-chip ${returnMode === "average" ? "active" : ""}" type="button" data-abd-return-mode="average">תשואה ממוצעת</button>
+          <button class="sim-chip ${returnMode === "cumulative" ? "active" : ""}" type="button" data-abd-return-mode="cumulative">תשואות מצטברות</button>
+          <span class="sim-note" style="align-self:center;margin-inline-start:6px;">מציג עכשיו: ${escapeHtml(getAbdReturnModeLabel())}</span>
+        </div>
+        <div class="sim-inline-controls" style="margin-top:8px;">
           ${productTypes.map((value) => `<button class="sim-chip ${filters.productType === value ? "active" : ""}" type="button" data-abd-product-filter="${escapeAttribute(value)}">${value === "all" ? "כל סוגי המוצר" : escapeHtml(value)}</button>`).join("")}
         </div>
       </div>
@@ -13520,19 +13539,19 @@
                     return `<tr style="${getAbdHighlightStyle(fundName)}" data-abd-row-fund="${escapeAttribute(fundName)}">
                     <td><button class="abd-color-square" style="background:${escapeAttribute(abdReturnsHighlights?.[fundName] || "#ffffff")};" type="button" title="Ctrl+לחיצה לבחירת צבע" data-abd-color-track="${escapeAttribute(fundName)}"></button></td>
                     <td><button class="abd-track-name-button" type="button" data-abd-color-track="${escapeAttribute(fundName)}">${escapeHtml(row.trackName || "—")}</button></td>
-                    <td class="${getAbdReturnClass(row.returns?.periodAvg)}">${formatAbdTableReturn(row.returns?.periodAvg)}</td>
-                    <td class="${getAbdReturnClass(row.returns?.periodAccumulated)}">${formatAbdTableReturn(row.returns?.periodAccumulated)}</td>
-                    <td class="${getAbdReturnClass(row.returns?.annual3)}">${formatAbdTableReturn(row.returns?.annual3)}</td>
-                    <td class="${getAbdReturnClass(row.returns?.annual5)}">${formatAbdTableReturn(row.returns?.annual5)}</td>
+                    <td class="${getAbdReturnClass(getAbdReturnMetric(row, "periodAvg"))}">${formatAbdTableReturn(getAbdReturnMetric(row, "periodAvg"))}</td>
+                    <td class="${getAbdReturnClass(getAbdReturnMetric(row, "periodAccumulated"))}">${formatAbdTableReturn(getAbdReturnMetric(row, "periodAccumulated"))}</td>
+                    <td class="${getAbdReturnClass(getAbdReturnMetric(row, "annual3"))}">${formatAbdTableReturn(getAbdReturnMetric(row, "annual3"))}</td>
+                    <td class="${getAbdReturnClass(getAbdReturnMetric(row, "annual5"))}">${formatAbdTableReturn(getAbdReturnMetric(row, "annual5"))}</td>
                   </tr>`;
                   }).join("")}
                   <tr class="abd-average-row">
                     <td></td>
-                    <td>תשואה ממוצעת לקבוצה</td>
-                    <td class="${getAbdReturnClass(averageAbdRows(groupRows, (row) => row.returns?.periodAvg))}">${formatAbdTableReturn(averageAbdRows(groupRows, (row) => row.returns?.periodAvg))}</td>
-                    <td class="${getAbdReturnClass(averageAbdRows(groupRows, (row) => row.returns?.periodAccumulated))}">${formatAbdTableReturn(averageAbdRows(groupRows, (row) => row.returns?.periodAccumulated))}</td>
-                    <td class="${getAbdReturnClass(averageAbdRows(groupRows, (row) => row.returns?.annual3))}">${formatAbdTableReturn(averageAbdRows(groupRows, (row) => row.returns?.annual3))}</td>
-                    <td class="${getAbdReturnClass(averageAbdRows(groupRows, (row) => row.returns?.annual5))}">${formatAbdTableReturn(averageAbdRows(groupRows, (row) => row.returns?.annual5))}</td>
+                    <td>${returnMode === "cumulative" ? "תשואה מצטברת ממוצעת לקבוצה" : "תשואה ממוצעת לקבוצה"}</td>
+                    <td class="${getAbdReturnClass(averageAbdRows(groupRows, (row) => getAbdReturnMetric(row, "periodAvg")))}">${formatAbdTableReturn(averageAbdRows(groupRows, (row) => getAbdReturnMetric(row, "periodAvg")))}</td>
+                    <td class="${getAbdReturnClass(averageAbdRows(groupRows, (row) => getAbdReturnMetric(row, "periodAccumulated")))}">${formatAbdTableReturn(averageAbdRows(groupRows, (row) => getAbdReturnMetric(row, "periodAccumulated")))}</td>
+                    <td class="${getAbdReturnClass(averageAbdRows(groupRows, (row) => getAbdReturnMetric(row, "annual3")))}">${formatAbdTableReturn(averageAbdRows(groupRows, (row) => getAbdReturnMetric(row, "annual3")))}</td>
+                    <td class="${getAbdReturnClass(averageAbdRows(groupRows, (row) => getAbdReturnMetric(row, "annual5")))}">${formatAbdTableReturn(averageAbdRows(groupRows, (row) => getAbdReturnMetric(row, "annual5")))}</td>
                   </tr>
                 </tbody>
               </table>
@@ -13662,6 +13681,12 @@
     if (favoriteButton) {
       const id = favoriteButton.dataset.simFav;
       state.simulations.returns.favorites[id] = !state.simulations.returns.favorites[id];
+      renderSimulationsTab();
+      return;
+    }
+    const abdReturnModeButton = event.target.closest("[data-abd-return-mode]");
+    if (abdReturnModeButton) {
+      state.simulations.abdReturns.returnMode = abdReturnModeButton.dataset.abdReturnMode === "cumulative" ? "cumulative" : "average";
       renderSimulationsTab();
       return;
     }
