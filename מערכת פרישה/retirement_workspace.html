@@ -11582,14 +11582,65 @@
           </div>
         </section>
         <section class="settings-card">
-          <h3>תבניות המלצה קיימות</h3>
-          <p>התבניות הקיימות נשמרות ועובדות גם מתוך מסך ההגדרות החדש.</p>
-          <div class="settings-pill-row">
-            ${getFundTemplates("recommendation").map((item) => `<span class="settings-pill">${escapeHtml(item.label)}</span>`).join("")}
+          <div class="panel-head" style="margin:0;">
+            <div>
+              <h3>תבניות המלצה קיימות</h3>
+              <p>הוספה ועריכה של תבניות ההמלצה שמופיעות במסכי הקופות והניוד.</p>
+            </div>
+            <div class="top-actions">
+              <button class="button button-secondary" type="button" data-settings-add-fund-template="recommendation">הוסף תבנית</button>
+              <button class="button button-secondary" type="button" data-settings-reset-fund-template="recommendation">איפוס</button>
+            </div>
+          </div>
+          <div class="summary-list-editor">
+            ${renderSettingsFundTemplates("recommendation")}
+          </div>
+        </section>
+        <section class="settings-card">
+          <div class="panel-head" style="margin:0;">
+            <div>
+              <h3>תבניות הערות ומשימות</h3>
+              <p>תבניות המשמשות להערות, השלמות ומעקב המשך טיפול.</p>
+            </div>
+            <div class="top-actions">
+              <button class="button button-secondary" type="button" data-settings-add-fund-template="notes">הוסף תבנית</button>
+              <button class="button button-secondary" type="button" data-settings-reset-fund-template="notes">איפוס</button>
+            </div>
+          </div>
+          <div class="summary-list-editor">
+            ${renderSettingsFundTemplates("notes")}
           </div>
         </section>
       </div>
     `;
+  }
+
+  function renderSettingsFundTemplates(type) {
+    return getFundTemplates(type).map((template) => `
+      <div class="settings-template-card">
+        <div class="settings-form-grid">
+          <div class="settings-control">
+            <label>שם תבנית</label>
+            <input type="text" value="${escapeAttribute(template.label || "")}" data-settings-fund-template-field="label" data-settings-fund-template-type="${escapeAttribute(type)}" data-settings-fund-template-id="${escapeAttribute(template.id)}">
+          </div>
+          <div class="settings-control">
+            <label>מזהה פנימי</label>
+            <input type="text" value="${escapeAttribute(template.id || "")}" disabled>
+          </div>
+        </div>
+        <div class="settings-control">
+          <label>נוסח התבנית</label>
+          <textarea data-settings-fund-template-field="text" data-settings-fund-template-type="${escapeAttribute(type)}" data-settings-fund-template-id="${escapeAttribute(template.id)}">${escapeHtml(template.text || "")}</textarea>
+        </div>
+        <div class="top-actions">
+          <span class="settings-pill">{fundLabel}</span>
+          <span class="settings-pill">{productLabel}</span>
+          <span class="settings-pill">{manufacturerLabel}</span>
+          <span class="settings-pill">{policyLabel}</span>
+          <button class="button button-secondary" type="button" data-settings-remove-fund-template="${escapeAttribute(type)}" data-settings-fund-template-id="${escapeAttribute(template.id)}">הסר</button>
+        </div>
+      </div>
+    `).join("") || `<div class="empty-state">אין תבניות להצגה.</div>`;
   }
 
   function renderTrackingExcelSettingsComponent() {
@@ -11862,6 +11913,11 @@
 
   function handleSettingsInput(event) {
     if (handleSettingsColumnControls(event)) return;
+    const templateInput = event.target.closest("[data-settings-fund-template-field]");
+    if (templateInput) {
+      updateSettingsFundTemplate(templateInput);
+      return;
+    }
     const search = event.target.closest("[data-settings-search]");
     if (search) {
       state.settings.search = search.value;
@@ -11880,6 +11936,12 @@
 
   function handleSettingsChange(event) {
     if (handleSettingsColumnControls(event)) return;
+    const templateInput = event.target.closest("[data-settings-fund-template-field]");
+    if (templateInput) {
+      updateSettingsFundTemplate(templateInput);
+      renderSettingsPage();
+      return;
+    }
     const input = event.target.closest("[data-settings-path]");
     if (!input) return;
     setSettingsPath(input.dataset.settingsPath, normalizeSettingsInputValue(input));
@@ -11921,6 +11983,21 @@
       resetSettingsSection(reset.dataset.settingsResetSection);
       return;
     }
+    const addTemplate = event.target.closest("[data-settings-add-fund-template]");
+    if (addTemplate) {
+      addSettingsFundTemplate(addTemplate.dataset.settingsAddFundTemplate);
+      return;
+    }
+    const removeTemplate = event.target.closest("[data-settings-remove-fund-template]");
+    if (removeTemplate) {
+      removeSettingsFundTemplate(removeTemplate.dataset.settingsRemoveFundTemplate, removeTemplate.dataset.settingsFundTemplateId);
+      return;
+    }
+    const resetTemplate = event.target.closest("[data-settings-reset-fund-template]");
+    if (resetTemplate) {
+      resetSettingsFundTemplates(resetTemplate.dataset.settingsResetFundTemplate);
+      return;
+    }
     const columnsAction = event.target.closest("[data-settings-columns]");
     if (columnsAction) {
       updateTrackingColumnsBulk(columnsAction.dataset.settingsColumns);
@@ -11929,6 +12006,48 @@
     if (event.target.closest("[data-settings-trial-export]")) {
       exportTrackingSettingsTrialWorkbook();
     }
+  }
+
+  function updateSettingsFundTemplate(input) {
+    const type = input.dataset.settingsFundTemplateType;
+    const templateId = input.dataset.settingsFundTemplateId;
+    const field = input.dataset.settingsFundTemplateField;
+    const template = getFundTemplates(type).find((item) => item.id === templateId);
+    if (!template) return;
+    template[field] = input.value;
+    markSettingsEdited("meeting", `template.${type}.${field}`);
+    renderFundsTab();
+  }
+
+  function addSettingsFundTemplate(type) {
+    const templates = getFundTemplates(type);
+    templates.push({
+      id: createClientSideId(`settings_${type}`),
+      label: type === "recommendation" ? "תבנית המלצה חדשה" : "תבנית הערה חדשה",
+      text: type === "recommendation"
+        ? "הוחלט לקדם טיפול ב{fundLabel} בהתאם לתכנון, לצרכי הלקוח ולבחירת המסלול המתאים."
+        : "נדרש המשך טיפול או השלמת מסמכים עבור {fundLabel}."
+    });
+    markSettingsEdited("meeting", `template.${type}.add`);
+    renderSettingsPage();
+    renderFundsTab();
+    showToast("תבנית חדשה נוספה.");
+  }
+
+  function removeSettingsFundTemplate(type, templateId) {
+    state.settings.templates[type] = getFundTemplates(type).filter((item) => item.id !== templateId);
+    markSettingsEdited("meeting", `template.${type}.remove`);
+    renderSettingsPage();
+    renderFundsTab();
+    showToast("התבנית הוסרה.");
+  }
+
+  function resetSettingsFundTemplates(type) {
+    state.settings.templates[type] = cloneFundTemplates(FUND_TEXT_TEMPLATES)[type];
+    markSettingsEdited("meeting", `template.${type}.reset`);
+    renderSettingsPage();
+    renderFundsTab();
+    showToast("התבניות אופסו לברירת המחדל.");
   }
 
   function resetSettingsSection(sectionId) {
