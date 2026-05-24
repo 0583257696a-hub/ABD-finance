@@ -11557,15 +11557,8 @@
     try {
       await ensureXLSX();
       const workbook = XLSX.utils.book_new();
-      const trackingRows = buildTrackingSettingsExportRows();
-      const trackingSheet = buildTrackingSettingsWorksheetRows(trackingRows);
-      const dealWorksheet = XLSX.utils.aoa_to_sheet(trackingSheet.aoa);
-      dealWorksheet["!cols"] = trackingSheet.columns.map((column) => ({ wch: state.settings.trackingExcel.autoFit ? Math.max(Number(column.width) || 16, String(column.label || "").length + 2) : Number(column.width) || 16 }));
-      dealWorksheet["!freeze"] = state.settings.trackingExcel.freezeHeader ? { xSplit: 0, ySplit: 1 } : undefined;
-      dealWorksheet["!dir"] = state.settings.trackingExcel.rtl ? "rtl" : "ltr";
-      XLSX.utils.book_append_sheet(workbook, dealWorksheet, "תיעוד");
+      XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([TRACKING_DEALS_HEADERS, ...dealRows]), "עסקאות");
       XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([TRACKING_RISKS_HEADERS, ...riskRows]), "סיכונים");
-      workbook.Workbook = { Views: [{ RTL: Boolean(state.settings.trackingExcel.rtl) }] };
       const clientName = sanitizeFileName(state.client?.fullName || "לקוח");
       XLSX.writeFile(workbook, `מעקב_${clientName}_${formatDateForInput(new Date())}.xlsx`);
       showToast("קובץ המעקב נוצר בהצלחה.");
