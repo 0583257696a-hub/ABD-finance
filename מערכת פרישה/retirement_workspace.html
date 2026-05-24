@@ -3880,6 +3880,497 @@
     }
   }
 
+  .abd-sidebar-footer {
+    margin-top: auto;
+    width: 100%;
+    display: grid;
+    place-items: center;
+    padding-top: 12px;
+  }
+
+  .abd-settings-nav-button {
+    width: 78px;
+    height: 78px;
+    border: 0;
+    border-inline-start: 5px solid transparent;
+    border-radius: 0;
+    background: transparent;
+    color: rgba(222, 240, 255, 0.82);
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+    gap: 4px;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 800;
+    transition: background var(--transition), color var(--transition), border-color var(--transition);
+  }
+
+  .abd-settings-nav-button:hover,
+  .abd-settings-nav-button.active {
+    color: #fff;
+    background: linear-gradient(90deg, rgba(8, 120, 247, 0.48), rgba(8, 120, 247, 0.04));
+    border-inline-start-color: var(--premium-blue, #0878f7);
+  }
+
+  .abd-settings-nav-button .nav-icon {
+    width: 34px;
+    height: 34px;
+    display: grid;
+    place-items: center;
+  }
+
+  .settings-trigger.top-settings-trigger {
+    display: none !important;
+  }
+
+  .settings-workspace {
+    min-height: calc(100vh - 180px);
+    display: grid;
+    gap: 18px;
+  }
+
+  .settings-page {
+    height: calc(100vh - 190px);
+    min-height: 720px;
+    display: grid;
+    grid-template-columns: 260px minmax(0, 1fr);
+    gap: 18px;
+  }
+
+  .settings-rail,
+  .settings-content-shell {
+    background: linear-gradient(145deg, rgba(255,255,255,0.94), rgba(247,252,255,0.82));
+    border: 1px solid rgba(111, 183, 244, 0.24);
+    box-shadow: 0 22px 70px rgba(45, 126, 195, 0.11);
+    border-radius: 22px;
+    overflow: hidden;
+  }
+
+  .settings-rail {
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    min-height: 0;
+  }
+
+  .settings-rail-head {
+    padding: 18px;
+    border-bottom: 1px solid rgba(111, 183, 244, 0.2);
+  }
+
+  .settings-search {
+    position: relative;
+  }
+
+  .settings-search input {
+    width: 100%;
+    min-height: 44px;
+    border-radius: 14px;
+    border: 1px solid rgba(111, 183, 244, 0.28);
+    background: rgba(255,255,255,0.82);
+    color: #123462;
+    padding: 0 42px 0 14px;
+    font: inherit;
+    font-weight: 700;
+  }
+
+  .settings-search::before {
+    content: "⌕";
+    position: absolute;
+    inset-inline-start: 14px;
+    top: 50%;
+    translate: 0 -50%;
+    color: #6d93bd;
+    font-weight: 900;
+  }
+
+  .settings-tab-list {
+    padding: 10px;
+    overflow: auto;
+    min-height: 0;
+  }
+
+  .settings-tab-button {
+    width: 100%;
+    border: 0;
+    border-radius: 16px;
+    background: transparent;
+    color: #244a76;
+    display: grid;
+    grid-template-columns: 34px minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: center;
+    text-align: start;
+    padding: 12px 10px;
+    cursor: pointer;
+    font: inherit;
+    transition: background 180ms ease, transform 180ms ease, color 180ms ease;
+  }
+
+  .settings-tab-button:hover,
+  .settings-tab-button.active {
+    background: linear-gradient(135deg, rgba(8, 120, 247, 0.12), rgba(71, 178, 255, 0.08));
+    color: #0e4e9d;
+    transform: translateX(-2px);
+  }
+
+  .settings-tab-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 12px;
+    display: grid;
+    place-items: center;
+    background: rgba(8, 120, 247, 0.1);
+    color: #0878f7;
+    font-weight: 900;
+  }
+
+  .settings-tab-title {
+    font-weight: 900;
+    line-height: 1.2;
+  }
+
+  .settings-tab-subtitle {
+    display: block;
+    color: #7c99b8;
+    font-size: 11px;
+    margin-top: 3px;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .settings-favorite {
+    border: 0;
+    background: transparent;
+    color: #9eb2c8;
+    cursor: pointer;
+    font-size: 18px;
+  }
+
+  .settings-favorite.active {
+    color: #d7a129;
+  }
+
+  .settings-rail-foot {
+    padding: 14px 18px;
+    border-top: 1px solid rgba(111, 183, 244, 0.2);
+    color: #7c99b8;
+    font-size: 12px;
+    font-weight: 800;
+  }
+
+  .settings-content-shell {
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    min-height: 0;
+  }
+
+  .settings-header {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    padding: 22px 26px;
+    background: rgba(255,255,255,0.9);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(111, 183, 244, 0.22);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+
+  .settings-header h2 {
+    margin: 0;
+    color: #123c78;
+    font-size: 28px;
+  }
+
+  .settings-header p {
+    margin: 6px 0 0;
+    color: #7292b7;
+    font-weight: 700;
+  }
+
+  .settings-content {
+    overflow: auto;
+    padding: 24px;
+    min-height: 0;
+  }
+
+  .settings-dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+    margin-bottom: 18px;
+  }
+
+  .settings-fin-card,
+  .settings-card {
+    border: 1px solid rgba(111, 183, 244, 0.22);
+    background: linear-gradient(145deg, rgba(255,255,255,0.96), rgba(246,251,255,0.88));
+    border-radius: 18px;
+    box-shadow: 0 18px 42px rgba(35, 115, 190, 0.08);
+  }
+
+  .settings-fin-card {
+    min-height: 130px;
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .settings-fin-card::after {
+    content: "";
+    position: absolute;
+    inset-inline-end: -28px;
+    inset-block-end: -28px;
+    width: 92px;
+    height: 92px;
+    border-radius: 999px;
+    background: rgba(8, 120, 247, 0.1);
+  }
+
+  .settings-fin-card span {
+    color: #7292b7;
+    font-weight: 800;
+    font-size: 13px;
+  }
+
+  .settings-fin-card strong {
+    display: block;
+    color: #123c78;
+    font-size: 30px;
+    margin-top: 12px;
+  }
+
+  .settings-section-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+  }
+
+  .settings-card {
+    padding: 18px;
+    display: grid;
+    gap: 14px;
+    animation: settingsFadeIn 220ms ease both;
+  }
+
+  @keyframes settingsFadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .settings-card h3 {
+    margin: 0;
+    color: #123c78;
+    font-size: 18px;
+  }
+
+  .settings-card p {
+    margin: 0;
+    color: #7292b7;
+    line-height: 1.7;
+    font-size: 13px;
+    font-weight: 700;
+  }
+
+  .settings-form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .settings-control {
+    display: grid;
+    gap: 7px;
+  }
+
+  .settings-control label {
+    color: #315b89;
+    font-size: 13px;
+    font-weight: 900;
+  }
+
+  .settings-control input,
+  .settings-control select,
+  .settings-control textarea {
+    width: 100%;
+    border: 1px solid rgba(111, 183, 244, 0.28);
+    background: rgba(255,255,255,0.88);
+    color: #123462;
+    border-radius: 14px;
+    min-height: 44px;
+    padding: 10px 12px;
+    font: inherit;
+    font-weight: 700;
+  }
+
+  .settings-control textarea {
+    min-height: 110px;
+    resize: vertical;
+  }
+
+  .settings-toggle-row,
+  .settings-checkbox-row {
+    min-height: 48px;
+    border: 1px solid rgba(111, 183, 244, 0.2);
+    background: rgba(255,255,255,0.66);
+    border-radius: 14px;
+    padding: 10px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    color: #244a76;
+    font-weight: 900;
+  }
+
+  .settings-toggle-row input,
+  .settings-checkbox-row input {
+    width: 18px;
+    height: 18px;
+    accent-color: #0878f7;
+  }
+
+  .settings-pill-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .settings-pill {
+    border: 1px solid rgba(111, 183, 244, 0.24);
+    background: rgba(8, 120, 247, 0.08);
+    color: #1052a8;
+    border-radius: 999px;
+    padding: 8px 12px;
+    font-size: 12px;
+    font-weight: 900;
+  }
+
+  .settings-column-builder {
+    display: grid;
+    gap: 10px;
+  }
+
+  .settings-column-row {
+    border: 1px solid rgba(111, 183, 244, 0.22);
+    border-radius: 16px;
+    background: rgba(255,255,255,0.82);
+    display: grid;
+    grid-template-columns: 24px 1.1fr 96px 120px 82px;
+    gap: 10px;
+    align-items: center;
+    padding: 10px;
+  }
+
+  .settings-column-row[draggable="true"] {
+    cursor: grab;
+  }
+
+  .settings-drag-handle {
+    color: #8aa8c6;
+    font-weight: 900;
+    text-align: center;
+  }
+
+  .settings-column-row input[type="number"],
+  .settings-column-row select {
+    min-height: 36px;
+    border-radius: 10px;
+  }
+
+  .settings-preview-table-wrap {
+    overflow: auto;
+    border: 1px solid rgba(111, 183, 244, 0.24);
+    border-radius: 16px;
+    background: #fff;
+  }
+
+  .settings-preview-table {
+    width: 100%;
+    min-width: 760px;
+    border-collapse: collapse;
+    color: #123462;
+    font-size: 13px;
+  }
+
+  .settings-preview-table th {
+    background: linear-gradient(135deg, #0b58b4, #34a9ff);
+    color: #fff;
+    padding: 10px;
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  .settings-preview-table td {
+    padding: 9px 10px;
+    border-bottom: 1px solid rgba(111, 183, 244, 0.16);
+  }
+
+  .settings-preview-table tr:nth-child(even) td {
+    background: #f4f9ff;
+  }
+
+  .settings-sticky-save {
+    border-top: 1px solid rgba(111, 183, 244, 0.22);
+    background: rgba(255,255,255,0.92);
+    padding: 14px 22px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    color: #7292b7;
+    font-size: 13px;
+    font-weight: 800;
+  }
+
+  .settings-recent-list {
+    display: grid;
+    gap: 8px;
+  }
+
+  .settings-recent-item {
+    padding: 10px 12px;
+    border-radius: 12px;
+    background: rgba(8, 120, 247, 0.07);
+    color: #244a76;
+    font-size: 12px;
+    font-weight: 800;
+  }
+
+  @media (max-width: 1180px) {
+    .settings-page {
+      grid-template-columns: 1fr;
+      height: auto;
+      min-height: 0;
+    }
+    .settings-rail {
+      max-height: 340px;
+    }
+    .settings-dashboard-grid,
+    .settings-section-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-width: 760px) {
+    .settings-form-grid {
+      grid-template-columns: 1fr;
+    }
+    .settings-column-row {
+      grid-template-columns: 24px 1fr;
+    }
+    .settings-column-row > select,
+    .settings-column-row > input[type="number"],
+    .settings-column-row > label:not(:first-child) {
+      grid-column: 1 / -1;
+    }
+  }
+
   /* ABD premium glass refresh */
   body.theme-light {
     --premium-blue: #0878f7;
@@ -6119,6 +6610,12 @@
           <span class="nav-label">סיכום פגישה</span>
         </button>
       </nav>
+      <div class="abd-sidebar-footer">
+        <button class="abd-settings-nav-button" type="button" data-sidebar-tab="settings" aria-label="הגדרות">
+          <span class="nav-icon"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15.5A3.5 3.5 0 1 0 12 8a3.5 3.5 0 0 0 0 7.5z"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6 1.7 1.7 0 0 0-.4 1.1V21a2 2 0 1 1-4 0v-.1A1.7 1.7 0 0 0 8.6 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-.6-1A1.7 1.7 0 0 0 2.9 13H3a2 2 0 1 1 0-4h-.1A1.7 1.7 0 0 0 4.6 8.6a1.7 1.7 0 0 0-.34-1.88l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-.6 1.7 1.7 0 0 0 .4-1.1V3a2 2 0 1 1 4 0v-.1A1.7 1.7 0 0 0 15.4 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9c.2.37.43.7.6 1a1.7 1.7 0 0 0 1.1.4H21a2 2 0 1 1 0 4h.1a1.7 1.7 0 0 0-1.7.6z"/></svg></span>
+          <span class="nav-label">Settings</span>
+        </button>
+      </div>
     </aside>
     <div class="topbar">
       <div class="brand">
@@ -6126,7 +6623,7 @@
         <p id="brandSubtitle">לא נטען עדיין דוח. טען קובץ כדי לפתוח את סביבת העבודה.</p>
       </div>
       <div class="topbar-tools">
-        <button class="button button-secondary settings-trigger" id="openSettingsButton" type="button" aria-label="הגדרות">⚙</button>
+        <button class="button button-secondary settings-trigger top-settings-trigger" id="openSettingsButton" type="button" aria-label="הגדרות">⚙</button>
         <div class="top-actions">
           <button class="button button-secondary" id="openNeedsButton" type="button">בירור צרכים</button>
           <button class="button button-secondary" id="addFilesButton" type="button">הוספת קובץ</button>
@@ -6416,6 +6913,10 @@
         </div>
       </div>
     </section>
+
+    <section class="tab-panel" data-panel="settings" hidden>
+      <div class="settings-workspace" id="settingsRoot"></div>
+    </section>
   </section>
 </div>
 
@@ -6496,6 +6997,129 @@
       { id: "waiting_provider", label: "ממתין לטיפול יצרן", text: "המשך הטיפול ב{fundLabel} תלוי בקבלת מידע או אישור מהגוף המנהל." },
       { id: "manual_product", label: "מוצר ידני / נוסף", text: "המוצר נבדק גם במסגרת נתון ידני או השלמה חיצונית, ויש לוודא שכל הפרטים עודכנו לפני סיכום סופי." }
     ]
+  };
+
+  const SETTINGS_EXCEL_COLUMNS = [
+    { id: "sourceManufacturer", label: "מ\"ה מעבירה", width: 18, align: "right" },
+    { id: "sourceFundNumber", label: "מספר קופה מעבירה", width: 20, align: "center" },
+    { id: "activeDeposits", label: "פעיל עם הפקדות", width: 16, align: "center" },
+    { id: "targetManufacturer", label: "יצרן מקבל", width: 18, align: "right" },
+    { id: "targetTrack", label: "מסלול מקבלת", width: 26, align: "right" },
+    { id: "targetManagementCompany", label: "מ\"ה מקבלת", width: 18, align: "right" },
+    { id: "managementFees", label: "דמי ניהול", width: 14, align: "center" },
+    { id: "memberNumber", label: "מספר עמית", width: 18, align: "center" },
+    { id: "estimatedAmount", label: "סכום משוער", width: 16, align: "left" },
+    { id: "transferredAmount", label: "סכום שעבר", width: 16, align: "left" },
+    { id: "monthlyDeposit", label: "הפקדה שוטפת", width: 16, align: "left" },
+    { id: "executionDate", label: "תאריך ביצוע", width: 16, align: "center" },
+    { id: "referringAgent", label: "סוכן מפנה", width: 18, align: "right" },
+    { id: "notes", label: "הערות", width: 34, align: "right" }
+  ];
+
+  const SETTINGS_POLICY_TYPES = ["רכב", "דירה", "מבנה", "תכולה", "חיים", "בריאות", "מחלות קשות", "סיעודי", "תאונות אישיות", "נסיעות לחו\"ל", "עסק", "אחר"];
+
+  const SETTINGS_TABS = [
+    { id: "meeting", title: "סיכום פגישה", subtitle: "נוסחים, Templates ו-AI", icon: "▤", category: "מסמכים" },
+    { id: "importExport", title: "ייבוא / ייצוא", subtitle: "Excel, Mapping וגיבויים", icon: "⇄", category: "נתונים" },
+    { id: "filingEmail", title: "מייל לתיוק", subtitle: "IMAP, SMTP וחוקים", icon: "@", category: "תקשורת" },
+    { id: "trackingExcel", title: "אקסל לתיעוד", subtitle: "עמודות, סדר וייצוא", icon: "X", category: "נתונים" },
+    { id: "policyTypes", title: "סוגי פוליסות ביטוח", subtitle: "תצוגה בטפסים וסיכומים", icon: "◇", category: "ביטוח" },
+    { id: "ai", title: "AI והמלצות חכמות", subtitle: "Prompts, מודלים ולוגים", icon: "AI", category: "חכם" },
+    { id: "users", title: "משתמשים והרשאות", subtitle: "Roles ו-Activity Logs", icon: "👤", category: "ניהול" },
+    { id: "returns", title: "תשואות והשקעות", subtitle: "Smart Score וסיכון", icon: "↗", category: "השקעות" },
+    { id: "rules", title: "מנוע חוקים ואוטומציות", subtitle: "Triggers ו-Alerts", icon: "⚡", category: "אוטומציה" },
+    { id: "documents", title: "מסמכים וקבצים", subtitle: "OCR, Tags וגרסאות", icon: "□", category: "מסמכים" },
+    { id: "workflow", title: "Workflow ומשימות", subtitle: "Kanban, SLA והקצאות", icon: "✓", category: "תפעול" },
+    { id: "branding", title: "מיתוג והתאמה אישית", subtitle: "Logo, צבעים ו-White Label", icon: "◆", category: "מותג" },
+    { id: "security", title: "אבטחה", subtitle: "2FA, Audit וגיבויים", icon: "⌘", category: "אבטחה" },
+    { id: "notifications", title: "התראות", subtitle: "Email, Push ו-WhatsApp", icon: "●", category: "תקשורת" },
+    { id: "integrations", title: "אינטגרציות", subtitle: "Gmail, OpenAI ו-Webhooks", icon: "∞", category: "מערכות" },
+    { id: "system", title: "מערכת ותצוגה", subtitle: "Theme, Density ושפה", icon: "◐", category: "תצוגה" },
+    { id: "analytics", title: "דוחות ואנליטיקה", subtitle: "KPI, Charts וייצוא", icon: "▥", category: "דוחות" },
+    { id: "developer", title: "Developer / Advanced", subtitle: "Debug, Logs ו-Performance", icon: "</>", category: "מתקדם" }
+  ];
+
+  const DEFAULT_SETTINGS_STATE = {
+    activeSection: "meeting",
+    search: "",
+    favorites: ["meeting", "trackingExcel", "policyTypes"],
+    recentlyEdited: [],
+    dirty: false,
+    lastSavedAt: "",
+    auditTrail: [],
+    templates: cloneFundTemplates(FUND_TEXT_TEMPLATES),
+    meeting: {
+      openingText: "תודה על פגישת התכנון. להלן סיכום הנושאים, ההמלצות והפעולות להמשך.",
+      closingText: "נשמח להמשיך ללוות את התהליך עד להשלמת הביצוע מול היצרנים.",
+      disclosure: "המידע במסמך זה אינו מהווה ייעוץ מס או ייעוץ משפטי ומבוסס על הנתונים שנמסרו בפגישה.",
+      signature: "ABD Finance",
+      promptTemplate: "כתוב סיכום פגישה פיננסי מקצועי, ברור וממוקד פעולה.",
+      aiStyle: "מקצועי",
+      aiSummaryEnabled: true,
+      sections: {
+        intro: true,
+        facts: true,
+        recommendations: true,
+        insurance: true,
+        infrastructure: true,
+        followUps: true,
+        disclosure: true,
+        signature: true
+      }
+    },
+    importExport: {
+      excelImport: true,
+      exportData: true,
+      mappingMode: "smart",
+      backupFrequency: "daily",
+      fileFormat: "xlsx",
+      downloadTemplates: true
+    },
+    filingEmail: {
+      filingAddress: "archive@abd-finance.local",
+      imapReady: false,
+      smtpReady: false,
+      autoClientMatch: true,
+      defaultFolder: "לקוחות/פגישות",
+      rulesEngine: true
+    },
+    trackingExcel: {
+      profileName: "ברירת מחדל",
+      rtl: true,
+      freezeHeader: true,
+      zebraRows: true,
+      autoFit: true,
+      headerStyle: "premium-blue",
+      columns: SETTINGS_EXCEL_COLUMNS.map((column, index) => ({ ...column, enabled: true, locked: index < 2, order: index }))
+    },
+    policyTypes: {
+      enabled: Object.fromEntries(SETTINGS_POLICY_TYPES.map((type) => [type, true]))
+    },
+    ai: {
+      enabled: true,
+      model: "GPT-4.1",
+      creativity: 35,
+      writingStyle: "פיננסי מקצועי",
+      insights: true,
+      missingDataDetection: true,
+      smartRecommendations: true,
+      whatsappDrafts: true,
+      emailGenerator: true,
+      usageStats: true,
+      logs: true
+    },
+    users: { multiRole: true, activityLogs: true, loginHistory: true, accessControl: true, defaultRole: "Advisor" },
+    returns: { dataSources: true, benchmarks: true, smartScore: true, heatmap: true, graphs: true, preferredTracks: true, equityExposure: true, riskAnalysis: true },
+    rules: { visualBuilder: true, triggers: true, actions: true, notifications: true, autoTasks: true, retirementAlerts: true, highFeeAlerts: true, missingFormsAlerts: true },
+    documents: { ocr: true, pdfProcessing: true, dragDrop: true, autoClientDetection: true, tags: true, versioning: true, search: true, preview: true },
+    workflow: { kanban: true, timeline: true, sla: true, statusColors: true, autoTasks: true, assignments: true },
+    branding: { companyName: "ABD Finance", logoUpload: true, favicon: true, themeColor: "#0878f7", font: "Heebo", whiteLabel: true, footer: "ABD Finance" },
+    security: { twoFactor: false, sessionTimeout: 45, auditLogs: true, encryption: true, backups: true, securityDashboard: true, deviceHistory: true },
+    notifications: { email: true, push: false, whatsapp: true, notificationCenter: true, userPreferences: true },
+    integrations: { gmail: false, outlook: false, googleDrive: false, openai: false, supabase: false, crm: false, whatsapp: false, apiKeys: false, webhooks: false, syncStatus: true },
+    system: { mode: "light", density: "comfortable", tableSize: "medium", animations: true, language: "he", systemColor: "#0878f7" },
+    analytics: { kpiDashboard: true, financialReports: true, clientReports: true, exportPdfExcel: true, charts: true },
+    developer: { featureFlags: true, debugMode: false, apiMonitor: false, logs: true, performanceMetrics: true, cacheManagement: true }
   };
 
   const MIGRATION_RULES = {
@@ -6659,8 +7283,8 @@
       screenshots: []
     },
     settings: {
-      templates: cloneFundTemplates(FUND_TEXT_TEMPLATES),
-      settingsModalOpen: false
+      ...structuredClone(DEFAULT_SETTINGS_STATE),
+      templates: cloneFundTemplates(FUND_TEXT_TEMPLATES)
     },
     selectedIds: new Set(),
     infrastructureSelectedIds: new Set(),
@@ -6827,6 +7451,7 @@
     dom.fundActivityModal = document.getElementById("fundActivityModal");
     dom.openNeedsButton = document.getElementById("openNeedsButton");
     dom.openSettingsButton = document.getElementById("openSettingsButton");
+    dom.settingsRoot = document.getElementById("settingsRoot");
     dom.closeSettingsButton = document.getElementById("closeSettingsButton");
     dom.settingsModal = document.getElementById("settingsModal");
     dom.settingsBackdrop = document.getElementById("settingsBackdrop");
@@ -6925,11 +7550,21 @@
     dom.reloadFileButton.addEventListener("click", () => dom.fileInput.click());
     dom.addFilesButton.addEventListener("click", () => dom.fileInput.click());
     dom.addFilesFromNeedsButton.addEventListener("click", () => dom.fileInput.click());
-    dom.openSettingsButton.addEventListener("click", openSettingsModal);
-    dom.closeSettingsButton.addEventListener("click", closeSettingsModal);
-    dom.settingsBackdrop.addEventListener("click", closeSettingsModal);
-    dom.settingsTemplatesHost.addEventListener("input", handleSettingsTemplatesInput);
-    dom.settingsTemplatesHost.addEventListener("click", handleSettingsTemplatesClick);
+    dom.openSettingsButton.addEventListener("click", openSettingsPage);
+    if (dom.closeSettingsButton) dom.closeSettingsButton.addEventListener("click", closeSettingsModal);
+    if (dom.settingsBackdrop) dom.settingsBackdrop.addEventListener("click", closeSettingsModal);
+    if (dom.settingsTemplatesHost) {
+      dom.settingsTemplatesHost.addEventListener("input", handleSettingsTemplatesInput);
+      dom.settingsTemplatesHost.addEventListener("click", handleSettingsTemplatesClick);
+    }
+    if (dom.settingsRoot) {
+      dom.settingsRoot.addEventListener("input", handleSettingsInput);
+      dom.settingsRoot.addEventListener("change", handleSettingsChange);
+      dom.settingsRoot.addEventListener("click", handleSettingsClick);
+      dom.settingsRoot.addEventListener("dragstart", handleSettingsColumnDragStart);
+      dom.settingsRoot.addEventListener("dragover", handleSettingsColumnDragOver);
+      dom.settingsRoot.addEventListener("drop", handleSettingsColumnDrop);
+    }
     dom.openNeedsButton.addEventListener("click", () => {
       showStage("needs");
       renderNeedsStage();
@@ -6953,6 +7588,8 @@
         renderTabs();
         if (state.ui.activeTab === "simulations") {
           renderSimulationsTab();
+        } else if (state.ui.activeTab === "settings") {
+          renderSettingsPage();
         }
       });
     });
@@ -6963,6 +7600,8 @@
         renderTabs();
         if (state.ui.activeTab === "simulations") {
           renderSimulationsTab();
+        } else if (state.ui.activeTab === "settings") {
+          renderSettingsPage();
         }
       });
     });
@@ -7165,7 +7804,7 @@
     });
 
     loadSettingsState();
-    renderSettingsModal();
+    renderSettingsPage();
     window.addEventListener("beforeunload", saveWorkspaceSnapshot);
     if (!restoreWorkspaceSnapshot()) {
       renderEmptyState();
@@ -7662,7 +8301,7 @@
   }
 
   function renderTabs() {
-    const availableTabs = new Set(dom.tabButtons.map((button) => button.dataset.tab));
+    const availableTabs = new Set(dom.panels.map((panel) => panel.dataset.panel));
     if (state.ui.activeTab === "pension") {
       state.ui.activeTab = "simulations";
       state.simulations.activeView = "phoenix";
@@ -7820,11 +8459,12 @@
       return;
     }
 
-    const totalPremium = sumBy(state.insurancePolicies, (policy) => policy.premium || 0);
-    const totalCoverage = sumBy(state.insurancePolicies, (policy) => policy.coverageAmount || 0);
-    const selectedForSummary = state.insurancePolicies.filter((policy) => state.selectedInsurancePolicyIds.has(policy.id)).length;
+    const visiblePolicies = state.insurancePolicies.filter(isPolicyAllowedBySettings);
+    const totalPremium = sumBy(visiblePolicies, (policy) => policy.premium || 0);
+    const totalCoverage = sumBy(visiblePolicies, (policy) => policy.coverageAmount || 0);
+    const selectedForSummary = visiblePolicies.filter((policy) => state.selectedInsurancePolicyIds.has(policy.id)).length;
     dom.insuranceSummaryGrid.innerHTML = [
-      createSummaryCard("פוליסות", String(state.insurancePolicies.length), "רשומות ביטוח שנטענו"),
+      createSummaryCard("פוליסות", String(visiblePolicies.length), "רשומות ביטוח שנטענו"),
       createSummaryCard("נבחרו לסיכום", String(selectedForSummary), "פוליסות שיופיעו בסיכום הפגישה"),
       createSummaryCard("פרמיה", fmtCurrency(totalPremium), "סה\"כ פרמיה מזוהה"),
       createSummaryCard("סכומי ביטוח", fmtCurrency(totalCoverage), "סה\"כ סכומי כיסוי מזוהים")
@@ -7855,7 +8495,7 @@
       }
     }
 
-    const rows = state.insurancePolicies.map((policy, index) => ({
+    const rows = visiblePolicies.map((policy, index) => ({
       cells: {
         includeInMeeting: `<label class="table-check" style="justify-content:center;"><input class="checkbox" type="checkbox" data-insurance-summary-check="${escapeAttribute(policy.id)}" ${state.selectedInsurancePolicyIds.has(policy.id) ? "checked" : ""}><span style="font-size:11px;">לסיכום</span></label>`,
         itemClass: escapeHtml(policy.itemClass || "פוליסת ביטוח"),
@@ -10732,9 +11372,7 @@
 
   function saveSettingsState() {
     try {
-      localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify({
-        templates: state.settings.templates
-      }));
+      localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(state.settings));
     } catch (error) {
       console.warn("Unable to persist settings", error);
     }
@@ -10747,10 +11385,11 @@
         return;
       }
       const parsed = JSON.parse(raw);
-      if (parsed && parsed.templates) {
+      if (parsed && typeof parsed === "object") {
+        state.settings = mergeSettingsState(structuredClone(DEFAULT_SETTINGS_STATE), parsed);
         state.settings.templates = cloneFundTemplates({
-          recommendation: parsed.templates.recommendation || FUND_TEXT_TEMPLATES.recommendation,
-          notes: parsed.templates.notes || FUND_TEXT_TEMPLATES.notes
+          recommendation: state.settings.templates?.recommendation || FUND_TEXT_TEMPLATES.recommendation,
+          notes: state.settings.templates?.notes || FUND_TEXT_TEMPLATES.notes
         });
       }
     } catch (error) {
@@ -10758,14 +11397,646 @@
     }
   }
 
+  function mergeSettingsState(base, next) {
+    Object.entries(next || {}).forEach(([key, value]) => {
+      if (Array.isArray(value)) {
+        base[key] = value.map((item) => item && typeof item === "object" ? { ...item } : item);
+      } else if (value && typeof value === "object" && base[key] && typeof base[key] === "object" && !Array.isArray(base[key])) {
+        base[key] = mergeSettingsState({ ...base[key] }, value);
+      } else {
+        base[key] = value;
+      }
+    });
+    return base;
+  }
+
+  function openSettingsPage() {
+    state.ui.activeTab = "settings";
+    state.settings.activeSection = state.settings.activeSection || "meeting";
+    renderTabs();
+    renderSettingsPage();
+  }
+
   function openSettingsModal() {
-    state.settings.settingsModalOpen = true;
-    renderSettingsModal();
+    openSettingsPage();
   }
 
   function closeSettingsModal() {
-    state.settings.settingsModalOpen = false;
-    renderSettingsModal();
+    if (dom.settingsModal) dom.settingsModal.hidden = true;
+    if (dom.settingsBackdrop) dom.settingsBackdrop.hidden = true;
+  }
+
+  function getSettingsTab(tabId = state.settings.activeSection) {
+    return SETTINGS_TABS.find((tab) => tab.id === tabId) || SETTINGS_TABS[0];
+  }
+
+  function getVisibleSettingsTabs() {
+    const query = normalizeText(state.settings.search || "");
+    return SETTINGS_TABS.filter((tab) => {
+      if (!query) return true;
+      return normalizeText(`${tab.title} ${tab.subtitle} ${tab.category}`).includes(query);
+    });
+  }
+
+  function markSettingsEdited(sectionId, label = "") {
+    const tab = getSettingsTab(sectionId);
+    const stamp = new Date().toLocaleString("he-IL");
+    state.settings.dirty = true;
+    state.settings.recentlyEdited = [
+      { id: sectionId, title: tab.title, label: label || tab.title, at: stamp },
+      ...(state.settings.recentlyEdited || []).filter((item) => item.id !== sectionId || item.label !== label)
+    ].slice(0, 6);
+    state.settings.auditTrail = [
+      { section: tab.title, label: label || tab.title, at: stamp },
+      ...(state.settings.auditTrail || [])
+    ].slice(0, 25);
+    saveSettingsState();
+  }
+
+  function commitSettingsSave(message = "ההגדרות נשמרו אוטומטית.") {
+    state.settings.dirty = false;
+    state.settings.lastSavedAt = new Date().toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" });
+    saveSettingsState();
+    showToast(message);
+    renderSettingsPage();
+  }
+
+  function renderSettingsPage() {
+    if (!dom.settingsRoot) return;
+    if (dom.settingsModal) dom.settingsModal.hidden = true;
+    if (dom.settingsBackdrop) dom.settingsBackdrop.hidden = true;
+
+    const active = getSettingsTab();
+    const visibleTabs = getVisibleSettingsTabs();
+    const favoriteSet = new Set(state.settings.favorites || []);
+    const activeContent = renderSettingsSection(active.id);
+    dom.settingsRoot.innerHTML = `
+      <div class="settings-page">
+        <aside class="settings-rail" aria-label="ניווט הגדרות">
+          <div class="settings-rail-head">
+            <div class="settings-search">
+              <input type="search" value="${escapeAttribute(state.settings.search || "")}" placeholder="חיפוש בהגדרות" data-settings-search>
+            </div>
+          </div>
+          <div class="settings-tab-list">
+            ${visibleTabs.map((tab) => `
+              <button class="settings-tab-button ${tab.id === active.id ? "active" : ""}" type="button" data-settings-tab="${tab.id}">
+                <span class="settings-tab-icon">${escapeHtml(tab.icon)}</span>
+                <span>
+                  <span class="settings-tab-title">${escapeHtml(tab.title)}</span>
+                  <span class="settings-tab-subtitle">${escapeHtml(tab.subtitle)}</span>
+                </span>
+                <span class="settings-favorite ${favoriteSet.has(tab.id) ? "active" : ""}" data-settings-favorite="${tab.id}" title="מועדפים">★</span>
+              </button>
+            `).join("") || `<div class="empty-state">לא נמצאו הגדרות תואמות.</div>`}
+          </div>
+          <div class="settings-rail-foot">
+            מועדפים: ${(state.settings.favorites || []).length} · נערכו לאחרונה: ${(state.settings.recentlyEdited || []).length}
+          </div>
+        </aside>
+        <main class="settings-content-shell">
+          <header class="settings-header">
+            <div>
+              <h2>${escapeHtml(active.title)}</h2>
+              <p>${escapeHtml(active.subtitle)} · ${escapeHtml(active.category)}</p>
+            </div>
+            <div class="top-actions">
+              <button class="button button-secondary" type="button" data-settings-undo>Undo</button>
+              <button class="button button-primary" type="button" data-settings-save>שמור עכשיו</button>
+            </div>
+          </header>
+          <div class="settings-content">
+            <div class="settings-dashboard-grid">
+              <div class="settings-fin-card"><span>Auto Save</span><strong>${state.settings.lastSavedAt || "פעיל"}</strong></div>
+              <div class="settings-fin-card"><span>Favorites</span><strong>${(state.settings.favorites || []).length}</strong></div>
+              <div class="settings-fin-card"><span>Audit Trail</span><strong>${(state.settings.auditTrail || []).length}</strong></div>
+            </div>
+            ${activeContent}
+          </div>
+          <div class="settings-sticky-save">
+            <span>${state.settings.dirty ? "יש שינויים שנשמרו מקומית וממתינים לאישור ידני." : "כל ההגדרות מסונכרנות."}</span>
+            <div class="top-actions">
+              <button class="button button-secondary" type="button" data-settings-reset-section="${active.id}">איפוס טאב</button>
+              <button class="button button-primary" type="button" data-settings-save>שמור</button>
+            </div>
+          </div>
+        </main>
+      </div>
+    `;
+  }
+
+  function renderSettingsSection(sectionId) {
+    if (sectionId === "meeting") return renderMeetingSettingsComponent();
+    if (sectionId === "trackingExcel") return renderTrackingExcelSettingsComponent();
+    if (sectionId === "policyTypes") return renderPolicyTypesSettingsComponent();
+    if (sectionId === "ai") return renderAiSettingsComponent();
+    if (sectionId === "branding") return renderBrandingSettingsComponent();
+    if (sectionId === "security") return renderSecuritySettingsComponent();
+    if (sectionId === "system") return renderSystemSettingsComponent();
+    return renderGenericSettingsComponent(sectionId);
+  }
+
+  function renderMeetingSettingsComponent() {
+    const settings = state.settings.meeting;
+    const sections = [
+      ["intro", "טקסט פתיחה"],
+      ["facts", "טבלת עובדות"],
+      ["recommendations", "המלצות"],
+      ["insurance", "פוליסות ביטוח"],
+      ["infrastructure", "תשתיות לקצבה"],
+      ["followUps", "משימות המשך"],
+      ["disclosure", "גילוי נאות"],
+      ["signature", "חתימה"]
+    ];
+    return `
+      <div class="settings-section-grid">
+        <section class="settings-card">
+          <h3>נוסחים קבועים</h3>
+          <p>הטקסטים האלו משמשים בסיס למסמך סיכום הפגישה ולתבניות ה-AI.</p>
+          <div class="settings-form-grid">
+            ${renderSettingsTextarea("meeting.openingText", "טקסט פתיחה", settings.openingText)}
+            ${renderSettingsTextarea("meeting.closingText", "טקסט סיום", settings.closingText)}
+            ${renderSettingsTextarea("meeting.disclosure", "גילוי נאות", settings.disclosure)}
+            ${renderSettingsInput("meeting.signature", "חתימה", settings.signature)}
+          </div>
+        </section>
+        <section class="settings-card">
+          <h3>Templates ו-Prompt Templates</h3>
+          <p>הגדרות כתיבה עבור סיכום חכם והמלצות מותאמות לקוח.</p>
+          <div class="settings-form-grid">
+            ${renderSettingsTextarea("meeting.promptTemplate", "Prompt Template", settings.promptTemplate)}
+            ${renderSettingsSelect("meeting.aiStyle", "סגנון כתיבה", settings.aiStyle, ["מקצועי", "תמציתי", "יוקרתי", "שיווקי עדין"])}
+            ${renderSettingsToggle("meeting.aiSummaryEnabled", "AI Summary Settings", settings.aiSummaryEnabled)}
+          </div>
+          <div class="settings-pill-row">
+            <span class="settings-pill">Prompt Builder</span>
+            <span class="settings-pill">Template Library</span>
+            <span class="settings-pill">Auto Recommendations</span>
+          </div>
+        </section>
+        <section class="settings-card">
+          <h3>הפעלה / ביטול מקטעים</h3>
+          <p>רק מקטעים פעילים יופיעו בסיכום הפגישה ובתצוגות הלקוח העתידיות.</p>
+          <div class="settings-form-grid">
+            ${sections.map(([key, label]) => renderSettingsToggle(`meeting.sections.${key}`, label, settings.sections[key])).join("")}
+          </div>
+        </section>
+        <section class="settings-card">
+          <h3>תבניות המלצה קיימות</h3>
+          <p>התבניות הקיימות נשמרות ועובדות גם מתוך מסך ההגדרות החדש.</p>
+          <div class="settings-pill-row">
+            ${getFundTemplates("recommendation").map((item) => `<span class="settings-pill">${escapeHtml(item.label)}</span>`).join("")}
+          </div>
+        </section>
+      </div>
+    `;
+  }
+
+  function renderTrackingExcelSettingsComponent() {
+    const settings = state.settings.trackingExcel;
+    const columns = getTrackingExcelColumns();
+    return `
+      <div class="settings-section-grid">
+        <section class="settings-card" style="grid-column:1 / -1;">
+          <div class="panel-head" style="margin:0;">
+            <div>
+              <h3>Export Engine דינמי</h3>
+              <p>בחר עמודות, שנה סדר ב-Drag & Drop, קבע רוחב, יישור ונעילה. רק עמודות שסומנו יופיעו בייצוא.</p>
+            </div>
+            <div class="top-actions">
+              <button class="button button-secondary" type="button" data-settings-columns="all">Select All</button>
+              <button class="button button-secondary" type="button" data-settings-columns="none">Clear All</button>
+              <button class="button button-secondary" type="button" data-settings-columns="reset">Reset Default</button>
+              <button class="button button-primary" type="button" data-settings-trial-export>Trial Export</button>
+            </div>
+          </div>
+          <div class="settings-form-grid">
+            ${renderSettingsInput("trackingExcel.profileName", "Export Profile", settings.profileName)}
+            ${renderSettingsSelect("trackingExcel.headerStyle", "Header Style", settings.headerStyle, ["premium-blue", "dark-navy", "clean-gray"])}
+            ${renderSettingsToggle("trackingExcel.rtl", "RTL Excel", settings.rtl)}
+            ${renderSettingsToggle("trackingExcel.freezeHeader", "Freeze Header", settings.freezeHeader)}
+            ${renderSettingsToggle("trackingExcel.zebraRows", "Zebra Rows", settings.zebraRows)}
+            ${renderSettingsToggle("trackingExcel.autoFit", "Auto Fit Columns", settings.autoFit)}
+          </div>
+          <div class="settings-column-builder">
+            ${columns.map((column) => `
+              <div class="settings-column-row" draggable="true" data-settings-column-row="${escapeAttribute(column.id)}">
+                <span class="settings-drag-handle">⋮⋮</span>
+                <label class="settings-checkbox-row">
+                  <span>${escapeHtml(column.label)}</span>
+                  <input type="checkbox" ${column.enabled ? "checked" : ""} data-settings-column-enabled="${escapeAttribute(column.id)}">
+                </label>
+                <input type="number" min="8" max="60" value="${escapeAttribute(column.width)}" data-settings-column-width="${escapeAttribute(column.id)}" title="Column Width">
+                <select data-settings-column-align="${escapeAttribute(column.id)}">
+                  ${["right", "center", "left"].map((align) => `<option value="${align}" ${column.align === align ? "selected" : ""}>${align}</option>`).join("")}
+                </select>
+                <label class="settings-checkbox-row" title="Locked Columns">
+                  <span>נעול</span>
+                  <input type="checkbox" ${column.locked ? "checked" : ""} data-settings-column-locked="${escapeAttribute(column.id)}">
+                </label>
+              </div>
+            `).join("")}
+          </div>
+        </section>
+        <section class="settings-card" style="grid-column:1 / -1;">
+          <h3>Live Preview</h3>
+          <p>תצוגה מקדימה של קובץ התיעוד לפי העמודות שסומנו.</p>
+          ${renderTrackingExcelPreview()}
+        </section>
+      </div>
+    `;
+  }
+
+  function renderPolicyTypesSettingsComponent() {
+    const enabled = state.settings.policyTypes.enabled || {};
+    return `
+      <div class="settings-section-grid">
+        <section class="settings-card">
+          <h3>סוגי פוליסות ביטוח</h3>
+          <p>רק סוגים שסומנו יוצגו בטפסים, בפילטרים, בסיכומי פגישה ובמסכי לקוח.</p>
+          <div class="settings-form-grid">
+            ${SETTINGS_POLICY_TYPES.map((type) => renderSettingsToggle(`policyTypes.enabled.${type}`, type, enabled[type] !== false)).join("")}
+          </div>
+        </section>
+        <section class="settings-card">
+          <h3>יישום במערכת</h3>
+          <p>ההגדרה נשמרת ב-store המרכזי ומוכנה לחיבור לכל מסך ביטוחי עתידי.</p>
+          <div class="settings-pill-row">
+            <span class="settings-pill">טפסים</span>
+            <span class="settings-pill">פילטרים</span>
+            <span class="settings-pill">סיכום פגישה</span>
+            <span class="settings-pill">מסכי לקוח</span>
+          </div>
+        </section>
+      </div>
+    `;
+  }
+
+  function renderAiSettingsComponent() {
+    const settings = state.settings.ai;
+    return renderSettingsCards("ai", [
+      { title: "AI Core", description: "הפעלת AI, בחירת מודל ורמת יצירתיות.", fields: [
+        renderSettingsToggle("ai.enabled", "AI Enable", settings.enabled),
+        renderSettingsSelect("ai.model", "Model Selection", settings.model, ["GPT-4.1", "GPT-4o", "GPT-5 mini", "Local Mock"]),
+        renderSettingsInput("ai.creativity", "Creativity Level", settings.creativity, "range"),
+        renderSettingsSelect("ai.writingStyle", "Writing Style", settings.writingStyle, ["פיננסי מקצועי", "תמציתי", "יוקרתי", "שפה פשוטה"])
+      ]},
+      { title: "Smart Generators", description: "מחוללי המלצות, WhatsApp ומיילים.", fields: [
+        renderSettingsToggle("ai.insights", "AI Insights", settings.insights),
+        renderSettingsToggle("ai.missingDataDetection", "Missing Data Detection", settings.missingDataDetection),
+        renderSettingsToggle("ai.smartRecommendations", "Smart Recommendations", settings.smartRecommendations),
+        renderSettingsToggle("ai.whatsappDrafts", "WhatsApp Draft Generator", settings.whatsappDrafts),
+        renderSettingsToggle("ai.emailGenerator", "Email Generator", settings.emailGenerator),
+        renderSettingsToggle("ai.usageStats", "AI Usage Stats", settings.usageStats),
+        renderSettingsToggle("ai.logs", "AI Logs", settings.logs)
+      ]}
+    ]);
+  }
+
+  function renderBrandingSettingsComponent() {
+    const settings = state.settings.branding;
+    return renderSettingsCards("branding", [
+      { title: "מיתוג", description: "התאמת המערכת לשפה המותגית של החברה.", fields: [
+        renderSettingsInput("branding.companyName", "Company Name", settings.companyName),
+        renderSettingsInput("branding.themeColor", "Theme Colors", settings.themeColor, "color"),
+        renderSettingsSelect("branding.font", "Fonts", settings.font, ["Heebo", "Arial", "Assistant", "Rubik"]),
+        renderSettingsInput("branding.footer", "Footer", settings.footer)
+      ]},
+      { title: "Assets", description: "הכנה להעלאת קבצי מותג.", fields: [
+        renderSettingsToggle("branding.logoUpload", "Logo Upload", settings.logoUpload),
+        renderSettingsToggle("branding.favicon", "Favicon", settings.favicon),
+        renderSettingsToggle("branding.whiteLabel", "White Label", settings.whiteLabel)
+      ]}
+    ]);
+  }
+
+  function renderSecuritySettingsComponent() {
+    const settings = state.settings.security;
+    return renderSettingsCards("security", [
+      { title: "Security Dashboard", description: "בקרות אבטחה, תיעוד וגיבויים.", fields: [
+        renderSettingsToggle("security.twoFactor", "Two Factor Authentication", settings.twoFactor),
+        renderSettingsInput("security.sessionTimeout", "Session Timeout", settings.sessionTimeout, "number"),
+        renderSettingsToggle("security.auditLogs", "Audit Logs", settings.auditLogs),
+        renderSettingsToggle("security.encryption", "Encryption", settings.encryption),
+        renderSettingsToggle("security.backups", "Backup System", settings.backups),
+        renderSettingsToggle("security.securityDashboard", "Security Dashboard", settings.securityDashboard),
+        renderSettingsToggle("security.deviceHistory", "Device History", settings.deviceHistory)
+      ]}
+    ]);
+  }
+
+  function renderSystemSettingsComponent() {
+    const settings = state.settings.system;
+    return renderSettingsCards("system", [
+      { title: "מערכת ותצוגה", description: "התאמת חוויית העבודה, צפיפות וטבלאות.", fields: [
+        renderSettingsSelect("system.mode", "Dark / Light Mode", settings.mode, ["light", "dark"]),
+        renderSettingsSelect("system.density", "Density", settings.density, ["comfortable", "compact", "spacious"]),
+        renderSettingsSelect("system.tableSize", "Table Sizes", settings.tableSize, ["small", "medium", "large"]),
+        renderSettingsToggle("system.animations", "Animations", settings.animations),
+        renderSettingsSelect("system.language", "Language", settings.language, ["he", "en"]),
+        renderSettingsInput("system.systemColor", "System Colors", settings.systemColor, "color")
+      ]}
+    ]);
+  }
+
+  function renderGenericSettingsComponent(sectionId) {
+    const section = state.settings[sectionId] || {};
+    const tab = getSettingsTab(sectionId);
+    const controls = Object.entries(section).map(([key, value]) => {
+      const label = key.replace(/([A-Z])/g, " $1").replace(/^./, (char) => char.toUpperCase());
+      if (typeof value === "boolean") return renderSettingsToggle(`${sectionId}.${key}`, label, value);
+      if (typeof value === "number") return renderSettingsInput(`${sectionId}.${key}`, label, value, "number");
+      return renderSettingsInput(`${sectionId}.${key}`, label, value);
+    }).join("");
+    return renderSettingsCards(sectionId, [
+      { title: tab.title, description: `${tab.subtitle}. בנוי כ-component מודולרי עם state עצמאי, validation, audit ו-auto save.`, fields: controls },
+      { title: "Recently Edited", description: "השינויים האחרונים ב-settings store.", fields: renderRecentlyEditedSettings() }
+    ]);
+  }
+
+  function renderSettingsCards(sectionId, cards) {
+    return `<div class="settings-section-grid">${cards.map((card) => `
+      <section class="settings-card">
+        <h3>${escapeHtml(card.title)}</h3>
+        <p>${escapeHtml(card.description)}</p>
+        <div class="settings-form-grid">${Array.isArray(card.fields) ? card.fields.join("") : card.fields}</div>
+      </section>
+    `).join("")}</div>`;
+  }
+
+  function renderSettingsInput(path, label, value, type = "text") {
+    return `<div class="settings-control"><label>${escapeHtml(label)}</label><input type="${escapeAttribute(type)}" value="${escapeAttribute(value ?? "")}" data-settings-path="${escapeAttribute(path)}"></div>`;
+  }
+
+  function renderSettingsTextarea(path, label, value) {
+    return `<div class="settings-control"><label>${escapeHtml(label)}</label><textarea data-settings-path="${escapeAttribute(path)}">${escapeHtml(value || "")}</textarea></div>`;
+  }
+
+  function renderSettingsSelect(path, label, value, options) {
+    return `<div class="settings-control"><label>${escapeHtml(label)}</label><select data-settings-path="${escapeAttribute(path)}">${options.map((option) => `<option value="${escapeAttribute(option)}" ${String(value) === String(option) ? "selected" : ""}>${escapeHtml(option)}</option>`).join("")}</select></div>`;
+  }
+
+  function renderSettingsToggle(path, label, value) {
+    return `<label class="settings-toggle-row"><span>${escapeHtml(label)}</span><input type="checkbox" ${value ? "checked" : ""} data-settings-path="${escapeAttribute(path)}"></label>`;
+  }
+
+  function renderRecentlyEditedSettings() {
+    const items = state.settings.recentlyEdited || [];
+    return `<div class="settings-recent-list">${items.map((item) => `<div class="settings-recent-item">${escapeHtml(item.title)} · ${escapeHtml(item.label)} · ${escapeHtml(item.at)}</div>`).join("") || `<div class="settings-recent-item">עדיין אין שינויים אחרונים.</div>`}</div>`;
+  }
+
+  function getTrackingExcelColumns() {
+    const existing = state.settings.trackingExcel.columns || [];
+    const byId = new Map(existing.map((column) => [column.id, column]));
+    const normalized = SETTINGS_EXCEL_COLUMNS.map((column, index) => ({ ...column, enabled: true, locked: false, order: index, ...(byId.get(column.id) || {}) }));
+    return normalized.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  }
+
+  function renderTrackingExcelPreview() {
+    const columns = getTrackingExcelColumns().filter((column) => column.enabled);
+    const rows = buildTrackingPreviewRows();
+    return `<div class="settings-preview-table-wrap"><table class="settings-preview-table" dir="rtl">
+      <thead><tr>${columns.map((column) => `<th style="text-align:${column.align};min-width:${column.width * 7}px;">${escapeHtml(column.label)}</th>`).join("")}</tr></thead>
+      <tbody>${rows.map((row) => `<tr>${columns.map((column) => `<td style="text-align:${column.align};">${escapeHtml(row[column.id] || "—")}</td>`).join("")}</tr>`).join("")}</tbody>
+    </table></div>`;
+  }
+
+  function buildTrackingPreviewRows() {
+    const clientName = state.client?.fullName || "לקוח לדוגמה";
+    const fund = state.funds[0] || {};
+    return [
+      {
+        sourceManufacturer: fund.manufacturer || "כלל",
+        sourceFundNumber: fund.accountNumber || fund.policyNumber || "123456",
+        activeDeposits: fund.monthlyDeposit || fund.isActive ? "כן" : "לא",
+        targetManufacturer: "מיטב",
+        targetTrack: "מיטב השתלמות כללי",
+        targetManagementCompany: "מיטב",
+        managementFees: "0.60%",
+        memberNumber: "A-1024",
+        estimatedAmount: fmtCurrency(getFundCapital(fund) || 250000),
+        transferredAmount: fmtCurrency(0),
+        monthlyDeposit: fmtCurrency(fund.monthlyDeposit || 1200),
+        executionDate: formatDateForInput(new Date()),
+        referringAgent: clientName,
+        notes: "שורת תצוגה מקדימה"
+      },
+      {
+        sourceManufacturer: "הראל",
+        sourceFundNumber: "789456",
+        activeDeposits: "כן",
+        targetManufacturer: "הפניקס",
+        targetTrack: "S&P500",
+        targetManagementCompany: "הפניקס",
+        managementFees: "0.45%",
+        memberNumber: "B-2048",
+        estimatedAmount: fmtCurrency(180000),
+        transferredAmount: fmtCurrency(0),
+        monthlyDeposit: fmtCurrency(950),
+        executionDate: formatDateForInput(new Date()),
+        referringAgent: "ABD",
+        notes: "בדיקת מנוע ייצוא"
+      }
+    ];
+  }
+
+  function getSettingsPath(path) {
+    return String(path || "").split(".").reduce((obj, key) => obj ? obj[key] : undefined, state.settings);
+  }
+
+  function setSettingsPath(path, value) {
+    const keys = String(path || "").split(".");
+    let target = state.settings;
+    keys.slice(0, -1).forEach((key) => {
+      if (!target[key] || typeof target[key] !== "object") target[key] = {};
+      target = target[key];
+    });
+    target[keys[keys.length - 1]] = value;
+  }
+
+  function normalizeSettingsInputValue(input) {
+    if (input.type === "checkbox") return input.checked;
+    if (input.type === "number" || input.type === "range") return toNumber(input.value);
+    return input.value;
+  }
+
+  function handleSettingsInput(event) {
+    if (handleSettingsColumnControls(event)) return;
+    const search = event.target.closest("[data-settings-search]");
+    if (search) {
+      state.settings.search = search.value;
+      renderSettingsPage();
+      return;
+    }
+    const input = event.target.closest("[data-settings-path]");
+    if (!input) return;
+    const path = input.dataset.settingsPath;
+    setSettingsPath(path, normalizeSettingsInputValue(input));
+    markSettingsEdited(path.split(".")[0], path);
+    if (!["TEXTAREA", "INPUT"].includes(input.tagName) || input.type === "checkbox" || input.type === "range") {
+      renderSettingsPage();
+    }
+  }
+
+  function handleSettingsChange(event) {
+    if (handleSettingsColumnControls(event)) return;
+    const input = event.target.closest("[data-settings-path]");
+    if (!input) return;
+    setSettingsPath(input.dataset.settingsPath, normalizeSettingsInputValue(input));
+    markSettingsEdited(input.dataset.settingsPath.split(".")[0], input.dataset.settingsPath);
+    renderSettingsPage();
+  }
+
+  function handleSettingsClick(event) {
+    const favorite = event.target.closest("[data-settings-favorite]");
+    if (favorite) {
+      event.stopPropagation();
+      const id = favorite.dataset.settingsFavorite;
+      const set = new Set(state.settings.favorites || []);
+      set.has(id) ? set.delete(id) : set.add(id);
+      state.settings.favorites = [...set];
+      markSettingsEdited(id, "favorite");
+      renderSettingsPage();
+      return;
+    }
+    const tab = event.target.closest("[data-settings-tab]");
+    if (tab) {
+      state.settings.activeSection = tab.dataset.settingsTab;
+      renderSettingsPage();
+      return;
+    }
+    if (event.target.closest("[data-settings-save]")) {
+      commitSettingsSave("ההגדרות נשמרו.");
+      return;
+    }
+    if (event.target.closest("[data-settings-undo]")) {
+      loadSettingsState();
+      state.settings.dirty = false;
+      renderSettingsPage();
+      showToast("השינויים האחרונים בוטלו לפי השמירה האחרונה.");
+      return;
+    }
+    const reset = event.target.closest("[data-settings-reset-section]");
+    if (reset) {
+      resetSettingsSection(reset.dataset.settingsResetSection);
+      return;
+    }
+    const columnsAction = event.target.closest("[data-settings-columns]");
+    if (columnsAction) {
+      updateTrackingColumnsBulk(columnsAction.dataset.settingsColumns);
+      return;
+    }
+    if (event.target.closest("[data-settings-trial-export]")) {
+      exportTrackingSettingsTrialWorkbook();
+    }
+  }
+
+  function resetSettingsSection(sectionId) {
+    const defaults = structuredClone(DEFAULT_SETTINGS_STATE);
+    state.settings[sectionId] = defaults[sectionId];
+    if (sectionId === "trackingExcel") {
+      state.settings.trackingExcel.columns = SETTINGS_EXCEL_COLUMNS.map((column, index) => ({ ...column, enabled: true, locked: index < 2, order: index }));
+    }
+    markSettingsEdited(sectionId, "reset");
+    renderSettingsPage();
+  }
+
+  function updateTrackingColumnsBulk(action) {
+    if (action === "reset") {
+      state.settings.trackingExcel.columns = SETTINGS_EXCEL_COLUMNS.map((column, index) => ({ ...column, enabled: true, locked: index < 2, order: index }));
+    } else {
+      state.settings.trackingExcel.columns = getTrackingExcelColumns().map((column) => ({ ...column, enabled: action === "all" }));
+    }
+    markSettingsEdited("trackingExcel", action);
+    renderSettingsPage();
+  }
+
+  function updateTrackingColumn(columnId, patch) {
+    state.settings.trackingExcel.columns = getTrackingExcelColumns().map((column) => column.id === columnId ? { ...column, ...patch } : column);
+    markSettingsEdited("trackingExcel", columnId);
+  }
+
+  function handleSettingsColumnDragStart(event) {
+    const row = event.target.closest("[data-settings-column-row]");
+    if (!row) return;
+    event.dataTransfer.setData("text/plain", row.dataset.settingsColumnRow);
+  }
+
+  function handleSettingsColumnDragOver(event) {
+    if (event.target.closest("[data-settings-column-row]")) {
+      event.preventDefault();
+    }
+  }
+
+  function handleSettingsColumnDrop(event) {
+    const row = event.target.closest("[data-settings-column-row]");
+    if (!row) return;
+    event.preventDefault();
+    const sourceId = event.dataTransfer.getData("text/plain");
+    const targetId = row.dataset.settingsColumnRow;
+    if (!sourceId || sourceId === targetId) return;
+    const columns = getTrackingExcelColumns();
+    const sourceIndex = columns.findIndex((column) => column.id === sourceId);
+    const targetIndex = columns.findIndex((column) => column.id === targetId);
+    if (sourceIndex === -1 || targetIndex === -1) return;
+    const [source] = columns.splice(sourceIndex, 1);
+    columns.splice(targetIndex, 0, source);
+    state.settings.trackingExcel.columns = columns.map((column, index) => ({ ...column, order: index }));
+    markSettingsEdited("trackingExcel", "Drag & Drop");
+    renderSettingsPage();
+  }
+
+  function handleSettingsColumnControls(event) {
+    const enabled = event.target.closest("[data-settings-column-enabled]");
+    if (enabled) {
+      updateTrackingColumn(enabled.dataset.settingsColumnEnabled, { enabled: enabled.checked });
+      renderSettingsPage();
+      return true;
+    }
+    const width = event.target.closest("[data-settings-column-width]");
+    if (width) {
+      updateTrackingColumn(width.dataset.settingsColumnWidth, { width: Math.max(8, toNumber(width.value) || 12) });
+      renderSettingsPage();
+      return true;
+    }
+    const align = event.target.closest("[data-settings-column-align]");
+    if (align) {
+      updateTrackingColumn(align.dataset.settingsColumnAlign, { align: align.value });
+      renderSettingsPage();
+      return true;
+    }
+    const locked = event.target.closest("[data-settings-column-locked]");
+    if (locked) {
+      updateTrackingColumn(locked.dataset.settingsColumnLocked, { locked: locked.checked });
+      renderSettingsPage();
+      return true;
+    }
+    return false;
+  }
+
+  async function exportTrackingSettingsTrialWorkbook() {
+    try {
+      await ensureXLSX();
+      const columns = getTrackingExcelColumns().filter((column) => column.enabled);
+      if (!columns.length) {
+        showToast("בחר לפחות עמודה אחת לייצוא.", true);
+        return;
+      }
+      const rows = buildTrackingPreviewRows();
+      const aoa = [columns.map((column) => column.label), ...rows.map((row) => columns.map((column) => row[column.id] || ""))];
+      const worksheet = XLSX.utils.aoa_to_sheet(aoa);
+      worksheet["!cols"] = columns.map((column) => ({ wch: Number(column.width) || 16 }));
+      worksheet["!freeze"] = state.settings.trackingExcel.freezeHeader ? { xSplit: 0, ySplit: 1 } : undefined;
+      worksheet["!dir"] = state.settings.trackingExcel.rtl ? "rtl" : "ltr";
+      const workbook = XLSX.utils.book_new();
+      workbook.Workbook = { Views: [{ RTL: Boolean(state.settings.trackingExcel.rtl) }] };
+      XLSX.utils.book_append_sheet(workbook, worksheet, "תיעוד");
+      XLSX.writeFile(workbook, `ABD_tracking_trial_${formatDateForInput(new Date())}.xlsx`);
+      commitSettingsSave("קובץ ניסיון נוצר לפי הגדרות הייצוא.");
+    } catch (error) {
+      console.error("[ABD-finance][settings export]", error);
+      showToast("לא ניתן ליצור כרגע קובץ ניסיון.", true);
+    }
   }
 
   function renderSettingsModal() {
@@ -15799,7 +17070,7 @@
   }
 
   function renderInsuranceSummaryPreview() {
-    const policies = getSelectedInsurancePolicies();
+    const policies = getSelectedInsurancePolicies().filter(isPolicyAllowedBySettings);
     if (!policies.length) {
       return "";
     }
@@ -16181,6 +17452,37 @@
     if (branchText.includes("פנסיה")) return "חיסכון פנסיוני";
     if (branchText.includes("חיים") || branchText.includes("בריאות") || branchText.includes("תאונות") || branchText.includes("סיעוד")) return "פוליסת ביטוח";
     return "פוליסת ביטוח";
+  }
+
+  function getInsurancePolicySettingsType(policy) {
+    const text = normalizeText([
+      policy?.mainBranch,
+      policy?.secondaryBranch,
+      policy?.productType,
+      policy?.planName,
+      policy?.itemClass
+    ].filter(Boolean).join(" "));
+    const compact = text.replace(/\s+/g, "");
+    const matches = [
+      ["נסיעות לחו\"ל", ["נסיעות", "חול"]],
+      ["מחלות קשות", ["מחלותקשות"]],
+      ["תאונות אישיות", ["תאונותאישיות", "תאונה"]],
+      ["בריאות", ["בריאות"]],
+      ["סיעודי", ["סיעוד"]],
+      ["חיים", ["חיים", "ריסק", "מוות"]],
+      ["רכב", ["רכב", "חובה", "מקיף"]],
+      ["מבנה", ["מבנה"]],
+      ["תכולה", ["תכולה"]],
+      ["דירה", ["דירה"]],
+      ["עסק", ["עסק"]]
+    ];
+    const match = matches.find(([, patterns]) => patterns.some((pattern) => compact.includes(normalizeText(pattern).replace(/\s+/g, ""))));
+    return match ? match[0] : "אחר";
+  }
+
+  function isPolicyAllowedBySettings(policy) {
+    const enabled = state.settings?.policyTypes?.enabled || {};
+    return enabled[getInsurancePolicySettingsType(policy)] !== false;
   }
 
   function mapClearinghouseStatus(code) {
