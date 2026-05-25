@@ -3625,13 +3625,14 @@
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 10px;
-    align-items: start;
+    align-items: stretch;
     width: 100%;
     max-width: 100%;
     overflow: visible;
   }
 
   .abd-returns-card {
+    min-width: 0;
     padding: 0;
     border: 0;
     border-radius: 0;
@@ -3646,10 +3647,15 @@
 
   .abd-returns-card h3 {
     font-size: 18px;
-    margin: 0 0 8px;
+    height: 24px;
+    margin: 0 0 5px;
     color: #0b4f8a;
     text-align: center;
     font-weight: 800;
+    line-height: 24px;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
   }
 
   .abd-returns-card p {
@@ -3660,7 +3666,7 @@
   .abd-returns-card .sim-table-wrap {
     border-radius: 0;
     border: 0;
-    overflow-x: visible;
+    overflow: hidden;
     width: 100%;
     max-width: 100%;
   }
@@ -3758,8 +3764,9 @@
     font: inherit;
     font-weight: 500;
     max-width: 100%;
-    white-space: normal;
-    overflow-wrap: anywhere;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .abd-returns-table .sim-chip {
@@ -6542,47 +6549,74 @@
     -webkit-font-smoothing: auto;
   }
 
+  .abd-returns-grid .sim-table-wrap {
+    overflow: hidden !important;
+    scrollbar-width: none !important;
+  }
+
+  .abd-returns-grid .sim-table-wrap::-webkit-scrollbar {
+    display: none !important;
+  }
+
   .abd-returns-grid .abd-returns-table th,
   .abd-returns-grid .abd-returns-table td {
-    padding: 3px 7px !important;
-    line-height: 1.2 !important;
+    min-height: 0 !important;
+    height: 31px !important;
+    padding: 1px 6px !important;
+    line-height: 1.08 !important;
     color: #0f2540;
     text-shadow: none !important;
     filter: none !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
   }
 
   .abd-returns-grid .abd-returns-table td:nth-child(1),
   .abd-returns-grid .abd-returns-table th:nth-child(1) {
-    width: 36% !important;
+    width: 38% !important;
     text-align: right !important;
   }
 
   .abd-returns-grid .abd-returns-table td:nth-child(n+2),
   .abd-returns-grid .abd-returns-table th:nth-child(n+2) {
-    width: 16% !important;
-    font-size: 14px !important;
+    width: 15.5% !important;
+    font-size: 13.5px !important;
     font-weight: 900 !important;
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
   }
 
   .abd-returns-grid .abd-returns-table thead th {
-    font-size: 13px !important;
+    height: 28px !important;
+    font-size: 12.5px !important;
     font-weight: 900 !important;
   }
 
   .abd-returns-grid .abd-track-name-button {
-    font-size: 13.5px !important;
-    line-height: 1.25 !important;
+    font-size: 12.5px !important;
+    line-height: 1.12 !important;
     color: #0f2540 !important;
     font-weight: 700 !important;
+    display: block;
+    width: 100%;
   }
 
   .abd-returns-grid .abd-returns-table .sim-chip {
+    border: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    color: #174f87 !important;
     font-size: 12px !important;
     font-weight: 900 !important;
-    padding: 2px 3px !important;
+    padding: 0 !important;
     line-height: 1.15 !important;
+    border-radius: 0 !important;
+  }
+
+  .abd-returns-grid .abd-returns-table .sim-chip.active {
+    color: #0b3f74 !important;
+    text-decoration: underline;
+    text-underline-offset: 2px;
   }
 
   .abd-returns-grid .abd-returns-table .pos {
@@ -6605,6 +6639,10 @@
 
   .abd-returns-grid .abd-returns-table tbody tr.abd-empty-row td {
     color: transparent !important;
+  }
+
+  .abd-returns-grid .abd-returns-table tbody tr.abd-average-row td {
+    height: 29px !important;
   }
 
   .abd-track-select {
@@ -14973,11 +15011,23 @@
     const mode = getAbdReturnMode();
     if (key === "periodAvg") return row?.returns?.periodAvg;
     if (key === "periodAccumulated") return row?.returns?.periodAccumulated;
-    if (key === "annual3") return mode === "cumulative" ? row?.returns?.months36Accumulated : row?.returns?.annual3;
-    if (key === "annual5") return mode === "cumulative" ? row?.returns?.months60Accumulated : row?.returns?.annual5;
+    if (key === "annual3") return mode === "cumulative"
+      ? firstFiniteReturn(row?.returns?.months36Accumulated, row?.returns?.annual3)
+      : firstFiniteReturn(row?.returns?.annual3, row?.returns?.months36Accumulated);
+    if (key === "annual5") return mode === "cumulative"
+      ? firstFiniteReturn(row?.returns?.months60Accumulated, row?.returns?.annual5)
+      : firstFiniteReturn(row?.returns?.annual5, row?.returns?.months60Accumulated);
     if (key === "sharpe") return row?.risk?.sharpe;
     if (key === "assets") return row?.assets;
     return undefined;
+  }
+
+  function firstFiniteReturn(primary, fallback) {
+    const primaryNumber = Number(primary);
+    const fallbackNumber = Number(fallback);
+    if (Number.isFinite(primaryNumber) && (primaryNumber !== 0 || !Number.isFinite(fallbackNumber) || fallbackNumber === 0)) return primaryNumber;
+    if (Number.isFinite(fallbackNumber)) return fallbackNumber;
+    return Number.isFinite(primaryNumber) ? primaryNumber : NaN;
   }
 
   function getAbdReturnModeLabel() {
@@ -15633,10 +15683,10 @@
       </div>
 
       ${abdReturnsPaletteTarget ? `
-        <div class="sim-card" style="position:fixed;top:${Math.max(12, Math.min((abdReturnsPaletteTarget.y || 80) + 8, window.innerHeight - 118))}px;left:${Math.max(12, Math.min((abdReturnsPaletteTarget.x || 80) + 8, window.innerWidth - 188))}px;z-index:1000;width:176px;padding:8px;border-radius:10px;box-shadow:0 12px 30px rgba(15,35,55,.18);">
-          <div class="sim-inline-controls" style="gap:5px;">
-            ${["#ff4d6a", "#ff8c42", "#ffd60a", "#22d96e", "#00c9a7", "#3d8bff", "#a855f7", "#94a3b8"].map((color) => `<button class="sim-chip" style="width:22px;height:22px;padding:0;background:${color};border-color:${color};border-radius:6px;" type="button" data-abd-apply-color="${color}" aria-label="צבע ${color}"></button>`).join("")}
-            <button class="sim-chip" style="height:22px;padding:0 7px;border-radius:6px;" type="button" data-abd-clear-color>×</button>
+        <div class="sim-card" style="position:fixed;top:${Math.max(12, Math.min((abdReturnsPaletteTarget.y || 80) + 8, window.innerHeight - 86))}px;left:${Math.max(12, Math.min((abdReturnsPaletteTarget.x || 80) + 8, window.innerWidth - 134))}px;z-index:1000;width:122px;padding:6px;border-radius:8px;box-shadow:0 8px 18px rgba(15,35,55,.16);">
+          <div class="sim-inline-controls" style="gap:4px;">
+            ${["#ff4d6a", "#ff8c42", "#ffd60a", "#22d96e", "#00c9a7", "#3d8bff", "#a855f7", "#94a3b8"].map((color) => `<button class="sim-chip" style="width:18px;height:18px;padding:0;background:${color};border-color:${color};border-radius:5px;" type="button" data-abd-apply-color="${color}" aria-label="צבע ${color}"></button>`).join("")}
+            <button class="sim-chip" style="height:18px;min-width:22px;padding:0 5px;border-radius:5px;font-size:11px;" type="button" data-abd-clear-color>×</button>
           </div>
         </div>
       ` : ""}
