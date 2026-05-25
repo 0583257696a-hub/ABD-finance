@@ -12240,7 +12240,7 @@
             ${renderSettingsInput("returns.highlightStorageKey", "מפתח שמירת הדגשות", settings.highlightStorageKey)}
           </div>
           <div class="settings-pill-row">
-            <span class="settings-pill">לחיצה על שורה לצביעת מסלול</span>
+            <span class="settings-pill">CTRL + קליק לצביעת מסלול</span>
             <span class="settings-pill">מיון עצמאי לכל טבלה</span>
           </div>
         </section>
@@ -15812,7 +15812,7 @@
       return;
     }
     const abdDataRow = event.target.closest("[data-abd-row-fund]");
-    if (abdDataRow) {
+    if (abdDataRow && event.ctrlKey) {
       event.preventDefault();
       event.stopPropagation();
       abdReturnsPaletteTarget = {
