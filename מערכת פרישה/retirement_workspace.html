@@ -3712,15 +3712,6 @@
     text-align: center;
   }
 
-  .abd-color-square {
-    width: 12px;
-    height: 12px;
-    padding: 0;
-    border-radius: 3px;
-    border: 1px solid rgba(74, 112, 150, 0.3);
-    cursor: pointer;
-  }
-
   .abd-returns-table thead th {
     background: #e1e4e8;
     color: #111827;
@@ -6553,8 +6544,8 @@
 
   .abd-returns-grid .abd-returns-table th,
   .abd-returns-grid .abd-returns-table td {
-    padding: 4px 5px !important;
-    line-height: 1.3 !important;
+    padding: 3px 7px !important;
+    line-height: 1.2 !important;
     color: #0f2540;
     text-shadow: none !important;
     filter: none !important;
@@ -6562,16 +6553,12 @@
 
   .abd-returns-grid .abd-returns-table td:nth-child(1),
   .abd-returns-grid .abd-returns-table th:nth-child(1) {
-    width: 18px !important;
+    width: 36% !important;
+    text-align: right !important;
   }
 
-  .abd-returns-grid .abd-returns-table td:nth-child(2),
-  .abd-returns-grid .abd-returns-table th:nth-child(2) {
-    width: 34% !important;
-  }
-
-  .abd-returns-grid .abd-returns-table td:nth-child(n+3),
-  .abd-returns-grid .abd-returns-table th:nth-child(n+3) {
+  .abd-returns-grid .abd-returns-table td:nth-child(n+2),
+  .abd-returns-grid .abd-returns-table th:nth-child(n+2) {
     width: 16% !important;
     font-size: 14px !important;
     font-weight: 900 !important;
@@ -6596,6 +6583,28 @@
     font-weight: 900 !important;
     padding: 2px 3px !important;
     line-height: 1.15 !important;
+  }
+
+  .abd-returns-grid .abd-returns-table .pos {
+    color: #12a83d !important;
+    font-weight: 900 !important;
+  }
+
+  .abd-returns-grid .abd-returns-table .neg {
+    color: var(--abd-negative-return, #d93025) !important;
+    font-weight: 900 !important;
+  }
+
+  .abd-returns-grid .abd-returns-table tbody tr {
+    cursor: pointer;
+  }
+
+  .abd-returns-grid .abd-returns-table tbody tr.abd-empty-row {
+    cursor: default;
+  }
+
+  .abd-returns-grid .abd-returns-table tbody tr.abd-empty-row td {
+    color: transparent !important;
   }
 
   .abd-track-select {
@@ -7252,6 +7261,7 @@
 
   const SETTINGS_STORAGE_KEY = "abd-finance-settings-v1";
   const WORKSPACE_STATE_KEY = "abd-finance-workspace-state-v1";
+  const ABD_RETURNS_UPLOAD_STORAGE_KEY = "abd-finance-abd-returns-upload-v1";
   const SMART_ANALYSIS_CACHE_KEY = "abd-smart-analysis-cache-v1";
   const SMART_ANALYSIS_RETURNS_TTL_MS = 24 * 60 * 60 * 1000;
   const SMART_ANALYSIS_MATCH_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -12192,9 +12202,28 @@
             ${renderSettingsInput("returns.highlightStorageKey", "מפתח שמירת הדגשות", settings.highlightStorageKey)}
           </div>
           <div class="settings-pill-row">
-            <span class="settings-pill">Ctrl + Click לצביעת מסלול</span>
+            <span class="settings-pill">לחיצה על שורה לצביעת מסלול</span>
             <span class="settings-pill">מיון עצמאי לכל טבלה</span>
           </div>
+        </section>
+        <section class="settings-card">
+          <h3>ייבוא נתוני תשואות</h3>
+          <p>טעינת קבצי רשות שוק ההון לטבלת תשואות ABD FINANCE. אפשר לבחור כמה קבצי Excel או XML יחד.</p>
+          <div class="settings-form-grid">
+            <div class="settings-control">
+              <label>קבצי תשואות</label>
+              <input type="file" accept=".xlsx,.xls,.xlsm,.xml" multiple data-settings-abd-upload-files>
+            </div>
+          </div>
+          <div class="settings-pill-row">
+            <span class="settings-pill">נטענו ידנית: ${Number(getPersistedAbdUploadedRows().length || 0)} מסלולים</span>
+            <button class="button button-secondary" type="button" data-settings-clear-abd-returns>נקה נתונים שנטענו ידנית</button>
+          </div>
+          ${(state.simulations?.abdReturns?.uploadStatus || []).length ? `
+            <div class="settings-recent-list">
+              ${state.simulations.abdReturns.uploadStatus.map((item) => `<div class="settings-recent-item">${escapeHtml(item)}</div>`).join("")}
+            </div>
+          ` : ""}
         </section>
       </div>
     `;
@@ -12479,6 +12508,14 @@
 
   function handleSettingsChange(event) {
     if (handleSettingsColumnControls(event)) return;
+    if (event.target.dataset.settingsAbdUploadFiles !== undefined) {
+      handleAbdReturnsFiles(event.target.files).then(() => {
+        markSettingsEdited("returns", "returns.upload");
+        saveWorkspaceSnapshot();
+        renderSettingsPage();
+      });
+      return;
+    }
     const logoInput = event.target.closest("[data-settings-logo-upload]");
     if (logoInput) {
       handleSettingsLogoUpload(logoInput);
@@ -12567,6 +12604,16 @@
     const resetTemplate = event.target.closest("[data-settings-reset-fund-template]");
     if (resetTemplate) {
       resetSettingsFundTemplates(resetTemplate.dataset.settingsResetFundTemplate);
+      return;
+    }
+    if (event.target.closest("[data-settings-clear-abd-returns]")) {
+      state.simulations.abdReturns.uploadedRows = [];
+      state.simulations.abdReturns.uploadStatus = ["נתוני התשואות שנטענו ידנית נוקו."];
+      persistAbdUploadedRows();
+      markSettingsEdited("returns", "returns.clearUpload");
+      saveWorkspaceSnapshot();
+      renderSettingsPage();
+      renderSimulationsTab();
       return;
     }
     const columnsAction = event.target.closest("[data-settings-columns]");
@@ -14794,13 +14841,36 @@
   }
 
   function getAbdReturnsRows() {
-    const uploadedRows = Array.isArray(state?.simulations?.abdReturns?.uploadedRows) ? state.simulations.abdReturns.uploadedRows : [];
+    const uploadedRows = getPersistedAbdUploadedRows();
     const baseRows = Array.isArray(window.ABD_RETURNS_DATA)
       ? window.ABD_RETURNS_DATA
       : Array.isArray(globalThis.ABD_RETURNS_DATA)
         ? globalThis.ABD_RETURNS_DATA
         : [];
     return [...baseRows, ...uploadedRows];
+  }
+
+  function getPersistedAbdUploadedRows() {
+    const currentRows = Array.isArray(state?.simulations?.abdReturns?.uploadedRows) ? state.simulations.abdReturns.uploadedRows : [];
+    if (currentRows.length) return currentRows;
+    try {
+      const stored = JSON.parse(localStorage.getItem(ABD_RETURNS_UPLOAD_STORAGE_KEY) || "[]");
+      if (Array.isArray(stored) && stored.length) {
+        state.simulations.abdReturns.uploadedRows = stored;
+        return stored;
+      }
+    } catch (error) {
+      console.warn("[ABD-finance][abd returns upload]", error);
+    }
+    return currentRows;
+  }
+
+  function persistAbdUploadedRows() {
+    try {
+      localStorage.setItem(ABD_RETURNS_UPLOAD_STORAGE_KEY, JSON.stringify(state.simulations.abdReturns.uploadedRows || []));
+    } catch (error) {
+      console.warn("[ABD-finance][abd returns upload save]", error);
+    }
   }
 
   function normalizeProductType(productType) {
@@ -15183,6 +15253,7 @@
     }
     state.simulations.abdReturns.uploadedRows = uploadedRows;
     state.simulations.abdReturns.uploadStatus = status;
+    persistAbdUploadedRows();
     renderSimulationsTab();
   }
 
@@ -15516,6 +15587,9 @@
           abdReturnsCardData[cardId] = groupRows;
           const cardSort = ensureAbdCardSortState(cardId);
           const sortedRows = sortAbdRows(groupRows, cardSort);
+          const rowsPerTable = getSettingsRowsPerReturnTable();
+          const displayRows = sortedRows.slice(0, rowsPerTable);
+          const fillerRows = Math.max(0, rowsPerTable - displayRows.length);
           const arrow = (field) => cardSort.col === field ? (cardSort.dir === "desc" ? "▼" : "▲") : "";
           return `
           <div class="sim-card abd-returns-card" id="${escapeAttribute(cardId)}">
@@ -15524,7 +15598,6 @@
               <table class="sim-table abd-returns-table">
                 <thead>
                   <tr>
-                    <th></th>
                     <th>שם</th>
                     <th><button class="sim-chip ${cardSort.col === "periodAvg" ? "active" : ""}" type="button" data-abd-sort="periodAvg" data-abd-card-id="${escapeAttribute(cardId)}">חודש ${arrow("periodAvg")}</button></th>
                     <th><button class="sim-chip ${cardSort.col === "periodAccumulated" ? "active" : ""}" type="button" data-abd-sort="periodAccumulated" data-abd-card-id="${escapeAttribute(cardId)}">שנה ${arrow("periodAccumulated")}</button></th>
@@ -15533,19 +15606,18 @@
                   </tr>
                 </thead>
                 <tbody>
-                  ${sortedRows.slice(0, getSettingsRowsPerReturnTable()).map((row, index) => {
+                  ${displayRows.map((row, index) => {
                     const fundName = getAbdFundName(row);
                     return `<tr style="${getAbdHighlightStyle(fundName)}" data-abd-row-fund="${escapeAttribute(fundName)}">
-                    <td><button class="abd-color-square" style="background:${escapeAttribute(abdReturnsHighlights?.[fundName] || "#ffffff")};" type="button" title="Ctrl+לחיצה לבחירת צבע" data-abd-color-track="${escapeAttribute(fundName)}"></button></td>
-                    <td><button class="abd-track-name-button" type="button" data-abd-color-track="${escapeAttribute(fundName)}">${escapeHtml(row.trackName || "—")}</button></td>
+                    <td><button class="abd-track-name-button" type="button">${escapeHtml(row.trackName || "—")}</button></td>
                     <td class="${getAbdReturnClass(getAbdReturnMetric(row, "periodAvg"))}">${formatAbdTableReturn(getAbdReturnMetric(row, "periodAvg"))}</td>
                     <td class="${getAbdReturnClass(getAbdReturnMetric(row, "periodAccumulated"))}">${formatAbdTableReturn(getAbdReturnMetric(row, "periodAccumulated"))}</td>
                     <td class="${getAbdReturnClass(getAbdReturnMetric(row, "annual3"))}">${formatAbdTableReturn(getAbdReturnMetric(row, "annual3"))}</td>
                     <td class="${getAbdReturnClass(getAbdReturnMetric(row, "annual5"))}">${formatAbdTableReturn(getAbdReturnMetric(row, "annual5"))}</td>
                   </tr>`;
                   }).join("")}
+                  ${Array.from({ length: fillerRows }).map(() => `<tr class="abd-empty-row"><td>&nbsp;</td><td></td><td></td><td></td><td></td></tr>`).join("")}
                   <tr class="abd-average-row">
-                    <td></td>
                     <td>${returnMode === "cumulative" ? "תשואה מצטברת ממוצעת לקבוצה" : "תשואה ממוצעת לקבוצה"}</td>
                     <td class="${getAbdReturnClass(averageAbdRows(groupRows, (row) => getAbdReturnMetric(row, "periodAvg")))}">${formatAbdTableReturn(averageAbdRows(groupRows, (row) => getAbdReturnMetric(row, "periodAvg")))}</td>
                     <td class="${getAbdReturnClass(averageAbdRows(groupRows, (row) => getAbdReturnMetric(row, "periodAccumulated")))}">${formatAbdTableReturn(averageAbdRows(groupRows, (row) => getAbdReturnMetric(row, "periodAccumulated")))}</td>
@@ -15690,7 +15762,7 @@
       return;
     }
     const abdDataRow = event.target.closest("[data-abd-row-fund]");
-    if (abdDataRow && event.ctrlKey) {
+    if (abdDataRow) {
       event.preventDefault();
       event.stopPropagation();
       abdReturnsPaletteTarget = {
@@ -15727,21 +15799,6 @@
     if (abdProductButton) {
       state.simulations.abdReturns.productType = abdProductButton.dataset.abdProductFilter || "all";
       state.simulations.abdReturns.selectedTrackId = "";
-      renderSimulationsTab();
-      return;
-    }
-    const colorTrackButton = event.target.closest("[data-abd-color-track], [data-abd-color-cell]");
-    if (colorTrackButton) {
-      if (!event.ctrlKey) return;
-      event.preventDefault();
-      event.stopPropagation();
-      const fundName = colorTrackButton.dataset.abdColorTrack || colorTrackButton.dataset.abdColorCell || "";
-      abdReturnsPaletteTarget = {
-        fundName,
-        rowEl: colorTrackButton.closest("tr"),
-        x: event.clientX,
-        y: event.clientY
-      };
       renderSimulationsTab();
       return;
     }
