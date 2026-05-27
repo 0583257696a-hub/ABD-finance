@@ -2,6 +2,8 @@
 
 # dependencies
 /node_modules
+node_modules/
+**/node_modules/
 /.pnp
 .pnp.*
 .yarn/*
@@ -15,6 +17,8 @@
 
 # next.js
 /.next/
+.next/
+**/.next/
 /out/
 
 # production
@@ -30,8 +34,12 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 dev-server*.log
+**/dev-server*.log
 dev-server.pid
+**/dev-server.pid
 tmp-*.zip
+**/tmp-*.zip
+abd-finance/
 
 # env files (can opt-in for committing if needed)
 .env*
