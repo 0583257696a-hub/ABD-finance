@@ -1,0 +1,116 @@
+@import '../styles/tokens.css';
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { direction: rtl; }
+body {
+  font-family: var(--font-main);
+  background: var(--bg-shell);
+  color: var(--text-body);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: geometricPrecision;
+}
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
+
+body[data-density="compact"] table td,
+body[data-density="compact"] table th { padding-top: 7px !important; padding-bottom: 7px !important; }
+body[data-density="wide"] table td,
+body[data-density="wide"] table th { padding-top: 15px !important; padding-bottom: 15px !important; }
+tbody tr:nth-child(even) td {
+  background-color: var(--table-zebra-bg, transparent) !important;
+}
+body[data-animations="off"] *,
+body[data-animations="off"] *::before,
+body[data-animations="off"] *::after {
+  animation-duration: 0.001ms !important;
+  transition-duration: 0.001ms !important;
+  scroll-behavior: auto !important;
+}
+
+@keyframes abd-screen-settle {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes abd-row-settle {
+  from { opacity: 0; transform: translateX(-5px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes abd-panel-rise {
+  from { opacity: 0; transform: translateY(8px) scale(.992); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes abd-focus-pulse {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--abd-accent) 18%, transparent); }
+  100% { box-shadow: 0 0 0 8px transparent; }
+}
+
+body[data-animations="on"] main {
+  animation: abd-screen-settle .28s cubic-bezier(.2, .72, .22, 1) both;
+}
+
+body[data-animations="on"] section,
+body[data-animations="on"] aside {
+  animation: abd-panel-rise .24s cubic-bezier(.2, .72, .22, 1) both;
+}
+
+body[data-animations="on"] table tbody tr {
+  animation: abd-row-settle .18s cubic-bezier(.2, .72, .22, 1) both;
+}
+
+body[data-animations="on"] table tbody tr:nth-child(2) { animation-delay: 18ms; }
+body[data-animations="on"] table tbody tr:nth-child(3) { animation-delay: 36ms; }
+body[data-animations="on"] table tbody tr:nth-child(4) { animation-delay: 54ms; }
+body[data-animations="on"] table tbody tr:nth-child(n+5) { animation-delay: 72ms; }
+
+body[data-animations="on"] button,
+body[data-animations="on"] a,
+body[data-animations="on"] input,
+body[data-animations="on"] select,
+body[data-animations="on"] textarea {
+  transition:
+    background-color .16s ease,
+    border-color .16s ease,
+    color .16s ease,
+    box-shadow .16s ease,
+    transform .16s ease;
+}
+
+body[data-animations="on"] button:hover,
+body[data-animations="on"] a:hover {
+  transform: translateY(-1px);
+}
+
+body[data-animations="on"] button:active,
+body[data-animations="on"] a:active {
+  transform: translateY(0);
+}
+
+body[data-animations="on"] input:focus,
+body[data-animations="on"] select:focus,
+body[data-animations="on"] textarea:focus {
+  outline: none;
+  border-color: var(--abd-accent) !important;
+  animation: abd-focus-pulse .46s ease-out;
+}
+
+body[data-animations="on"] tbody tr:hover td {
+  filter: saturate(1.03);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

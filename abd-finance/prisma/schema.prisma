@@ -1,0 +1,34 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  schemas  = ["public", "auth"]
+}
+
+model User {
+  id          String       @id @default(cuid())
+  email       String       @unique
+  name        String?
+  password    String
+  createdAt   DateTime     @default(now())
+  advisorData AdvisorData?
+
+  @@schema("public")
+}
+
+model AdvisorData {
+  id             String   @id @default(cuid())
+  userId         String   @unique
+  user           User     @relation(fields: [userId], references: [id])
+  fundsData      Json?
+  insuranceData  Json?
+  settings       Json?
+  templates      Json?
+  returnsConfig  Json?
+  workspaceState Json?
+  updatedAt      DateTime @updatedAt
+
+  @@schema("public")
+}
