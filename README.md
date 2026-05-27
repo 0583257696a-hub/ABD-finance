@@ -1,36 +1,39 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ABD Finance
 
-## Getting Started
+מערכת פרישה ופיננסים ב-Next.js.
 
-First, run the development server:
+חשוב: זה לא פרויקט HTML סטטי ולא מיועד לפתיחה דרך GitHub Pages.
+יש להריץ או לפרוס אותו כסביבת Node/Next.js.
+
+## הרצה מקומית
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+פתיחה בדפדפן:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```text
+http://localhost:3000/login
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+משתמש בדיקה:
 
-## Learn More
+```text
+admin@abd-finance.co.il
+Abd123456!
+```
 
-To learn more about Next.js, take a look at the following resources:
+## מבנה הפרויקט
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- `src/app` - מסכי המערכת וה-API routes
+- `src/components` - רכיבי ממשק
+- `src/lib` - לוגיקת ייבוא, מיפוי, חישובים ותשואות
+- `prisma` - סכמת בסיס הנתונים
+- `public/assets` - לוגואים ונכסים
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## פריסה
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+המערכת כוללת NextAuth, Prisma ו-API routes, ולכן דורשת שרת שתומך ב-Next.js.
+GitHub Pages מציג HTML סטטי בלבד ולכן לא מתאים להרצת המערכת הזו.
