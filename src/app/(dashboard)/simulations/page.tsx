@@ -800,6 +800,29 @@ function PhoenixView() {
     setInputs(prev => ({ ...prev, [key]: value }))
   }
 
+  function selectScenario(spouseRate: string, guaranteeMonths: number) {
+    setInputs(prev => ({
+      ...prev,
+      spouseRate,
+      guaranteeMonths: String(guaranteeMonths),
+      maritalStatus: spouseRate === '0' ? prev.maritalStatus : 'married',
+    }))
+  }
+
+  function scenarioCellStyle(rowSpousePercent: number, guarantee: number): React.CSSProperties {
+    const activeRow = String(rowSpousePercent) === String(inputs.spouseRate)
+    const activeCol = String(guarantee) === String(inputs.guaranteeMonths)
+    return {
+      ...tdMonoStyle,
+      textAlign: 'center',
+      cursor: 'pointer',
+      background: activeRow && activeCol ? '#DCEEFF' : activeCol ? '#F0F8FF' : activeRow ? '#F8FBFF' : undefined,
+      boxShadow: activeRow && activeCol ? 'inset 0 0 0 2px var(--abd-accent)' : undefined,
+      color: activeRow && activeCol ? 'var(--abd-accent)' : 'var(--abd-primary)',
+      fontWeight: activeRow || activeCol ? 900 : 800,
+    }
+  }
+
   return (
     <>
       <section style={phoenixHeroStyle}>
@@ -839,7 +862,21 @@ function PhoenixView() {
                 <option value="married">נשוי/אה</option>
               </select>
             </label>
-            <Field label="אחוז לבן/בת זוג" suffix="" value={inputs.spouseRate} onChange={value => update('spouseRate', value)} />
+            <label style={{ display: 'grid', gap: 8 }}>
+              <span style={labelStyle}>אחוז לבן/בת זוג</span>
+              <select
+                value={inputs.maritalStatus === 'married' ? inputs.spouseRate : '0'}
+                onChange={event => update('spouseRate', event.target.value)}
+                style={selectStyle}
+                disabled={inputs.maritalStatus !== 'married'}
+              >
+                {phoenixScenarioRows.map(row => (
+                  <option key={row.spousePercent} value={String(row.spousePercent)}>
+                    {row.spousePercent === 0 ? '0%' : `${Math.round(row.spousePercent * 100)}%`}
+                  </option>
+                ))}
+              </select>
+            </label>
             <label style={{ display: 'grid', gap: 8 }}>
               <span style={labelStyle}>תאריך לידה בן/בת זוג</span>
               <input type="date" value={inputs.spouseBirth} onChange={event => update('spouseBirth', event.target.value)} style={dateInputStyle} disabled={inputs.maritalStatus !== 'married'} />
@@ -872,14 +909,58 @@ function PhoenixView() {
             <thead>
               <tr>
                 <th style={thStyle}>אחוז בן/בת זוג</th>
-                {phoenixGuaranteeOptions.map(option => <th key={option} style={thStyle}>{option} חודשים</th>)}
+                {phoenixGuaranteeOptions.map(option => <th key={option} style={String(option) === inputs.guaranteeMonths ? activeThStyle : thStyle}>{option} חודשים</th>)}
               </tr>
             </thead>
             <tbody>
               {calculation.coefficientRows.map(row => (
                 <tr key={row.label}>
                   <td style={tdStrongStyle}>{row.label}</td>
-                  {row.values.map((value, index) => <td key={index} style={tdMonoStyle}>{fmtNumber(value, 2)}</td>)}
+                  {row.values.map((value, index) => {
+                    const guarantee = phoenixGuaranteeOptions[index]
+                    return (
+                      <td
+                        key={guarantee}
+                        onClick={() => selectScenario(String(row.spousePercent), guarantee)}
+                        style={scenarioCellStyle(row.spousePercent, guarantee)}
+                      >
+                        {fmtNumber(value, 2)}
+                      </td>
+                    )
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section style={cardStyle}>
+        <h3 style={sectionTitleStyle}>קצבה חודשית ראשונה</h3>
+        <div style={tableWrapStyle}>
+          <table style={tableStyle}>
+            <thead>
+              <tr>
+                <th style={thStyle}>אחוז בן/בת זוג</th>
+                {phoenixGuaranteeOptions.map(option => <th key={option} style={String(option) === inputs.guaranteeMonths ? activeThStyle : thStyle}>{option} חודשים</th>)}
+              </tr>
+            </thead>
+            <tbody>
+              {calculation.pensionRows.map(row => (
+                <tr key={row.label}>
+                  <td style={tdStrongStyle}>{row.label}</td>
+                  {row.values.map((value, index) => {
+                    const guarantee = phoenixGuaranteeOptions[index]
+                    return (
+                      <td
+                        key={guarantee}
+                        onClick={() => selectScenario(String(row.spousePercent), guarantee)}
+                        style={scenarioCellStyle(row.spousePercent, guarantee)}
+                      >
+                        {money(value)}
+                      </td>
+                    )
+                  })}
                 </tr>
               ))}
             </tbody>
