@@ -1,5 +1,6 @@
 import { getServerSession } from 'next-auth'
 import { redirect } from 'next/navigation'
+import { Suspense } from 'react'
 import { authOptions } from '@/lib/auth'
 import Sidebar from '@/components/layout/Sidebar'
 
@@ -8,12 +9,15 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode
 }) {
-  const session = await getServerSession(authOptions)
-  if (!session) redirect('/login')
+  const authDisabled = process.env.DISABLE_LOGIN !== 'false'
+  const session = authDisabled ? null : await getServerSession(authOptions)
+  if (!authDisabled && !session) redirect('/login')
 
   return (
     <div dir="rtl" style={{ background: 'var(--bg-shell)', minHeight: '100vh' }}>
-      <Sidebar />
+      <Suspense fallback={null}>
+        <Sidebar />
+      </Suspense>
       <main
         style={{
           minHeight: '100vh',
@@ -22,7 +26,9 @@ export default async function DashboardLayout({
           padding: 24,
         }}
       >
-        {children}
+        <Suspense fallback={null}>
+          {children}
+        </Suspense>
       </main>
     </div>
   )

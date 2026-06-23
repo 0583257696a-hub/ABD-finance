@@ -18,6 +18,7 @@ import {
   buildInfrastructureRows,
   getInfrastructureTotals,
   isInfrastructureFund,
+  type InfrastructureRow,
 } from '@/lib/infrastructure'
 import type { Fund } from '@/types/fund'
 
@@ -53,6 +54,19 @@ type PhoenixInputs = {
 }
 
 type PhoenixModel = ReturnType<typeof buildPhoenixModel>
+
+type PhoenixSelectionPart = {
+  key: keyof Pick<
+    InfrastructureRow,
+    'compensationPension' |
+    'compensationCapital' |
+    'capitalBefore2008' |
+    'capitalAfter2008' |
+    'pensionBefore2000' |
+    'pensionAfter2000'
+  >
+  label: string
+}
 
 type CompoundInputs = {
   initialAmount: string
@@ -121,6 +135,16 @@ const phoenixScenarioRows = [
 ]
 const phoenixGuaranteeOptions = [0, 60, 120, 180, 240]
 const PHOENIX_INPUTS_KEY = 'abd_next_phoenix_inputs'
+const PHOENIX_SELECTION_KEY = 'abd_next_phoenix_selected_parts'
+
+const phoenixSelectionParts: PhoenixSelectionPart[] = [
+  { key: 'compensationPension', label: 'פיצויים לקצבה' },
+  { key: 'compensationCapital', label: 'פיצויים הוניים' },
+  { key: 'capitalBefore2008', label: 'תגמולי הון עד 2008' },
+  { key: 'capitalAfter2008', label: 'תגמולי הון מ-2008' },
+  { key: 'pensionBefore2000', label: 'תגמולים לקצבה עד 2000' },
+  { key: 'pensionAfter2000', label: 'תגמולים לקצבה אחרי 2000' },
+]
 
 const simViews: Array<{ id: SimView; label: string; note: string }> = [
   { id: 'compound', label: 'מחשבון ריבית דריבית', note: 'חישוב צבירה, מס, דמי ניהול ותרחישים' },
@@ -447,6 +471,10 @@ function calculatePhoenix(inputs: PhoenixInputs) {
   }
 }
 
+function phoenixSelectionId(fundId: string, partKey: string) {
+  return `${fundId}__${partKey}`
+}
+
 export default function SimulationsPage() {
   const [mounted, setMounted] = useState(false)
   const [activeView, setActiveView] = useState<SimView>('compound')
@@ -592,7 +620,7 @@ export default function SimulationsPage() {
         />
       )}
 
-      {activeView === 'phoenix' && <PhoenixView />}
+      {activeView === 'phoenix' && <PhoenixView funds={funds} />}
 
       {activeView === 'returns' && (
         <section style={embeddedPanelStyle}>
@@ -772,7 +800,7 @@ function CompoundView({
   )
 }
 
-function PhoenixView() {
+function PhoenixView({ funds }: { funds: Fund[] }) {
   const [inputs, setInputs] = useState<PhoenixInputs>(() => {
     if (typeof window === 'undefined') return defaultPhoenixInputs
     try {
@@ -781,6 +809,27 @@ function PhoenixView() {
       return defaultPhoenixInputs
     }
   })
+  const [selectedPartIds, setSelectedPartIds] = useState<string[]>(() => {
+    if (typeof window === 'undefined') return []
+    try {
+      const stored = JSON.parse(localStorage.getItem(PHOENIX_SELECTION_KEY) || '[]')
+      return Array.isArray(stored) ? stored : []
+    } catch {
+      return []
+    }
+  })
+  const [openFundIds, setOpenFundIds] = useState<string[]>([])
+  const selectionRows = useMemo(() => buildInfrastructureRows(funds), [funds])
+  const selectedCapital = useMemo(() => {
+    return selectionRows.reduce((sum, row) => {
+      const totalId = phoenixSelectionId(row.id, 'total')
+      if (selectedPartIds.includes(totalId)) return sum + (Number(row.total) || 0)
+      return sum + phoenixSelectionParts.reduce((partSum, part) => {
+        const partId = phoenixSelectionId(row.id, part.key)
+        return selectedPartIds.includes(partId) ? partSum + (Number(row[part.key]) || 0) : partSum
+      }, 0)
+    }, 0)
+  }, [selectionRows, selectedPartIds])
   const calculation = useMemo(() => calculatePhoenix(inputs), [inputs])
   const model = calculation.model
   const result = calculation.result
@@ -796,6 +845,16 @@ function PhoenixView() {
     localStorage.setItem(PHOENIX_INPUTS_KEY, JSON.stringify(inputs))
   }, [inputs])
 
+  useEffect(() => {
+    localStorage.setItem(PHOENIX_SELECTION_KEY, JSON.stringify(selectedPartIds))
+  }, [selectedPartIds])
+
+  useEffect(() => {
+    if (!(selectedCapital > 0)) return
+    const nextCapital = String(Math.round(selectedCapital * 100) / 100)
+    setInputs(prev => prev.accumulation === nextCapital ? prev : { ...prev, accumulation: nextCapital })
+  }, [selectedCapital])
+
   function update<K extends keyof PhoenixInputs>(key: K, value: PhoenixInputs[K]) {
     setInputs(prev => ({ ...prev, [key]: value }))
   }
@@ -807,6 +866,25 @@ function PhoenixView() {
       guaranteeMonths: String(guaranteeMonths),
       maritalStatus: spouseRate === '0' ? prev.maritalStatus : 'married',
     }))
+  }
+
+  function toggleSelection(partId: string, checked: boolean) {
+    setSelectedPartIds(prev => {
+      const fundId = partId.split('__')[0]
+      const totalId = phoenixSelectionId(fundId, 'total')
+      let next = prev.filter(id => id !== partId)
+      if (!checked) return next
+      if (partId.endsWith('__total')) {
+        next = next.filter(id => !id.startsWith(`${fundId}__`))
+        return [...next, partId]
+      }
+      next = next.filter(id => id !== totalId)
+      return [...next, partId]
+    })
+  }
+
+  function toggleFundOpen(fundId: string) {
+    setOpenFundIds(prev => prev.includes(fundId) ? prev.filter(id => id !== fundId) : [...prev, fundId])
   }
 
   function scenarioCellStyle(rowSpousePercent: number, guarantee: number): React.CSSProperties {
@@ -833,7 +911,68 @@ function PhoenixView() {
         </div>
       </section>
 
-      <section style={simLayoutStyle}>
+      <section style={phoenixCalculatorLayoutStyle}>
+        <div style={cardStyle}>
+          <div style={sectionHeaderStyle}>
+            <div>
+              <h3 style={sectionTitleStyle}>קופות לחישוב</h3>
+              <p style={softTextStyle}>סמן קופה מלאה או פתח חלקים ובחר תגמולים / פיצויים לפי שכבה.</p>
+            </div>
+            <strong style={countBadgeStyle}>{money(selectedCapital)}</strong>
+          </div>
+          <div style={phoenixFundsListStyle}>
+            {selectionRows.length ? selectionRows.map(row => {
+              const totalId = phoenixSelectionId(row.id, 'total')
+              const wholeChecked = selectedPartIds.includes(totalId)
+              const open = openFundIds.includes(row.id)
+              return (
+                <div key={row.id} style={phoenixFundRowStyle}>
+                  <div style={phoenixFundLineStyle}>
+                    <label style={checkboxLabelStyle}>
+                      <input
+                        type="checkbox"
+                        checked={wholeChecked}
+                        onChange={event => toggleSelection(totalId, event.target.checked)}
+                      />
+                      <span>
+                        <strong>{row.manufacturer || 'יצרן לא ידוע'}</strong>
+                        <small style={softTextStyle}>{row.accountNumber || 'ללא מספר'} · {row.yieldMode || 'לפי נתוני הדוח'}</small>
+                      </span>
+                    </label>
+                    <button type="button" onClick={() => toggleFundOpen(row.id)} style={miniButtonStyle}>
+                      {open ? 'סגור חלקים' : 'בחר חלקים'}
+                    </button>
+                    <strong style={moneyBadgeStyle}>{money(row.total)}</strong>
+                  </div>
+                  {open && (
+                    <div style={phoenixPartsGridStyle}>
+                      {phoenixSelectionParts.map(part => {
+                        const amount = Number(row[part.key]) || 0
+                        const partId = phoenixSelectionId(row.id, part.key)
+                        return (
+                          <label key={part.key} style={{ ...partCheckStyle, opacity: wholeChecked || amount <= 0 ? 0.55 : 1 }}>
+                            <input
+                              type="checkbox"
+                              checked={selectedPartIds.includes(partId)}
+                              disabled={wholeChecked || amount <= 0}
+                              onChange={event => toggleSelection(partId, event.target.checked)}
+                            />
+                            <span>{part.label}</span>
+                            <strong>{money(amount)}</strong>
+                          </label>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              )
+            }) : (
+              <div style={emptyStateStyle}>לא נטענו קופות. לאחר ייבוא קובץ מסלקה או אקסל תופיע כאן רשימת קופות לבחירה.</div>
+            )}
+          </div>
+        </div>
+
+        <div>
         <div style={cardStyle}>
           <h3 style={sectionTitleStyle}>נתוני חישוב</h3>
           <div style={compoundGridStyle}>
@@ -899,6 +1038,7 @@ function PhoenixView() {
             <Kpi title="גיל עמית" value={model ? `${fmtNumber(model.memberExactAge, 2)} שנים` : '-'} note="" />
             <Kpi title="גיל בן/בת זוג" value={model?.spouseExactAge != null ? `${fmtNumber(model.spouseExactAge, 2)} שנים` : '-'} note="" />
           </div>
+        </div>
         </div>
       </section>
 
@@ -1143,6 +1283,7 @@ const segmentStyle: React.CSSProperties = { display: 'grid', gap: 4, textAlign: 
 const activeSegmentStyle: React.CSSProperties = { ...segmentStyle, background: 'var(--abd-accent)', color: '#fff', borderColor: 'var(--abd-accent)', boxShadow: '0 10px 24px rgba(37, 99, 235, 0.22)' }
 const embeddedPanelStyle: React.CSSProperties = { background: '#fff', border: '1px solid #D7EAFB', borderRadius: 18, padding: 8, boxShadow: 'var(--shadow-card)' }
 const simLayoutStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: '0.9fr 1.1fr', gap: 18, marginBottom: 18 }
+const phoenixCalculatorLayoutStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'minmax(360px, 0.95fr) minmax(420px, 1.05fr)', gap: 18, marginBottom: 18, alignItems: 'start' }
 const compoundGridStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 14, marginTop: 18 }
 const advancedButtonStyle: React.CSSProperties = { marginTop: 16, border: '1px solid #CFE6FA', background: '#F4FAFF', color: 'var(--abd-primary)', borderRadius: 999, padding: '9px 14px', fontWeight: 900, cursor: 'pointer', fontFamily: 'var(--font-main)' }
 const advancedGridStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 14, marginTop: 14, paddingTop: 14, borderTop: '1px solid #E4F2FF' }
@@ -1155,6 +1296,16 @@ const dateInputStyle: React.CSSProperties = { ...selectStyle, direction: 'ltr', 
 const warningStyle: React.CSSProperties = { marginTop: 14, border: '1px solid #FECACA', background: '#FEF2F2', color: '#991B1B', borderRadius: 14, padding: 12, fontWeight: 800 }
 const phoenixHeroStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, background: '#fff', border: '1px solid #D7EAFB', borderRadius: 18, padding: 20, boxShadow: 'var(--shadow-card)', marginBottom: 18 }
 const phoenixFundToggleStyle: React.CSSProperties = { display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }
+const phoenixFundsListStyle: React.CSSProperties = { display: 'grid', gap: 10, maxHeight: 520, overflowY: 'auto', paddingInlineEnd: 4 }
+const phoenixFundRowStyle: React.CSSProperties = { border: '1px solid #D7EAFB', borderRadius: 16, background: '#FBFDFF', overflow: 'hidden' }
+const phoenixFundLineStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto auto', gap: 10, alignItems: 'center', padding: 12 }
+const checkboxLabelStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, color: 'var(--abd-primary)', fontWeight: 900 }
+const softTextStyle: React.CSSProperties = { display: 'block', color: '#6B86AA', fontSize: 12, fontWeight: 700, lineHeight: 1.5 }
+const miniButtonStyle: React.CSSProperties = { border: '1px solid #CFE6FA', background: '#fff', color: 'var(--abd-primary)', borderRadius: 999, padding: '7px 10px', fontFamily: 'var(--font-main)', fontWeight: 900, cursor: 'pointer', whiteSpace: 'nowrap' }
+const moneyBadgeStyle: React.CSSProperties = { color: 'var(--abd-accent)', background: '#EAF6FF', borderRadius: 999, padding: '7px 10px', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }
+const phoenixPartsGridStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8, padding: '0 12px 12px' }
+const partCheckStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'auto minmax(0, 1fr) auto', gap: 8, alignItems: 'center', border: '1px solid #E4F2FF', borderRadius: 12, background: '#fff', padding: 9, color: 'var(--abd-primary)', fontSize: 12, fontWeight: 800 }
+const emptyStateStyle: React.CSSProperties = { border: '1px dashed #BFE2FB', borderRadius: 16, padding: 18, color: '#6B86AA', fontWeight: 800, lineHeight: 1.8 }
 const chartTabsStyle: React.CSSProperties = { display: 'flex', gap: 8, flexWrap: 'wrap' }
 const simKpisStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12, marginTop: 18 }
 const kpiGridStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 16, marginBottom: 22 }
