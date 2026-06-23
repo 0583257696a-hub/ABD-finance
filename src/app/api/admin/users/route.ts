@@ -4,6 +4,14 @@ import bcrypt from 'bcryptjs'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/db'
 
+type AdminUserRow = {
+  id: string
+  email: string
+  name: string | null
+  password: string
+  createdAt: Date
+}
+
 function isAdmin(email?: string | null) {
   return email === 'admin@abd-finance.co.il'
 }
@@ -26,7 +34,7 @@ export async function GET() {
   })
 
   return NextResponse.json({
-    users: users.map(user => ({
+    users: users.map((user: AdminUserRow) => ({
       ...user,
       phone: '',
       approved: true,
