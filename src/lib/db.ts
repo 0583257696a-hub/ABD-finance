@@ -1,29 +1,37 @@
-import { PrismaClient } from '@prisma/client'
-import { PrismaPg } from '@prisma/adapter-pg'
-import { Pool } from 'pg'
+import type { PrismaClient as PrismaClientType } from '@prisma/client'
+import type { Pool as PoolType } from 'pg'
 
 const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined
-  prismaPool: Pool | undefined
+  prisma?: PrismaClientType
+  prismaPool?: PoolType
 }
 
-const connectionString =
-  process.env.DIRECT_URL ||
-  process.env.DATABASE_URL ||
-  'postgresql://user:password@localhost:5432/abd_finance'
+export async function getPrisma(): Promise<PrismaClientType> {
+  if (globalForPrisma.prisma) return globalForPrisma.prisma
 
-const pool =
-  globalForPrisma.prismaPool ?? new Pool({
-    connectionString,
-    ssl: { rejectUnauthorized: false },
-  })
+  const [{ PrismaClient }, { PrismaPg }, { Pool }] = await Promise.all([
+    import('@prisma/client'),
+    import('@prisma/adapter-pg'),
+    import('pg'),
+  ])
 
-const adapter = new PrismaPg(pool)
+  const connectionString =
+    process.env.DIRECT_URL ||
+    process.env.DATABASE_URL ||
+    'postgresql://user:password@localhost:5432/abd_finance'
 
-export const prisma =
-  globalForPrisma.prisma ?? new PrismaClient({ adapter })
+  const pool =
+    globalForPrisma.prismaPool ??
+    new Pool({
+      connectionString,
+      ssl: { rejectUnauthorized: false },
+    })
 
-if (process.env.NODE_ENV !== 'production') {
+  const adapter = new PrismaPg(pool)
+  const prisma = new PrismaClient({ adapter }) as PrismaClientType
+
   globalForPrisma.prismaPool = pool
   globalForPrisma.prisma = prisma
+
+  return prisma
 }

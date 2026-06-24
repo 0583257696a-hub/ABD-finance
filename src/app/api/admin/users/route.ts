@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import bcrypt from 'bcryptjs'
 import { authOptions } from '@/lib/auth'
-import { prisma } from '@/lib/db'
+import { getPrisma } from '@/lib/db'
 
 type AdminUserRow = {
   id: string
@@ -53,6 +53,7 @@ export async function GET() {
   }
 
   try {
+    const prisma = await getPrisma()
     const users = await prisma.user.findMany({
       orderBy: { createdAt: 'desc' },
       select: {
@@ -89,6 +90,7 @@ export async function PATCH(request: Request) {
   }
 
   try {
+    const prisma = await getPrisma()
     const hash = await bcrypt.hash(String(body.password), 10)
     await prisma.user.update({
       where: { id: String(body.userId) },

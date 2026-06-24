@@ -70,7 +70,8 @@ async function authorizeStaticUser(email: string, password: string) {
 
 async function authorizeDatabaseUser(email: string, password: string) {
   try {
-    const { prisma } = await import('./db')
+    const { getPrisma } = await import('./db')
+    const prisma = await getPrisma()
     const user = await prisma.user.findUnique({
       where: { email },
     })

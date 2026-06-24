@@ -1,7 +1,7 @@
 import { getServerSession } from 'next-auth'
 import { NextResponse } from 'next/server'
 import { authOptions } from '@/lib/auth'
-import { prisma } from '@/lib/db'
+import { getPrisma } from '@/lib/db'
 
 const ALLOWED_KEYS = [
   'fundsData',
@@ -24,6 +24,7 @@ export async function GET() {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  const prisma = await getPrisma()
   const advisorData = await prisma.advisorData.findUnique({
     where: { userId: session.user.id },
   })
@@ -43,6 +44,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Invalid key' }, { status: 400 })
   }
 
+  const prisma = await getPrisma()
   const advisorData = await prisma.advisorData.upsert({
     where: { userId: session.user.id },
     update: { [key]: body.data },
