@@ -19,6 +19,9 @@ node_modules/
 /.next/
 .next/
 **/.next/
+/.open-next/
+.open-next/
+**/.open-next/
 /out/
 
 # production

@@ -106,10 +106,7 @@ function getInfrastructureLayerKind(row: PeriodRow) {
   return 'other'
 }
 
-function getInfrastructureBucket(
-  row: InfrastructurePeriodRow,
-  context: { isCapitalProduct: boolean; hasCapitalLegacyRows: boolean },
-) {
+function getInfrastructureBucket(row: InfrastructurePeriodRow) {
   if (row.componentKind === 'compensation') {
     return row.balanceKind === 'capital' ? 'compensationCapital' : 'compensationPension'
   }
@@ -118,18 +115,18 @@ function getInfrastructureBucket(
 
   const layerCode = clean(row.periodCode)
   if (layerCode === '1') return row.balanceKind === 'capital' ? 'capitalBefore2008' : 'pensionBefore2000'
-  if (layerCode === '2') return context.isCapitalProduct || row.balanceKind === 'capital' ? 'capitalAfter2008' : 'pensionAfter2000'
+  if (layerCode === '2') return row.balanceKind === 'capital' ? 'capitalAfter2008' : 'pensionAfter2000'
   if (layerCode === '3' || layerCode === '5') return 'capitalBefore2008'
   if (layerCode === '4' || layerCode === '6') return 'capitalBefore2008'
-  if (layerCode === '7') return context.hasCapitalLegacyRows || context.isCapitalProduct ? 'capitalAfter2008' : 'pensionAfter2000'
+  if (layerCode === '7') return row.balanceKind === 'capital' ? 'capitalAfter2008' : 'pensionAfter2000'
   if (layerCode === '9') return row.balanceKind === 'capital' ? 'capitalAfter2008' : 'pensionAfter2000'
 
   if (row.layerKind === 'before2000') return row.balanceKind === 'capital' ? 'capitalBefore2008' : 'pensionBefore2000'
-  if (row.layerKind === 'after2000') return row.balanceKind === 'capital' || context.isCapitalProduct ? 'capitalAfter2008' : 'pensionAfter2000'
-  if (row.layerKind === 'through2008') return row.balanceKind === 'capital' || context.isCapitalProduct ? 'capitalAfter2008' : 'pensionAfter2000'
+  if (row.layerKind === 'after2000') return row.balanceKind === 'capital' ? 'capitalAfter2008' : 'pensionAfter2000'
+  if (row.layerKind === 'through2008') return row.balanceKind === 'capital' ? 'capitalAfter2008' : 'pensionAfter2000'
   if (row.layerKind === 'from2008') return 'capitalBefore2008'
   if (row.layerKind === 'capital-through2008') return 'capitalBefore2008'
-  if (row.layerKind === 'capital-from2008') return context.hasCapitalLegacyRows || context.isCapitalProduct ? 'capitalAfter2008' : 'pensionAfter2000'
+  if (row.layerKind === 'capital-from2008') return row.balanceKind === 'capital' ? 'capitalAfter2008' : 'pensionAfter2000'
   if (row.layerKind === 'capital-route') return row.balanceKind === 'capital' ? 'capitalAfter2008' : 'pensionAfter2000'
   if (row.layerKind === 'pension-route') return 'pensionAfter2000'
 
@@ -166,17 +163,6 @@ export function normalizeInfrastructureRows(rows: PeriodRow[] = []) {
   }, [])
 }
 
-function getInfrastructureBucketContext(fund: Fund, rows: InfrastructurePeriodRow[]) {
-  const fundText = normalizeText([fund.productType, fund.productName, fund.planName, fund.investmentTrack].filter(Boolean).join(' '))
-  const isCapitalProduct = fundText.includes('הון מנהלים') || /תכנית\s*הון|תוכנית\s*הון/.test(fundText)
-  const hasCapitalLegacyRows = rows.some(row => {
-    if (row.componentKind !== 'contribution') return false
-    const code = clean(row.periodCode)
-    return row.balanceKind === 'capital' && ['3', '4', '5', '6'].includes(code)
-  })
-  return { isCapitalProduct, hasCapitalLegacyRows }
-}
-
 export function getInfrastructureYieldMode(fund: Fund) {
   if (/כן/i.test(fund.guaranteedYieldFlag || '')) return 'כולל אינדיקציה להבטחת תשואה'
   if (fund.investmentTrack) return fund.investmentTrack
@@ -191,8 +177,7 @@ export function buildInfrastructureRows(sourceFunds: Fund[] = [], infrastructure
   const funds = infrastructureIds ? sourceFunds.filter(fund => isInfrastructureFund(fund, infrastructureIds)) : sourceFunds
   return funds.map((fund, index) => {
     const rows = normalizeInfrastructureRows(fund.periodRows || [])
-    const context = getInfrastructureBucketContext(fund, rows)
-    const bucketOf = (row: InfrastructurePeriodRow) => getInfrastructureBucket(row, context)
+    const bucketOf = (row: InfrastructurePeriodRow) => getInfrastructureBucket(row)
 
     let compensationPension = sumBy(rows.filter(row => bucketOf(row) === 'compensationPension'), row => row.amount)
     let compensationCapital = sumBy(rows.filter(row => bucketOf(row) === 'compensationCapital'), row => row.amount)
