@@ -26,10 +26,14 @@ declare module 'next-auth/jwt' {
   }
 }
 
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL || (process.env.NODE_ENV !== 'production' ? 'admin@abd-finance.co.il' : '')
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || (process.env.NODE_ENV !== 'production' ? 'AbdAdmin2026!' : '')
-const ADVISOR_EMAIL = process.env.APP_USER_EMAIL || (process.env.NODE_ENV !== 'production' ? 'advisor@abd-finance.co.il' : '')
-const ADVISOR_PASSWORD = process.env.APP_USER_PASSWORD || (process.env.NODE_ENV !== 'production' ? 'AbdUser2026!' : '')
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@abd-finance.co.il'
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'AbdAdmin2026!'
+const ADVISOR_EMAIL = process.env.APP_USER_EMAIL || 'advisor@abd-finance.co.il'
+const ADVISOR_PASSWORD = process.env.APP_USER_PASSWORD || 'AbdUser2026!'
+const AUTH_SECRET =
+  process.env.NEXTAUTH_SECRET ||
+  process.env.AUTH_SECRET ||
+  'abd-finance-static-auth-secret-change-in-cloudflare'
 
 function normalizeEmail(email?: string | null) {
   return String(email || '').trim().toLowerCase()
@@ -79,7 +83,7 @@ async function authorizeDatabaseUser(email: string, password: string) {
       id: user.id,
       email: user.email,
       name: user.name,
-      role: normalizeEmail(user.email) === normalizeEmail(ADMIN_EMAIL || 'admin@abd-finance.co.il') ? 'admin' as AppRole : 'advisor' as AppRole,
+      role: normalizeEmail(user.email) === normalizeEmail(ADMIN_EMAIL) ? 'admin' as AppRole : 'advisor' as AppRole,
     }
   } catch (error) {
     console.warn('Database auth unavailable, static credentials only.', error)
@@ -107,7 +111,7 @@ export const authOptions: NextAuthOptions = {
   ],
   pages: { signIn: '/login' },
   session: { strategy: 'jwt' },
-  secret: process.env.NEXTAUTH_SECRET,
+  secret: AUTH_SECRET,
   callbacks: {
     jwt({ token, user }) {
       if (user) {
