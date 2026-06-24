@@ -24,7 +24,7 @@ export default function AdminPanelPage() {
   const [newPasswords, setNewPasswords] = useState<Record<string, string>>({})
   const returnsInputRef = useRef<HTMLInputElement>(null)
 
-  const isAdmin = session?.user?.email === 'admin@abd-finance.co.il'
+  const isAdmin = session?.user?.role === 'admin' || session?.user?.email === 'admin@abd-finance.co.il'
 
   useEffect(() => {
     if (!isAdmin) return

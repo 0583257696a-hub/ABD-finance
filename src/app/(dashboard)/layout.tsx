@@ -9,7 +9,7 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode
 }) {
-  const authDisabled = process.env.DISABLE_LOGIN !== 'false'
+  const authDisabled = process.env.DISABLE_LOGIN === 'true'
   const session = authDisabled ? null : await getServerSession(authOptions)
   if (!authDisabled && !session) redirect('/login')
 
