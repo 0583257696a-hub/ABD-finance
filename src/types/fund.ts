@@ -38,6 +38,26 @@ export type PeriodRow = {
   benefitCap?: string
 }
 
+export type FundInsuranceCoverage = {
+  dataValueDate?: string
+  insuredInPensionFund?: string
+  insuranceTrack?: string
+  salaryForDisabilityAndSurvivors?: number
+  salaryValidityDate?: string
+  disabilityCoverageCost?: number
+  survivorsCoverageCost?: number
+  disabledSurvivorsPensionCoverageCost?: number
+  disabilityCoverageRate?: number
+  widowerCoverageRate?: number
+  orphanCoverageRate?: number
+  supportedParentCoverageRate?: number
+  fullDisabilityPension?: number
+  widowerSurvivorsPension?: number
+  orphanSurvivorsPension?: number
+  supportedParentSurvivorsPension?: number
+  disabilityCoverageWaiverOver60?: string
+}
+
 export type Fund = {
   id: string
   accountNumber?: string
@@ -72,6 +92,10 @@ export type Fund = {
   recommendation?: string
   recommendationTemplateId?: string
   migrationPlan?: {
+    sourcePartIds?: string[]
+    sourceParts?: Array<{ key: string; label: string; amount: number }>
+    sourceSelectionLabel?: string
+    sourceAmount?: number
     targetProduct?: string
     targetCompany?: string
     managementFeeBalance?: string
@@ -90,5 +114,6 @@ export type Fund = {
   employers?: Employer[]
   depositRows?: DepositRow[]
   periodRows?: PeriodRow[]
+  insuranceCoverage?: FundInsuranceCoverage
   smartScore?: number
 }

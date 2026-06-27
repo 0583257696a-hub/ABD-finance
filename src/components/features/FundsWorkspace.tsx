@@ -15,6 +15,7 @@ import {
   type AbdTrack,
 } from '@/lib/returns-catalog'
 import { ManufacturerLogo as SharedManufacturerLogo } from '@/components/shared/ManufacturerLogo'
+import { buildInfrastructureRows } from '@/lib/infrastructure'
 
 type SortDirection = 'asc' | 'desc'
 type FundActivityView = 'employers' | 'deposits' | 'beneficiaries'
@@ -23,6 +24,9 @@ type Recommendation = {
   id: string
   fromFundId?: string
   sourceFundIds?: string[]
+  sourcePartIds?: string[]
+  sourceParts?: Array<{ key: string; label: string; amount: number }>
+  sourceSelectionLabel?: string
   actionType?: string
   productType: string
   manufacturer: string
@@ -131,6 +135,17 @@ const recommendationTemplateIds: Record<RecommendationActionId, string> = {
   service: 'ongoing_service',
 }
 
+const migrationSourceParts = [
+  { key: 'compensationPension', label: 'פיצויים לקצבה' },
+  { key: 'compensationCapital', label: 'פיצויים הוניים' },
+  { key: 'capitalBefore2008', label: 'תגמולי הון עד 2008' },
+  { key: 'capitalAfter2008', label: 'תגמולי הון מ-2008' },
+  { key: 'pensionBefore2000', label: 'תגמולים לקצבה עד 2000' },
+  { key: 'pensionAfter2000', label: 'תגמולים לקצבה אחרי 2000' },
+] as const
+
+type MigrationSourcePartKey = typeof migrationSourceParts[number]['key']
+
 const emptyNeeds: NeedsState = {
   clientFullName: '',
   clientIdNumber: '',
@@ -182,6 +197,20 @@ function money(value: unknown) {
   })
 }
 
+function moneyOrEmpty(value: unknown) {
+  return Number.isFinite(Number(value)) ? money(value) : 'אין נתון'
+}
+
+function percentOrEmpty(value: unknown) {
+  const numberValue = Number(value)
+  return Number.isFinite(numberValue) ? `${numberValue.toLocaleString('he-IL')}%` : 'אין נתון'
+}
+
+function isFundInsuranceCoverageRelevant(fund: FundRecord) {
+  const text = [fund.productType, fund.productName, fund.planName].filter(Boolean).join(' ')
+  return text.includes('קרן פנסיה') || text.includes('פנסיה') || text.includes('ביטוח מנהלים') || text.includes('מנהלים')
+}
+
 function getFundPeriodBreakdown(fund: FundRecord) {
   const rows = fund.periodRows || []
   return rows.reduce(
@@ -199,6 +228,18 @@ function getFundPeriodBreakdown(fund: FundRecord) {
     },
     { pension: 0, compensation: 0 },
   )
+}
+
+function getFundMigrationSourceParts(fund: FundRecord) {
+  const infrastructureRow = buildInfrastructureRows([fund])[0]
+  if (!infrastructureRow) return []
+  return migrationSourceParts
+    .map(part => ({
+      key: part.key,
+      label: part.label,
+      amount: Number(infrastructureRow[part.key]) || 0,
+    }))
+    .filter(part => part.amount > 0)
 }
 
 function isActiveStatus(status?: string) {
@@ -778,6 +819,9 @@ function FundModal({
   const [reason, setReason] = useState('')
   const [professionalNotes, setProfessionalNotes] = useState(existingPlan.professionalNotes || '')
   const [activityView, setActivityView] = useState<FundActivityView>('deposits')
+  const [insuranceCoverageOpen, setInsuranceCoverageOpen] = useState(false)
+  const [migrationSourceMode, setMigrationSourceMode] = useState<'whole' | 'parts'>(existingPlan.sourcePartIds?.length ? 'parts' : 'whole')
+  const [migrationSourcePartIds, setMigrationSourcePartIds] = useState<string[]>(existingPlan.sourcePartIds || [])
   const fundRecommendations = recommendations.filter(item => item.fromFundId === fund.id)
   const manufacturers = useMemo(() => {
     const fromReturns = getManufacturersByProductType(productType)
@@ -791,6 +835,18 @@ function FundModal({
   const periodBreakdown = getFundPeriodBreakdown(fund)
   const pensionBalance = periodBreakdown.pension || fund.pensionBalance
   const compensationBalance = periodBreakdown.compensation || fund.compensationBalance
+  const sourceParts = useMemo(() => getFundMigrationSourceParts(fund), [fund])
+  const showInsuranceCoverageButton = isFundInsuranceCoverageRelevant(fund)
+  const selectedSourceParts = useMemo(
+    () => sourceParts.filter(part => migrationSourcePartIds.includes(part.key)),
+    [migrationSourcePartIds, sourceParts],
+  )
+  const migrationSourceAmount = migrationSourceMode === 'parts'
+    ? selectedSourceParts.reduce((sum, part) => sum + part.amount, 0)
+    : Number(fund.currentBalance || 0)
+  const migrationSourceLabel = migrationSourceMode === 'parts' && selectedSourceParts.length
+    ? selectedSourceParts.map(part => part.label).join(', ')
+    : 'כל הקופה'
 
   useEffect(() => {
     if (!allowedProducts.includes(productType)) {
@@ -826,11 +882,23 @@ function FundModal({
     onUpdateFund({ ...fund, [key]: toNumber(value) })
   }
 
+  function toggleMigrationSourcePart(partKey: MigrationSourcePartKey, checked: boolean) {
+    setMigrationSourcePartIds(current => checked
+      ? Array.from(new Set([...current, partKey]))
+      : current.filter(key => key !== partKey))
+  }
+
   function addRecommendation() {
     if (!activeRecommendationAction) return
     if (activeRecommendationAction === 'new-product' && !selectedTrack) return
     const isMigration = activeRecommendationAction === 'new-product'
+    if (isMigration && !(migrationSourceAmount > 0)) return
+    const savedSourceParts = isMigration && migrationSourceMode === 'parts' ? selectedSourceParts : []
     const migrationPlan = isMigration ? {
+      sourcePartIds: migrationSourceMode === 'parts' ? migrationSourcePartIds : [],
+      sourceParts: savedSourceParts,
+      sourceSelectionLabel: migrationSourceLabel,
+      sourceAmount: migrationSourceAmount,
       targetProduct: productType,
       targetCompany: manufacturer,
       managementFeeBalance,
@@ -846,6 +914,9 @@ function FundModal({
     const next: Recommendation = {
       id: `${Date.now()}`,
       fromFundId: fund.id,
+      sourcePartIds: isMigration && migrationSourceMode === 'parts' ? migrationSourcePartIds : [],
+      sourceParts: savedSourceParts,
+      sourceSelectionLabel: isMigration ? migrationSourceLabel : undefined,
       actionType: recommendationActions.find(action => action.id === activeRecommendationAction)?.label || 'ניוד',
       productType: isMigration ? productType : normalizeProductType(fund.productType || productType),
       manufacturer: isMigration ? manufacturer : normalizeManufacturerName(fund.manufacturer || manufacturer),
@@ -855,7 +926,7 @@ function FundModal({
       managementFeeDeposit: isMigration ? managementFeeDeposit : undefined,
       reason,
       professionalNotes,
-      amount: Number(fund.currentBalance || 0),
+      amount: isMigration ? migrationSourceAmount : Number(fund.currentBalance || 0),
       returns: isMigration ? selectedTrack?.returns : undefined,
     }
     onSaveRecommendations([next, ...recommendations])
@@ -883,6 +954,8 @@ function FundModal({
       setManagementFeeBalance('')
       setManagementFeeDeposit('')
       setProfessionalNotes('')
+      setMigrationSourceMode('whole')
+      setMigrationSourcePartIds([])
     }
     setReason(defaultRecommendationReason(actionId, fund, nextProduct, manufacturer))
     if (actionId === 'pension' && !isInfrastructureTarget) {
@@ -945,14 +1018,29 @@ function FundModal({
         <div style={trackBoxStyle}>
           <span>מסלול השקעה</span>
           <strong>{fund.investmentTrack || 'אין נתון'}</strong>
-          <button
-            type="button"
-            onClick={() => onToggleInfrastructureTarget(fund)}
-            style={smallButtonStyle}
-          >
-            {isInfrastructureTarget ? 'הסר יעד קצבה' : 'משוך קצבה'}
-          </button>
+          <div style={trackActionsStyle}>
+            {showInsuranceCoverageButton && (
+              <button
+                type="button"
+                onClick={() => setInsuranceCoverageOpen(current => !current)}
+                style={smallButtonStyle}
+              >
+                כיסוי ביטוחי בקופה
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => onToggleInfrastructureTarget(fund)}
+              style={smallButtonStyle}
+            >
+              {isInfrastructureTarget ? 'הסר יעד קצבה' : 'משוך קצבה'}
+            </button>
+          </div>
         </div>
+
+        {showInsuranceCoverageButton && insuranceCoverageOpen && (
+          <FundInsuranceCoveragePanel fund={fund} />
+        )}
 
         <section style={editPanelStyle}>
           <h3 style={sectionTitleStyle}>עדכון נתוני קופה</h3>
@@ -1022,6 +1110,51 @@ function FundModal({
                   {allowedProducts.join(' / ')}
                 </span>
               </div>
+              <div style={sourceSelectionStyle}>
+                <div style={sourceSelectionHeaderStyle}>
+                  <strong>מקור הניוד</strong>
+                  <span>{money(migrationSourceAmount)}</span>
+                </div>
+                <div style={sourceModeButtonsStyle}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMigrationSourceMode('whole')
+                      setMigrationSourcePartIds([])
+                    }}
+                    style={sourceModeButtonStyle(migrationSourceMode === 'whole')}
+                  >
+                    כל הקופה
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMigrationSourceMode('parts')}
+                    disabled={!sourceParts.length}
+                    style={sourceModeButtonStyle(migrationSourceMode === 'parts')}
+                  >
+                    חלק מקופה
+                  </button>
+                </div>
+                {migrationSourceMode === 'parts' && (
+                  sourceParts.length ? (
+                    <div style={sourcePartsGridStyle}>
+                      {sourceParts.map(part => (
+                        <label key={part.key} style={sourcePartStyle}>
+                          <input
+                            type="checkbox"
+                            checked={migrationSourcePartIds.includes(part.key)}
+                            onChange={event => toggleMigrationSourcePart(part.key, event.target.checked)}
+                          />
+                          <span>{part.label}</span>
+                          <strong>{money(part.amount)}</strong>
+                        </label>
+                      ))}
+                    </div>
+                  ) : (
+                    <div style={mappingNoticeStyle}>אין פירוט שכבות לקופה הזו. ניתן לנייד רק את כל הקופה.</div>
+                  )
+                )}
+              </div>
               <div style={recommendationGridStyle}>
                 <Field label="סוג מוצר מקבל">
                   {allowedProducts.length === 1 ? (
@@ -1072,8 +1205,8 @@ function FundModal({
           <button
             type="button"
             onClick={addRecommendation}
-            disabled={!activeRecommendationAction || (activeRecommendationAction === 'new-product' && !allowedProducts.length)}
-            style={!activeRecommendationAction || (activeRecommendationAction === 'new-product' && !allowedProducts.length) ? disabledButtonStyle : primaryButtonStyle}
+            disabled={!activeRecommendationAction || (activeRecommendationAction === 'new-product' && (!allowedProducts.length || !(migrationSourceAmount > 0)))}
+            style={!activeRecommendationAction || (activeRecommendationAction === 'new-product' && (!allowedProducts.length || !(migrationSourceAmount > 0))) ? disabledButtonStyle : primaryButtonStyle}
           >
             שמור המלצה לקופה
           </button>
@@ -1085,7 +1218,7 @@ function FundModal({
                   <strong>{item.manufacturer} | {item.track}</strong>
                   <button type="button" onClick={() => removeRecommendation(item.id)} style={miniDangerStyle}>×</button>
                 </div>
-                <span>{item.trackId ? `מספר מסלול ${item.trackId} | ` : ''}{money(item.amount)}</span>
+                <span>{item.sourceSelectionLabel ? `${item.sourceSelectionLabel} | ` : ''}{item.trackId ? `מספר מסלול ${item.trackId} | ` : ''}{money(item.amount)}</span>
                 {(item.managementFeeBalance || item.managementFeeDeposit || item.professionalNotes) && (
                   <small style={{ color: 'var(--text-muted)' }}>
                     {item.managementFeeBalance ? ` מצבירה ${item.managementFeeBalance}%` : ''}
@@ -1337,6 +1470,78 @@ function ModalCell({ label, value, strong }: { label: string; value: React.React
   return <div style={modalCellStyle}><span>{label}</span><div style={{ fontWeight: strong ? 900 : 700 }}>{value}</div></div>
 }
 
+function FundInsuranceCoveragePanel({ fund }: { fund: FundRecord }) {
+  const coverage = fund.insuranceCoverage || {}
+  const groups = [
+    {
+      title: 'פרטי ביטוח כלליים',
+      items: [
+        ['תאריך ערך לנתונים', coverage.dataValueDate || 'אין נתון'],
+        ['עמית מבוטח בקרן פנסיה?', coverage.insuredInPensionFund || 'אין נתון'],
+        ['מסלול ביטוח', coverage.insuranceTrack || 'אין נתון'],
+      ],
+    },
+    {
+      title: 'שכר קובע',
+      items: [
+        ['שכר קובע לכיסוי נכות ושאירים', moneyOrEmpty(coverage.salaryForDisabilityAndSurvivors)],
+        ['תאריך נכונות שכר קובע', coverage.salaryValidityDate || 'אין נתון'],
+      ],
+    },
+    {
+      title: 'עלויות כיסויים',
+      items: [
+        ['עלות כיסוי נכות', moneyOrEmpty(coverage.disabilityCoverageCost)],
+        ['עלות כיסוי שארים', moneyOrEmpty(coverage.survivorsCoverageCost)],
+        ['עלות כיסוי פנסיית שארים של נכה', moneyOrEmpty(coverage.disabledSurvivorsPensionCoverageCost)],
+      ],
+    },
+    {
+      title: 'שיעורי כיסוי',
+      items: [
+        ['שיעור כיסוי נכות', percentOrEmpty(coverage.disabilityCoverageRate)],
+        ['שיעור כיסוי ביטוחי לאלמן/ת', percentOrEmpty(coverage.widowerCoverageRate)],
+        ['שיעור כיסוי ביטוחי ליתום', percentOrEmpty(coverage.orphanCoverageRate)],
+        ['שיעור כיסוי ביטוחי להורה נתמך', percentOrEmpty(coverage.supportedParentCoverageRate)],
+      ],
+    },
+    {
+      title: 'קצבאות',
+      items: [
+        ['סך פנסיית נכות (לפי נכות מלאה)', moneyOrEmpty(coverage.fullDisabilityPension)],
+        ['קצבת שארים לאלמן/ת', moneyOrEmpty(coverage.widowerSurvivorsPension)],
+        ['קצבת שארים ליתום', moneyOrEmpty(coverage.orphanSurvivorsPension)],
+        ['קצבת שארים להורה נתמך', moneyOrEmpty(coverage.supportedParentSurvivorsPension)],
+      ],
+    },
+    {
+      title: 'ויתורים',
+      items: [
+        ['ויתור על כיסוי ביטוחי לנכות (מעל גיל 60)', coverage.disabilityCoverageWaiverOver60 || 'אין נתון'],
+      ],
+    },
+  ]
+
+  return (
+    <section style={insuranceCoveragePanelStyle}>
+      <h3 style={sectionTitleStyle}>כיסוי ביטוחי בקופה</h3>
+      <div style={insuranceCoverageGridStyle}>
+        {groups.map(group => (
+          <article key={group.title} style={insuranceCoverageGroupStyle}>
+            <h4>{group.title}</h4>
+            {group.items.map(([label, value]) => (
+              <div key={label} style={insuranceCoverageRowStyle}>
+                <span>{label}</span>
+                <strong>{value}</strong>
+              </div>
+            ))}
+          </article>
+        ))}
+      </div>
+    </section>
+  )
+}
+
 function FundActivityTabs({ fund, activeView, onChange }: { fund: FundRecord; activeView: FundActivityView; onChange: (view: FundActivityView) => void }) {
   const depositRows = fund.depositRows || []
   const employers = fund.employers || []
@@ -1525,10 +1730,15 @@ const modalTitleStyle: React.CSSProperties = { color: 'var(--abd-primary)', font
 const modalGridStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', border: '1px solid #D7EAFB', borderRadius: 16, overflow: 'hidden' }
 const modalCellStyle: React.CSSProperties = { minHeight: 82, display: 'grid', gap: 6, alignContent: 'center', justifyItems: 'center', padding: 12, borderLeft: '1px solid #E6EEF7', borderBottom: '1px solid #E6EEF7', textAlign: 'center', color: 'var(--abd-primary)' }
 const trackBoxStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: '150px 1fr auto', gap: 14, alignItems: 'center', border: '1px solid #D7EAFB', borderRadius: 14, padding: 14, marginTop: 14, color: 'var(--abd-primary)' }
+const trackActionsStyle: React.CSSProperties = { display: 'flex', gap: 8, justifyContent: 'flex-end', flexWrap: 'wrap' }
 const editPanelStyle: React.CSSProperties = { display: 'grid', gap: 12, border: '1px solid #D7EAFB', borderRadius: 16, padding: 16, marginTop: 14, background: '#FBFDFF' }
 const editGridStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 12 }
 const smallButtonStyle: React.CSSProperties = { ...ghostButtonStyle, minHeight: 36, padding: '0 12px' }
 const miniDangerStyle: React.CSSProperties = { border: '1px solid #F5B5B5', borderRadius: 10, background: '#FFF5F5', color: '#B42318', width: 34, minHeight: 34, fontWeight: 900, cursor: 'pointer' }
+const insuranceCoveragePanelStyle: React.CSSProperties = { display: 'grid', gap: 12, border: '1px solid #D7EAFB', borderRadius: 16, padding: 16, marginTop: 14, background: '#FFFFFF', color: 'var(--abd-primary)' }
+const insuranceCoverageGridStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10 }
+const insuranceCoverageGroupStyle: React.CSSProperties = { display: 'grid', gap: 8, border: '1px solid #E3F0FB', borderRadius: 14, padding: 12, background: '#F8FBFF' }
+const insuranceCoverageRowStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: '1fr auto', gap: 10, alignItems: 'center', borderBottom: '1px solid #E6EEF7', paddingBottom: 7, fontWeight: 800 }
 const activityPanelStyle: React.CSSProperties = { display: 'grid', gap: 12, border: '1px solid #D7EAFB', borderRadius: 16, padding: 16, marginTop: 14, background: '#FFFFFF' }
 const activityHeaderStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }
 const activityTabsStyle: React.CSSProperties = { display: 'flex', gap: 8, flexWrap: 'wrap' }
@@ -1556,6 +1766,12 @@ const recommendationActionButtonStyle = (active: boolean): React.CSSProperties =
 const mappingNoticeStyle: React.CSSProperties = { display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', border: '1px solid #CFE6FA', borderRadius: 14, padding: '10px 12px', background: '#FFFFFF', color: 'var(--abd-primary)' }
 const lockedProductStyle: React.CSSProperties = { width: '100%', minHeight: 42, border: '1px solid #CFE6FA', borderRadius: 12, padding: '9px 12px', background: '#EFF6FF', color: 'var(--abd-primary)', fontFamily: 'var(--font-main)', display: 'flex', alignItems: 'center', fontWeight: 900 }
 const recommendationGridStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 12 }
+const sourceSelectionStyle: React.CSSProperties = { display: 'grid', gap: 10, border: '1px solid #D7EAFB', borderRadius: 14, padding: 12, background: '#FFFFFF', color: 'var(--abd-primary)' }
+const sourceSelectionHeaderStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, fontWeight: 900 }
+const sourceModeButtonsStyle: React.CSSProperties = { display: 'flex', gap: 8, flexWrap: 'wrap' }
+const sourceModeButtonStyle = (active: boolean): React.CSSProperties => ({ border: '1px solid #CFE6FA', borderRadius: 999, background: active ? 'var(--abd-accent)' : '#F8FBFF', color: active ? '#FFFFFF' : 'var(--abd-primary)', padding: '8px 14px', fontFamily: 'var(--font-main)', fontWeight: 900, cursor: 'pointer' })
+const sourcePartsGridStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8 }
+const sourcePartStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'auto 1fr auto', alignItems: 'center', gap: 8, border: '1px solid #E3F0FB', borderRadius: 12, padding: '9px 10px', background: '#F8FBFF', fontWeight: 800 }
 const fieldStyle: React.CSSProperties = { display: 'grid', gap: 7, color: 'var(--abd-primary)', fontWeight: 900 }
 const inputStyle: React.CSSProperties = { width: '100%', minHeight: 42, border: '1px solid #CFE6FA', borderRadius: 12, padding: '9px 12px', background: '#fff', color: 'var(--abd-primary)', fontFamily: 'var(--font-main)' }
 const returnsGridStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 8, padding: 12, borderRadius: 12, background: '#EFF6FF', color: 'var(--abd-primary)' }

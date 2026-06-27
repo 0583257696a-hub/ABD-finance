@@ -15,6 +15,26 @@ export type ClientRecord = {
   age?: number | null
 }
 
+export type FundInsuranceCoverage = {
+  dataValueDate?: string
+  insuredInPensionFund?: string
+  insuranceTrack?: string
+  salaryForDisabilityAndSurvivors?: number
+  salaryValidityDate?: string
+  disabilityCoverageCost?: number
+  survivorsCoverageCost?: number
+  disabledSurvivorsPensionCoverageCost?: number
+  disabilityCoverageRate?: number
+  widowerCoverageRate?: number
+  orphanCoverageRate?: number
+  supportedParentCoverageRate?: number
+  fullDisabilityPension?: number
+  widowerSurvivorsPension?: number
+  orphanSurvivorsPension?: number
+  supportedParentSurvivorsPension?: number
+  disabilityCoverageWaiverOver60?: string
+}
+
 export type FundRecord = {
   id: string
   genderScore?: string
@@ -72,8 +92,13 @@ export type FundRecord = {
     benefitCap?: string
   }>
   beneficiaries?: Array<{ id: string; name?: string; relationship?: string; share?: number; type?: string }>
+  insuranceCoverage?: FundInsuranceCoverage
   recommendationTemplateId?: string
   migrationPlan?: {
+    sourcePartIds?: string[]
+    sourceParts?: Array<{ key: string; label: string; amount: number }>
+    sourceSelectionLabel?: string
+    sourceAmount?: number
     targetProduct?: string
     targetCompany?: string
     managementFeeBalance?: string
@@ -925,11 +950,111 @@ function isInsuranceLikeCoverageName(coverageName: string, planName: string) {
 }
 
 function formatFee(value: number) {
-  if (!Number.isFinite(value) || value <= 0) return ''
-  return `${round(value, 4)}%`
+  if (!Number.isFinite(value)) return ''
+  return `${String(value.toFixed(5)).replace(/\.?0+$/, '')}%`
+}
+
+function directTagText(root: Element | null | undefined, names: string[]) {
+  if (!root) return ''
+  for (const name of names) {
+    const node = Array.from(root.children).find(child => child.tagName === name)
+    if (node?.textContent?.trim()) return cleanText(node.textContent)
+  }
+  return ''
+}
+
+function xmlNumberOrNaN(root: Element | Document | null | undefined, names: string[]) {
+  const value = root ? tagText(root, names) : ''
+  return value ? numeric(value) : NaN
+}
+
+function directXmlNumber(root: Element | null | undefined, names: string[]) {
+  const value = directTagText(root, names)
+  return value ? numeric(value) : NaN
+}
+
+function normalizeFeePercentValue(value: number, kind = '') {
+  const numberValue = Number(value)
+  if (!Number.isFinite(numberValue)) return NaN
+  if (numberValue === 0) return 0
+  const maxReasonableFee = kind === 'deposit' ? 8 : kind === 'balance' ? 3 : 10
+  if (numberValue > 100 && numberValue / 10000 <= maxReasonableFee) return round(numberValue / 10000, 5)
+  if (numberValue > maxReasonableFee && numberValue / 100 <= maxReasonableFee) return round(numberValue / 100, 5)
+  if (numberValue > 0 && numberValue < 0.0005 && numberValue * 10000 <= maxReasonableFee) return round(numberValue * 10000, 5)
+  if (numberValue > 0 && numberValue < 0.05 && numberValue * 100 <= maxReasonableFee) return round(numberValue * 100, 5)
+  return numberValue <= maxReasonableFee ? round(numberValue, 5) : NaN
+}
+
+function normalizeMonthlyFeePercentValue(value: number) {
+  const numberValue = Number(value)
+  if (!Number.isFinite(numberValue)) return NaN
+  if (numberValue > 100) return numberValue / 10000
+  return numberValue
+}
+
+function xmlPercent(root: Element | Document | null | undefined, names: string[], kind = '') {
+  return normalizeFeePercentValue(xmlNumberOrNaN(root, names), kind)
+}
+
+function directXmlPercent(root: Element | null | undefined, names: string[], kind = '') {
+  return normalizeFeePercentValue(directXmlNumber(root, names), kind)
+}
+
+function monthlyXmlPercentAsAnnual(root: Element | Document | null | undefined, names: string[]) {
+  const value = normalizeMonthlyFeePercentValue(xmlNumberOrNaN(root, names))
+  return Number.isFinite(value) ? round(value * 12, 4) : NaN
+}
+
+function xmlFeeStructureValues(policyNode: Element | null | undefined, kind: 'deposit' | 'balance') {
+  if (!policyNode) return []
+  return Array.from(policyNode.getElementsByTagName('PerutMivneDmeiNihul'))
+    .filter(node => {
+      const expenseType = tagText(node, ['SUG-HOTZAA', 'OFEN-HAFRASHA'])
+      if (kind === 'deposit') return expenseType === '2' || expenseType === '3'
+      return expenseType === '1'
+    })
+    .map(node => xmlPercent(node, ['SHEUR-DMEI-NIHUL'], kind))
+}
+
+function firstMeaningfulFeeNumber(...values: number[]): number {
+  const finiteValues = values.filter(value => Number.isFinite(value))
+  if (!finiteValues.length) return NaN
+  const positiveValue = finiteValues.find(value => Math.abs(value) > 0.00001)
+  return Number.isFinite(positiveValue) ? Number(positiveValue) : finiteValues[0] ?? NaN
+}
+
+function buildClearinghouseManagementFees(policyNode: Element, trackNodes: Element[]) {
+  const tracks = Array.isArray(trackNodes) ? trackNodes : []
+  const expensesNode = firstXmlNode(policyNode, 'HotzaotBafoalLehodeshDivoach')
+  const depositFee = firstMeaningfulFeeNumber(
+    ...xmlFeeStructureValues(policyNode, 'deposit'),
+    ...tracks.map(track => directXmlPercent(track, ['SHEUR-DMEI-NIHUL-HAFKADA'], 'deposit')),
+    ...tracks.map(track => directXmlPercent(track, ['SHEUR-DMEI-NIHUL-HAFKADA-MIVNE'], 'deposit')),
+    directXmlPercent(expensesNode, ['SHEUR-DMEI-NIHUL-HAFKADA'], 'deposit'),
+    directXmlPercent(expensesNode, ['MEMOTZA-SHEUR-DMEI-NIHUL-HAFKADA'], 'deposit'),
+  )
+  const balanceFee = firstMeaningfulFeeNumber(
+    ...xmlFeeStructureValues(policyNode, 'balance'),
+    ...tracks.map(track => directXmlPercent(track, ['SHEUR-DMEI-NIHUL-HISACHON'], 'balance')),
+    ...tracks.map(track => directXmlPercent(track, ['SHEUR-DMEI-NIHUL-HISACHON-MIVNE'], 'balance')),
+    directXmlPercent(expensesNode, ['SHEUR-DMEI-NIHUL-HISACHON'], 'balance'),
+    monthlyXmlPercentAsAnnual(expensesNode || policyNode, ['SHEUR-DMEI-NIHUL-TZVIRA']),
+  )
+  return {
+    depositFee,
+    balanceFee,
+    depositFeeText: formatFee(depositFee),
+    balanceFeeText: formatFee(balanceFee),
+    managementFeeText: [
+      Number.isFinite(depositFee) ? `מהפקדה ${formatFee(depositFee)}` : '',
+      Number.isFinite(balanceFee) ? `מצבירה ${formatFee(balanceFee)}` : '',
+    ].filter(Boolean).join(' | ') || 'אין נתון',
+  }
 }
 
 function getClearinghouseManagementFees(policyNode: Element, trackNodes: Element[]) {
+  return buildClearinghouseManagementFees(policyNode, trackNodes)
+
   const depositFee = firstPositive(
     xmlNumber(policyNode, ['SHEUR-DMEI-NIHUL-HAFKADA', 'SHIUR-DMEI-NIHUL-HAFKADA', 'SHEUR-DMEI-NIHUL-HAFKADA-MIVNE', 'SHIUR-DMEI-NIHUL-HAFKADA-MIVNE']),
     ...trackNodes.map(track => xmlNumber(track, ['SHEUR-DMEI-NIHUL-HAFKADA', 'SHIUR-DMEI-NIHUL-HAFKADA', 'SHEUR-DMEI-NIHUL-HAFKADA-MIVNE', 'SHIUR-DMEI-NIHUL-HAFKADA-MIVNE'])),
@@ -950,6 +1075,108 @@ function getClearinghouseManagementFees(policyNode: Element, trackNodes: Element
       balanceFee > 0 ? `מצבירה ${formatFee(balanceFee)}` : '',
     ].filter(Boolean).join(' | ') || 'אין נתון',
   }
+}
+
+function normalizeClearinghouseYesNo(value: string) {
+  const text = cleanText(value)
+  if (!text) return ''
+  const normalizedValue = normalize(text)
+  if (['1', 'yes', 'true'].includes(normalizedValue) || normalizedValue.includes(normalize('כן'))) return 'כן'
+  if (['0', '2', 'no', 'false'].includes(normalizedValue) || normalizedValue.includes(normalize('לא'))) return 'לא'
+  return text
+}
+
+function firstXmlNumberValue(root: Element | Document | null | undefined, names: string[]) {
+  const value = xmlNumberOrNaN(root, names)
+  return Number.isFinite(value) ? value : undefined
+}
+
+function isFundInsuranceCoverageRelevant(productType?: string, planName?: string) {
+  const text = normalize([productType, planName].filter(Boolean).join(' '))
+  return text.includes(normalize('קרן פנסיה')) ||
+    text.includes(normalize('פנסיה')) ||
+    text.includes(normalize('ביטוח מנהלים')) ||
+    text.includes(normalize('מנהלים'))
+}
+
+function buildFundInsuranceCoverage(policyNode: Element, coverageNodes: Element[], productType?: string, planName?: string): FundInsuranceCoverage | undefined {
+  if (!isFundInsuranceCoverageRelevant(productType, planName)) return undefined
+  const insuranceNode =
+    firstXmlNode(policyNode, 'NetuneiKisuiBituachi') ||
+    firstXmlNode(policyNode, 'KisuiBituachi') ||
+    firstXmlNode(policyNode, 'PirteiKisuiBituachi') ||
+    firstXmlNode(policyNode, 'MivneKisuiBituachi') ||
+    firstXmlNode(policyNode, 'MaslulBituach') ||
+    coverageNodes[0] ||
+    policyNode
+  const coverage: FundInsuranceCoverage = {
+    dataValueDate: formatXmlDate(tagText(policyNode, [
+      'TAARICH-ERECH-LENETUNIM',
+      'TAARICH-ERECH-NETUNIM',
+      'TAARICH-ERECH',
+      'TAARICH-DIVUACH',
+      'TAARICH-NECHONUT',
+    ]) || tagText(policyNode.ownerDocument, [
+      'TAARICH-ERECH-LENETUNIM',
+      'TAARICH-ERECH-NETUNIM',
+      'TAARICH-ERECH',
+      'TAARICH-DIVUACH',
+      'TAARICH-NECHONUT',
+    ])),
+    insuredInPensionFund: normalizeClearinghouseYesNo(tagText(insuranceNode, [
+      'AMIT-MEVUTACH-BEKEREN-PENSIA',
+      'IND-AMIT-MEVUTACH-BEKEREN-PENSIA',
+      'IND-AMIT-MEVUTACH',
+      'AMIT-MEVUTACH',
+    ])),
+    insuranceTrack: tagText(insuranceNode, [
+      'SHEM-MASLUL-BITUAH',
+      'SHEM-MASLUL-BITUACH',
+      'MASLUL-BITUAH',
+      'MASLUL-BITUACH',
+      'SHEM-MASLUL-KISUI',
+      'SHEM-MASLOL',
+      'SHEM-MASLUL',
+    ]),
+    salaryForDisabilityAndSurvivors: firstXmlNumberValue(insuranceNode, [
+      'SACHAR-KOVEA-LEKISUI-NECHUT-VE-SHEERIM',
+      'SACHAR-KOVEA-LENACHUT-VE-SHEERIM',
+      'SACHAR-KOVEA-NECHUT-SHEERIM',
+      'SACHAR-KOVEA',
+    ]),
+    salaryValidityDate: formatXmlDate(tagText(insuranceNode, [
+      'TAARICH-NECHONUT-SACHAR-KOVEA',
+      'TAARICH-NECHONUT-HASACHAR',
+      'TAARICH-SACHAR-KOVEA',
+    ])),
+    disabilityCoverageCost: firstXmlNumberValue(insuranceNode, ['ALUT-KISUI-NECHUT', 'ALUT-KISUI-NACHUT', 'DMEI-BITUAH-NECHUT']),
+    survivorsCoverageCost: firstXmlNumberValue(insuranceNode, ['ALUT-KISUI-SHEERIM', 'ALUT-KISUI-SHEARIM', 'DMEI-BITUAH-SHEERIM']),
+    disabledSurvivorsPensionCoverageCost: firstXmlNumberValue(insuranceNode, [
+      'ALUT-KISUI-PENSIAT-SHEERIM-SHEL-NACHE',
+      'ALUT-KISUI-PENSIAT-SHEARIM-SHEL-NACHE',
+      'ALUT-PENSIAT-SHEERIM-SHEL-NACHE',
+    ]),
+    disabilityCoverageRate: firstXmlNumberValue(insuranceNode, ['SHIUR-KISUI-NECHUT', 'SHEUR-KISUI-NECHUT', 'SHIUR-KISUI-NACHUT']),
+    widowerCoverageRate: firstXmlNumberValue(insuranceNode, ['SHIUR-KISUI-LEALMAN', 'SHEUR-KISUI-LEALMAN', 'SHIUR-KISUI-ALMAN']),
+    orphanCoverageRate: firstXmlNumberValue(insuranceNode, ['SHIUR-KISUI-LEYATOM', 'SHEUR-KISUI-LEYATOM', 'SHIUR-KISUI-YATOM']),
+    supportedParentCoverageRate: firstXmlNumberValue(insuranceNode, ['SHIUR-KISUI-LEHORE-NITMACH', 'SHEUR-KISUI-LEHORE-NITMACH', 'SHIUR-KISUI-HORE-NITMACH']),
+    fullDisabilityPension: firstXmlNumberValue(insuranceNode, [
+      'SACH-PENSIAT-NECHUT-LEFI-NECHUT-MELEA',
+      'SACH-PENSIAT-NECHUT',
+      'KITZVAT-NECHUT',
+      'PENSIAT-NECHUT',
+    ]),
+    widowerSurvivorsPension: firstXmlNumberValue(insuranceNode, ['KITZBAT-SHEERIM-LEALMAN', 'KITZBAT-SHEARIM-LEALMAN', 'PENSIAT-SHEERIM-LEALMAN']),
+    orphanSurvivorsPension: firstXmlNumberValue(insuranceNode, ['KITZBAT-SHEERIM-LEYATOM', 'KITZBAT-SHEARIM-LEYATOM', 'PENSIAT-SHEERIM-LEYATOM']),
+    supportedParentSurvivorsPension: firstXmlNumberValue(insuranceNode, ['KITZBAT-SHEERIM-LEHORE-NITMACH', 'KITZBAT-SHEARIM-LEHORE-NITMACH']),
+    disabilityCoverageWaiverOver60: normalizeClearinghouseYesNo(tagText(insuranceNode, [
+      'VITUR-AL-KISUI-BITUAHI-LENECHUT-MEAL-GIL-60',
+      'VITUR-AL-KISUI-BITUAHI-NECHUT',
+      'VITUR-AL-KISUI-NECHUT',
+      'VITUR-KISUI-NECHUT',
+    ])),
+  }
+  return Object.values(coverage).some(value => value !== undefined && value !== '') ? coverage : undefined
 }
 
 function getClearinghousePolicyManufacturer(policyNode: Element, fallbackManufacturer: string) {
@@ -1133,6 +1360,7 @@ async function parseClearinghouseZip(file: File): Promise<ImportResult> {
       const fees = getClearinghouseManagementFees(node, trackNodes)
       const employers = extractClearinghouseEmployers(node, employerDirectory)
       const depositRows = extractClearinghouseDepositRows(node, employers)
+      const insuranceCoverage = buildFundInsuranceCoverage(node, coverageNodes, productType, planName)
       const periodRows = periodNodes.map((periodNode, periodIndex) => {
         const componentCode = tagText(periodNode, ['REKIV-ITRA-LETKUFA'])
         const componentLabel = mapClearinghouseComponentCode(componentCode)
@@ -1186,6 +1414,7 @@ async function parseClearinghouseZip(file: File): Promise<ImportResult> {
           depositRows,
           beneficiaries: [],
           periodRows,
+          insuranceCoverage,
           standing: 'שכיר',
           trend: currentBalance > 0 ? 'יציב' : 'ללא צבירה',
           notes: sourceLabel,
@@ -1250,6 +1479,8 @@ async function parseClearinghouseZip(file: File): Promise<ImportResult> {
       }
     })
   }
+
+  insurancePolicies.length = 0
 
   return {
     client,
