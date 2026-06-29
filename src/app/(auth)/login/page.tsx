@@ -11,14 +11,12 @@ export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
-  const [notice, setNotice] = useState('')
   const [loading, setLoading] = useState(false)
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault()
     setLoading(true)
     setError('')
-    setNotice('')
 
     const res = await signIn('credentials', { email, password, redirect: false })
 
@@ -100,20 +98,14 @@ export default function LoginPage() {
             </label>
 
             {error && <p style={errorStyle}>{error}</p>}
-            {notice && <p style={noticeStyle}>{notice}</p>}
-
             <button type="submit" disabled={loading} style={{ ...primaryButtonStyle, opacity: loading ? 0.72 : 1 }}>
               {loading ? 'מתחבר...' : 'כניסה למערכת'}
               <ArrowLeft size={18} />
             </button>
 
-            <button
-              type="button"
-              onClick={() => setNotice('פאנל הרשמה מלא יתווסף בהמשך. כרגע הרשמה עוברת דרך אישור מנהל מערכת.')}
-              style={registerButtonStyle}
-            >
+            <Link href="/register" style={registerButtonStyle}>
               הרשמה ליועץ חדש
-            </button>
+            </Link>
           </form>
         </section>
       </section>
@@ -180,6 +172,5 @@ const fieldStyle: React.CSSProperties = { display: 'grid', gap: 8, color: 'var(-
 const inputWrapStyle: React.CSSProperties = { minHeight: 50, display: 'grid', gridTemplateColumns: '24px 1fr', alignItems: 'center', gap: 10, border: '1px solid #CFE6FA', borderRadius: 14, padding: '0 14px', background: '#FBFDFF' }
 const inputStyle: React.CSSProperties = { border: 0, outline: 0, background: 'transparent', color: 'var(--text-heading)', fontFamily: 'var(--font-main)', fontSize: 15, fontWeight: 700 }
 const primaryButtonStyle: React.CSSProperties = { minHeight: 50, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 10, border: 0, borderRadius: 14, background: 'var(--abd-accent)', color: '#FFFFFF', fontFamily: 'var(--font-main)', fontWeight: 900, cursor: 'pointer' }
-const registerButtonStyle: React.CSSProperties = { minHeight: 48, border: '1px solid #CFE6FA', borderRadius: 14, background: '#FFFFFF', color: 'var(--abd-primary)', fontFamily: 'var(--font-main)', fontWeight: 900, cursor: 'pointer' }
+const registerButtonStyle: React.CSSProperties = { minHeight: 48, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #CFE6FA', borderRadius: 14, background: '#FFFFFF', color: 'var(--abd-primary)', fontFamily: 'var(--font-main)', fontWeight: 900, cursor: 'pointer', textDecoration: 'none' }
 const errorStyle: React.CSSProperties = { borderRadius: 12, padding: 10, background: 'var(--status-danger-bg)', color: 'var(--status-danger-text)', textAlign: 'center', fontWeight: 800 }
-const noticeStyle: React.CSSProperties = { borderRadius: 12, padding: 10, background: 'var(--abd-accent-light)', color: 'var(--abd-primary)', textAlign: 'center', fontWeight: 800 }

@@ -10,6 +10,13 @@ type AdminUser = {
   name?: string | null
   phone?: string
   approved?: boolean
+  status?: string
+  statusLabel?: string
+  userTypeLabel?: string
+  planId?: string
+  subscriptionStatus?: string
+  businessName?: string
+  agencyName?: string
   passwordPreview?: string
   createdAt: string
 }
@@ -21,6 +28,7 @@ export default function AdminPanelPage() {
   const [loginError, setLoginError] = useState('')
   const [users, setUsers] = useState<AdminUser[]>([])
   const [message, setMessage] = useState('')
+  const [loadingUsers, setLoadingUsers] = useState(false)
   const [newPasswords, setNewPasswords] = useState<Record<string, string>>({})
   const returnsInputRef = useRef<HTMLInputElement>(null)
 
@@ -39,13 +47,30 @@ export default function AdminPanelPage() {
   }
 
   async function loadUsers() {
+    setLoadingUsers(true)
     const res = await fetch('/api/admin/users')
+    setLoadingUsers(false)
+
     if (!res.ok) {
       setMessage('אין הרשאה לטעון משתמשים')
       return
     }
+
     const data = await res.json()
     setUsers(Array.isArray(data.users) ? data.users : [])
+    if (data.mode === 'static-auth') {
+      setMessage('המערכת פועלת כרגע במצב static-auth. ניהול משתמשים מלא דורש מסד נתונים פעיל.')
+    }
+  }
+
+  async function patchUser(userId: string, body: Record<string, unknown>, successMessage: string, errorMessage: string) {
+    const res = await fetch('/api/admin/users', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, ...body }),
+    })
+    setMessage(res.ok ? successMessage : errorMessage)
+    if (res.ok) await loadUsers()
   }
 
   async function resetPassword(userId: string) {
@@ -54,21 +79,14 @@ export default function AdminPanelPage() {
       setMessage('יש להזין סיסמה חדשה')
       return
     }
-    const res = await fetch('/api/admin/users', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId, password: nextPassword }),
-    })
-    setMessage(res.ok ? 'הסיסמה עודכנה בהצלחה' : 'עדכון הסיסמה נכשל')
-    if (res.ok) {
-      setNewPasswords(prev => ({ ...prev, [userId]: '' }))
-      await loadUsers()
-    }
+
+    await patchUser(userId, { action: 'reset_password', password: nextPassword }, 'הסיסמה עודכנה בהצלחה', 'עדכון הסיסמה נכשל')
+    setNewPasswords(prev => ({ ...prev, [userId]: '' }))
   }
 
   function uploadReturns(files: FileList | null) {
     if (!files?.length) return
-    setMessage(`${files.length} קבצי תשואות נקלטו לפאנל הניהול. בשלב הבא נחבר אותם לשמירה מרכזית במסד הנתונים.`)
+    setMessage(`${files.length} קבצי תשואות נקלטו בפאנל הניהול. בשלב הבא נחבר אותם לשמירה מרכזית במסד הנתונים.`)
   }
 
   if (status !== 'loading' && !isAdmin) {
@@ -92,7 +110,7 @@ export default function AdminPanelPage() {
       <header style={headerStyle}>
         <div>
           <h1 style={titleStyle}>פאנל מנהל מערכת</h1>
-          <p style={mutedStyle}>ניהול הרשאות, משתמשים וקבצי תשואות מרכזיים. לא מופיע בהגדרות משתמש רגיל.</p>
+          <p style={mutedStyle}>ניהול הרשמות, אישורי משתמשים, סיסמאות וקבצי תשואות מרכזיים.</p>
         </div>
         <span style={adminBadgeStyle}>System Admin</span>
       </header>
@@ -102,7 +120,7 @@ export default function AdminPanelPage() {
       <section style={gridStyle}>
         <article style={cardStyle}>
           <Users size={24} color="var(--abd-accent)" />
-          <h2 style={sectionTitleStyle}>משתמשים והרשאות</h2>
+          <h2 style={sectionTitleStyle}>משתמשים והרשמות</h2>
           <div style={tableWrapStyle}>
             <table style={tableStyle}>
               <thead>
@@ -110,8 +128,10 @@ export default function AdminPanelPage() {
                   <th style={thStyle}>שם</th>
                   <th style={thStyle}>מייל</th>
                   <th style={thStyle}>טלפון</th>
-                  <th style={thStyle}>סיסמה</th>
-                  <th style={thStyle}>אישור</th>
+                  <th style={thStyle}>סוג משתמש</th>
+                  <th style={thStyle}>תוכנית</th>
+                  <th style={thStyle}>סטטוס</th>
+                  <th style={thStyle}>פעולות</th>
                   <th style={thStyle}>שינוי סיסמה</th>
                 </tr>
               </thead>
@@ -121,8 +141,17 @@ export default function AdminPanelPage() {
                     <td style={tdStyle}>{user.name || '-'}</td>
                     <td style={tdStyle}>{user.email}</td>
                     <td style={tdStyle}>{user.phone || 'לא הוזן'}</td>
-                    <td style={tdStyle}>{user.passwordPreview || 'מוצפנת'}</td>
-                    <td style={tdStyle}><span style={approvedStyle}>{user.approved ? 'מאושר' : 'ממתין לאישור'}</span></td>
+                    <td style={tdStyle}>{user.userTypeLabel || 'משתמש קיים'}</td>
+                    <td style={tdStyle}>{user.planId || '-'}</td>
+                    <td style={tdStyle}>
+                      <span style={statusPillStyle(user.status)}>{user.statusLabel || (user.approved ? 'מאושר' : 'ממתין לאישור')}</span>
+                    </td>
+                    <td style={tdStyle}>
+                      <div style={rowActionsStyle}>
+                        <button type="button" onClick={() => void patchUser(user.id, { action: 'approve' }, 'המשתמש אושר', 'אישור המשתמש נכשל')} style={smallButtonStyle}>אשר</button>
+                        <button type="button" onClick={() => void patchUser(user.id, { action: 'block' }, 'המשתמש נחסם', 'חסימת המשתמש נכשלה')} style={dangerButtonStyle}>חסום</button>
+                      </div>
+                    </td>
                     <td style={tdStyle}>
                       <div style={passwordResetStyle}>
                         <input
@@ -136,7 +165,11 @@ export default function AdminPanelPage() {
                     </td>
                   </tr>
                 ))}
-                {!users.length && <tr><td style={tdStyle} colSpan={6}>אין משתמשים להצגה.</td></tr>}
+                {!users.length && (
+                  <tr>
+                    <td style={tdStyle} colSpan={8}>{loadingUsers ? 'טוען משתמשים...' : 'אין משתמשים להצגה.'}</td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -150,18 +183,24 @@ export default function AdminPanelPage() {
           <button type="button" onClick={() => returnsInputRef.current?.click()} style={primaryButtonStyle}>העלה קבצי תשואות במקביל</button>
           <div style={uploadBoxStyle}>
             <Database size={22} />
-            <span>שמירה מרכזית למסד הנתונים תחובר בשלב הבא, בלי להעביר את האפשרות להגדרות משתמש.</span>
+            <span>התשתית מוכנה. שמירה מרכזית מלאה תחובר בהמשך למסד הנתונים בלי לחשוף אותה בהגדרות משתמש רגיל.</span>
           </div>
         </article>
 
         <article style={cardStyle}>
           <KeyRound size={24} color="var(--abd-accent)" />
           <h2 style={sectionTitleStyle}>מדיניות סיסמאות</h2>
-          <p style={mutedStyle}>המערכת שומרת סיסמאות מוצפנות. ניתן לאפס סיסמה, אך לא לשחזר סיסמה מקורית לאחר הצפנה.</p>
+          <p style={mutedStyle}>סיסמאות נשמרות מוצפנות. מנהל יכול לאפס סיסמה, אך לא ניתן לשחזר סיסמה מקורית לאחר הצפנה.</p>
         </article>
       </section>
     </main>
   )
+}
+
+function statusPillStyle(status?: string): React.CSSProperties {
+  if (status === 'active') return { ...pillBaseStyle, background: 'var(--status-active-bg)', color: 'var(--status-active-text)' }
+  if (status === 'blocked') return { ...pillBaseStyle, background: 'var(--status-danger-bg)', color: 'var(--status-danger-text)' }
+  return { ...pillBaseStyle, background: 'var(--status-warning-bg)', color: 'var(--status-warning-text)' }
 }
 
 const pageStyle: React.CSSProperties = { minHeight: '100vh', padding: 28, fontFamily: 'var(--font-main)', background: 'var(--bg-shell)' }
@@ -177,13 +216,15 @@ const sectionTitleStyle: React.CSSProperties = { color: 'var(--abd-primary)', fo
 const inputStyle: React.CSSProperties = { minHeight: 44, border: '1px solid #CFE6FA', borderRadius: 12, padding: '8px 12px', fontFamily: 'var(--font-main)', color: 'var(--abd-primary)' }
 const primaryButtonStyle: React.CSSProperties = { minHeight: 44, border: 0, borderRadius: 12, background: 'var(--abd-accent)', color: '#fff', fontFamily: 'var(--font-main)', fontWeight: 900, padding: '0 16px', cursor: 'pointer' }
 const smallButtonStyle: React.CSSProperties = { ...primaryButtonStyle, minHeight: 36, padding: '0 10px' }
+const dangerButtonStyle: React.CSSProperties = { ...smallButtonStyle, background: 'var(--status-danger)', color: '#fff' }
 const errorStyle: React.CSSProperties = { color: 'var(--status-danger-text)', background: 'var(--status-danger-bg)', borderRadius: 12, padding: 10, fontWeight: 800 }
 const noticeStyle: React.CSSProperties = { background: '#EAF6FF', color: 'var(--abd-primary)', border: '1px solid #CFE6FA', borderRadius: 14, padding: 12, marginBottom: 18, fontWeight: 900 }
 const tableWrapStyle: React.CSSProperties = { overflowX: 'auto', border: '1px solid #D7EAFB', borderRadius: 14 }
-const tableStyle: React.CSSProperties = { width: '100%', borderCollapse: 'collapse', minWidth: 760 }
+const tableStyle: React.CSSProperties = { width: '100%', borderCollapse: 'collapse', minWidth: 1020 }
 const thStyle: React.CSSProperties = { textAlign: 'right', background: 'var(--abd-primary)', color: '#fff', padding: 11, whiteSpace: 'nowrap' }
-const tdStyle: React.CSSProperties = { padding: 11, borderBottom: '1px solid #E6EEF7', color: 'var(--abd-primary)', fontWeight: 700 }
-const approvedStyle: React.CSSProperties = { borderRadius: 999, padding: '5px 9px', background: 'var(--status-active-bg)', color: 'var(--status-active-text)', fontWeight: 900 }
+const tdStyle: React.CSSProperties = { padding: 11, borderBottom: '1px solid #E6EEF7', color: 'var(--abd-primary)', fontWeight: 700, verticalAlign: 'middle' }
+const pillBaseStyle: React.CSSProperties = { borderRadius: 999, padding: '5px 9px', fontWeight: 900, whiteSpace: 'nowrap' }
+const rowActionsStyle: React.CSSProperties = { display: 'flex', gap: 8, flexWrap: 'wrap' }
 const passwordResetStyle: React.CSSProperties = { display: 'flex', gap: 8 }
 const smallInputStyle: React.CSSProperties = { ...inputStyle, minHeight: 36, width: 150 }
 const uploadBoxStyle: React.CSSProperties = { display: 'flex', gap: 10, alignItems: 'center', color: 'var(--abd-primary)', border: '1px dashed #CFE6FA', borderRadius: 14, padding: 14, background: '#F8FBFF' }

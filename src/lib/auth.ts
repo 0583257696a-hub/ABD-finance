@@ -1,6 +1,7 @@
 import type { NextAuthOptions } from 'next-auth'
 import CredentialsProvider from 'next-auth/providers/credentials'
 import bcrypt from 'bcryptjs'
+import { isApprovedRegistration } from './admin/registration'
 
 type AppRole = 'admin' | 'advisor'
 
@@ -74,11 +75,17 @@ async function authorizeDatabaseUser(email: string, password: string) {
     const prisma = await getPrisma()
     const user = await prisma.user.findUnique({
       where: { email },
+      include: {
+        advisorData: {
+          select: { settings: true },
+        },
+      },
     })
     if (!user) return null
 
     const valid = await bcrypt.compare(password, user.password)
     if (!valid) return null
+    if (!isApprovedRegistration(user.advisorData?.settings)) return null
 
     return {
       id: user.id,
