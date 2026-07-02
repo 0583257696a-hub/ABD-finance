@@ -6,7 +6,7 @@
     "dev": "next dev",
     "postinstall": "prisma generate",
     "build": "next build --webpack",
-    "cf:build": "npm run build && opennextjs-cloudflare build --skipNextBuild",
+    "cf:build": "opennextjs-cloudflare build",
     "build:cloudflare": "npm run cf:build",
     "deploy": "npm run cf:build && opennextjs-cloudflare deploy",
     "deploy:cloudflare": "npm run cf:build && opennextjs-cloudflare deploy",
