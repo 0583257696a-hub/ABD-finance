@@ -183,6 +183,8 @@ const FEATURE_FLAGS = [
   { id: 'internal_chat_future', label: 'צ׳אט פנימי עתידי', plans: [] },
 ]
 
+const ADMIN_PANEL_VERSION = 'admin-panel-v2-d96129e'
+
 export default function AdminPanelPage() {
   const { data: session, status } = useSession()
   const [email, setEmail] = useState('admin@abd-finance.co.il')
@@ -412,7 +414,10 @@ export default function AdminPanelPage() {
             <h1 style={titleStyle}>{ADMIN_TABS.find(tab => tab.id === activeTab)?.label}</h1>
             <p style={mutedStyle}>פאנל בהיר לניהול משתמשים, הרשאות, סוכנויות ולוג פעילות. שלב 1 פעיל, שאר המודולים בתשתית.</p>
           </div>
-          <span style={adminBadgeStyle}>System Admin</span>
+          <div style={{ display: 'grid', gap: 8, justifyItems: 'start' }}>
+            <span style={adminBadgeStyle}>System Admin</span>
+            <span style={versionBadgeStyle}>{ADMIN_PANEL_VERSION}</span>
+          </div>
         </header>
 
         {message && <div style={noticeStyle}>{message}</div>}
@@ -1385,6 +1390,7 @@ const titleStyle: React.CSSProperties = { color: 'var(--abd-primary)', fontSize:
 const loginTitleStyle: React.CSSProperties = { color: 'var(--abd-primary)', fontSize: 28, fontWeight: 900 }
 const mutedStyle: React.CSSProperties = { color: 'var(--text-muted)', lineHeight: 1.7, marginTop: 5 }
 const adminBadgeStyle: React.CSSProperties = { height: 38, border: '1px solid #CFE6FA', borderRadius: 999, padding: '8px 14px', background: '#fff', color: 'var(--abd-primary)', fontWeight: 900 }
+const versionBadgeStyle: React.CSSProperties = { border: '1px solid #D7EAFB', borderRadius: 999, padding: '5px 10px', background: '#F8FBFF', color: '#6F8DB5', fontSize: 12, fontWeight: 900, direction: 'ltr' }
 const stackStyle: React.CSSProperties = { display: 'grid', gap: 18 }
 const metricsGridStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 14 }
 const twoColumnStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18, alignItems: 'start' }
