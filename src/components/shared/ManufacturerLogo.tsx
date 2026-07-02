@@ -10,21 +10,22 @@ type LogoConfig = {
 }
 
 const LOGOS: LogoConfig[] = [
-  { match: ['הפניקס', 'פניקס'], src: '/assets/fnx-logo.svg', width: 98, height: 34 },
-  { match: ['הראל'], src: '/assets/harel-logo.png', width: 58, height: 42 },
-  { match: ['אלטשולר'], src: '/assets/altshuler-logo.png', width: 128, height: 48 },
-  { match: ['שחם'], src: '/assets/altshuler-logo.png', width: 128, height: 48 },
-  { match: ['מגדל'], src: '/assets/migdal-logo.svg', width: 104, height: 36 },
-  { match: ['עמיתים'], src: '/assets/amitim-logo.svg', width: 98, height: 36 },
-  { match: ['מבטחים'], src: '/assets/amitim-logo.svg', width: 98, height: 36 },
-  { match: ['קרן פנסיה לשכירים'], src: '/assets/amitim-logo.svg', width: 98, height: 36 },
-  { match: ['שכירים ועצמאיים'], src: '/assets/amitim-logo.svg', width: 98, height: 36 },
-  { match: ['מיטב'], src: '/assets/meitav-logo.svg', width: 108, height: 36 },
-  { match: ['הכשרה'], src: '/assets/hachshara-logo.png', width: 112, height: 38 },
-  { match: ['ילין', 'לפידות'], src: '/assets/yalin-logo.png', width: 104, height: 34 },
-  { match: ['מור'], src: '/assets/mor-logo.png', width: 96, height: 32 },
-  { match: ['מנורה'], src: '/assets/menora-logo.png', width: 112, height: 38 },
-  { match: ['איילון'], src: '/assets/ayalon-logo.png', width: 112, height: 38 },
+  { match: ['הפניקס'], src: '/assets/fnx-logo.svg', width: 104, height: 36 },
+  { match: ['פניקס'], src: '/assets/fnx-logo.svg', width: 104, height: 36 },
+  { match: ['הראל'], src: '/assets/harel-logo.png', width: 64, height: 46 },
+  { match: ['אלטשולר'], src: '/assets/altshuler-logo.png', width: 132, height: 50 },
+  { match: ['שחם'], src: '/assets/altshuler-logo.png', width: 132, height: 50 },
+  { match: ['מגדל'], src: '/assets/migdal-logo.svg', width: 110, height: 38 },
+  { match: ['עמיתים'], src: '/assets/amitim-logo.svg', width: 104, height: 38 },
+  { match: ['מבטחים'], src: '/assets/amitim-logo.svg', width: 104, height: 38 },
+  { match: ['קרן פנסיה לשכירים'], src: '/assets/amitim-logo.svg', width: 104, height: 38 },
+  { match: ['שכירים ועצמאיים'], src: '/assets/amitim-logo.svg', width: 104, height: 38 },
+  { match: ['מיטב'], src: '/assets/meitav-logo.svg', width: 112, height: 38 },
+  { match: ['הכשרה'], src: '/assets/hachshara-logo.png', width: 118, height: 40 },
+  { match: ['ילין', 'לפידות'], src: '/assets/yalin-logo.png', width: 108, height: 36 },
+  { match: ['מור'], src: '/assets/mor-logo.png', width: 104, height: 34 },
+  { match: ['מנורה'], src: '/assets/menora-logo.png', width: 118, height: 40 },
+  { match: ['איילון'], src: '/assets/ayalon-logo.png', width: 118, height: 40 },
 ]
 
 export function ManufacturerLogo({ name, compact = false }: { name?: string; compact?: boolean }) {
@@ -70,7 +71,7 @@ const wrapStyle: CSSProperties = {
   alignItems: 'center',
   justifyContent: 'flex-start',
   minWidth: 96,
-  maxWidth: 144,
+  maxWidth: 150,
 }
 
 const imageStyle: CSSProperties = {
