@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "abd-finance",
+  "name": "abd-finale-smart-meening",
   "main": ".open-next/worker.js",
   "workers_dev": true,
   "compatibility_date": "2026-06-24",
@@ -15,7 +15,7 @@
   "services": [
     {
       "binding": "WORKER_SELF_REFERENCE",
-      "service": "abd-finance"
+      "service": "abd-finale-smart-meening"
     }
   ]
 }
