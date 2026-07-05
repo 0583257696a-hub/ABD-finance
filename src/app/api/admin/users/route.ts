@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import bcrypt from 'bcryptjs'
 import { authOptions } from '@/lib/auth'
 import { getPrisma } from '@/lib/db'
+import { listD1Users, parseUserSettings, updateD1UserPassword, updateD1UserStatus } from '@/lib/system-db'
 import {
   getRegistrationSettings,
   getRegistrationStatusLabel,
@@ -70,6 +71,37 @@ export async function GET() {
   }
 
   try {
+    const d1Users = await listD1Users()
+    if (d1Users) {
+      return NextResponse.json({
+        users: d1Users.map(user => {
+          const settings = parseUserSettings(user)
+          const registration = settings.registration
+          const subscription = settings.subscription
+          const status = registration?.status || user.status || 'active'
+
+          return {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            createdAt: user.created_at,
+            phone: registration?.phone || '',
+            approved: status === 'active',
+            status,
+            statusLabel: getRegistrationStatusLabel(status),
+            userType: registration?.userType || 'legacy',
+            userTypeLabel: registration ? getUserTypeLabel(registration.userType) : 'משתמש קיים',
+            planId: registration?.planId || subscription?.planId || 'legacy',
+            subscriptionStatus: subscription?.status || registration?.subscriptionStatus || user.status || 'active',
+            businessName: registration?.business?.name || '',
+            agencyName: registration?.agencyJoin?.agencyName || '',
+            passwordPreview: user.password_hash ? `${user.password_hash.slice(0, 14)}...` : '',
+          }
+        }),
+        mode: 'd1',
+      })
+    }
+
     const prisma = await getPrisma()
     const users = await prisma.user.findMany({
       orderBy: { createdAt: 'desc' },
@@ -130,6 +162,38 @@ export async function PATCH(request: Request) {
   }
 
   try {
+    if (action === 'reset_password') {
+      if (!body?.password) {
+        return NextResponse.json({ error: 'חסרה סיסמה חדשה' }, { status: 400 })
+      }
+      const hash = await bcrypt.hash(String(body.password), 10)
+      const updated = await updateD1UserPassword(userId, hash)
+      if (updated) return NextResponse.json({ ok: true, mode: 'd1' })
+    } else if (action === 'approve' || action === 'block') {
+      const now = new Date().toISOString()
+      const updated = await updateD1UserStatus(
+        userId,
+        action === 'approve' ? 'active' : 'blocked',
+        action === 'approve'
+          ? {
+              status: 'active',
+              approvedAt: now,
+              approvedBy: session?.user?.email || 'admin',
+              subscriptionStatus: 'trial_active',
+            }
+          : {
+              status: 'blocked',
+              blockedAt: now,
+              blockedBy: session?.user?.email || 'admin',
+              subscriptionStatus: 'blocked',
+            },
+        action === 'approve'
+          ? { status: 'trial_active', trialStartedAt: now }
+          : { status: 'blocked' },
+      )
+      if (updated) return NextResponse.json({ ok: true, mode: 'd1' })
+    }
+
     const prisma = await getPrisma()
 
     if (action === 'reset_password') {

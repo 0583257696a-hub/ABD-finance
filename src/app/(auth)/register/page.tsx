@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, Building2, CheckCircle2, UserRound } from 'lucide-react'
+import { checkPasswordPolicy } from '@/lib/password-policy'
 
 type UserType = 'independent_advisor' | 'agency_manager' | 'agency_employee'
 
@@ -49,6 +50,7 @@ export default function RegisterPage() {
 
   const isAgencyEmployee = form.userType === 'agency_employee'
   const selectedPlan = useMemo(() => planOptions.find(plan => plan.id === form.planId) || planOptions[0], [form.planId])
+  const passwordPolicy = useMemo(() => checkPasswordPolicy(form.password), [form.password])
 
   function update(name: string, value: string | boolean) {
     setForm(prev => ({ ...prev, [name]: value }))
@@ -82,7 +84,7 @@ export default function RegisterPage() {
           <img src="/assets/abd-finance-logo.png" alt="ABD Finance" style={logoStyle} />
           <div>
             <span style={eyebrowStyle}>בקשת הצטרפות</span>
-            <h1 style={titleStyle}>פתיחת משתמש ABD Finance</h1>
+            <h1 style={titleStyle}>פתיחת משתמש Smart Meeting</h1>
             <p style={leadStyle}>
               ההרשמה יוצרת משתמש במצב ממתין לאישור. מנהל המערכת מאשר את החשבון מפאנל האדמין לפני כניסה למערכת.
             </p>
@@ -129,6 +131,7 @@ export default function RegisterPage() {
               <Field label="תפקיד" value={form.roleTitle} onChange={value => update('roleTitle', value)} />
               <Field label="סיסמה" type="password" value={form.password} onChange={value => update('password', value)} required />
               <Field label="אימות סיסמה" type="password" value={form.confirmPassword} onChange={value => update('confirmPassword', value)} required />
+              <PasswordPolicyView policy={passwordPolicy} />
             </div>
           </section>
 
@@ -193,7 +196,7 @@ export default function RegisterPage() {
           {error && <p style={errorStyle}>{error}</p>}
 
           <div style={actionsStyle}>
-            <button type="submit" disabled={submitting} style={{ ...primaryButtonStyle, opacity: submitting ? 0.65 : 1 }}>
+            <button type="submit" disabled={submitting || !passwordPolicy.valid} style={{ ...primaryButtonStyle, opacity: submitting || !passwordPolicy.valid ? 0.65 : 1 }}>
               {submitting ? 'שולח בקשה...' : 'שליחת בקשת הרשמה'}
               <ArrowLeft size={18} />
             </button>
@@ -223,6 +226,17 @@ function Field({
       {label}
       <input type={type} required={required} value={value} onChange={event => onChange(event.target.value)} style={inputStyle} />
     </label>
+  )
+}
+
+function PasswordPolicyView({ policy }: { policy: ReturnType<typeof checkPasswordPolicy> }) {
+  return (
+    <div style={passwordPolicyStyle}>
+      <strong>חוזק סיסמה: {policy.label}</strong>
+      <span style={{ color: policy.minLength ? 'var(--status-active-text)' : 'var(--text-muted)' }}>{policy.minLength ? '✓' : '○'} לפחות 8 תווים</span>
+      <span style={{ color: policy.upperEnglish ? 'var(--status-active-text)' : 'var(--text-muted)' }}>{policy.upperEnglish ? '✓' : '○'} אות גדולה באנגלית</span>
+      <span style={{ color: policy.lowerEnglish ? 'var(--status-active-text)' : 'var(--text-muted)' }}>{policy.lowerEnglish ? '✓' : '○'} אות קטנה באנגלית</span>
+    </div>
   )
 }
 
@@ -271,3 +285,4 @@ const actionsStyle: React.CSSProperties = { display: 'flex', gap: 12, alignItems
 const primaryButtonStyle: React.CSSProperties = { minHeight: 48, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 10, border: 0, borderRadius: 14, background: 'var(--abd-accent)', color: '#fff', fontFamily: 'var(--font-main)', fontWeight: 900, padding: '0 18px', cursor: 'pointer' }
 const secondaryLinkStyle: React.CSSProperties = { color: 'var(--abd-primary)', fontWeight: 900, textDecoration: 'none' }
 const errorStyle: React.CSSProperties = { borderRadius: 12, padding: 12, background: 'var(--status-danger-bg)', color: 'var(--status-danger-text)', fontWeight: 900 }
+const passwordPolicyStyle: React.CSSProperties = { display: 'grid', gap: 5, padding: 12, borderRadius: 14, background: '#F8FBFF', border: '1px solid #D7EAFB', color: 'var(--abd-primary)', fontSize: 13, fontWeight: 800 }

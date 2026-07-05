@@ -7,6 +7,14 @@ import {
   type RegistrationProfile,
   type RegistrationUserType,
 } from '@/lib/admin/registration'
+import { checkPasswordPolicy } from '@/lib/password-policy'
+import { createD1User, findD1UserByEmail } from '@/lib/system-db'
+import {
+  adminNewRegistrationEmail,
+  adminNotificationEmail,
+  registrationThanksEmail,
+  sendSystemEmail,
+} from '@/lib/system-mail'
 
 type RegisterBody = {
   userType?: RegistrationUserType
@@ -47,12 +55,13 @@ function validateRegistration(body: RegisterBody) {
   const phone = clean(body.phone)
   const password = String(body.password || '')
   const confirmPassword = String(body.confirmPassword || '')
+  const passwordPolicy = checkPasswordPolicy(password)
 
   if (!adminInfrastructureDefaults.registration.registrationOpen) errors.push('ההרשמה סגורה כרגע.')
   if (!fullName) errors.push('חסר שם מלא.')
   if (!email || !email.includes('@')) errors.push('חסר אימייל תקין.')
   if (!phone) errors.push('חסר טלפון.')
-  if (password.length < 8) errors.push('הסיסמה חייבת לכלול לפחות 8 תווים.')
+  if (!passwordPolicy.valid) errors.push('הסיסמה חייבת לכלול לפחות 8 תווים, אות גדולה באנגלית ואות קטנה באנגלית.')
   if (password !== confirmPassword) errors.push('אימות הסיסמה אינו תואם.')
   if (!body.acceptedTerms || !body.acceptedPrivacy) errors.push('יש לאשר תנאי שימוש ומדיניות פרטיות.')
 
@@ -81,12 +90,6 @@ export async function POST(request: Request) {
   }
 
   try {
-    const prisma = await getPrisma()
-    const existing = await prisma.user.findUnique({ where: { email } })
-    if (existing) {
-      return NextResponse.json({ error: 'קיים כבר משתמש עם האימייל הזה.' }, { status: 409 })
-    }
-
     const now = new Date().toISOString()
     const planId = clean(body.planId) || 'trial'
     const registration: RegistrationProfile = {
@@ -116,32 +119,68 @@ export async function POST(request: Request) {
         acceptedPrivacyAt: now,
       },
     }
+    const subscription = {
+      status: registration.subscriptionStatus,
+      planId,
+      trialDays: adminInfrastructureDefaults.registration.defaultTrialDays,
+    }
 
     const hash = await bcrypt.hash(password, 10)
+    const d1Existing = await findD1UserByEmail(email)
+    if (d1Existing) {
+      return NextResponse.json({ error: 'קיים כבר משתמש עם האימייל הזה.' }, { status: 409 })
+    }
 
-    await prisma.$transaction(async tx => {
-      const user = await tx.user.create({
-        data: {
-          email,
-          name: fullName,
-          password: hash,
-        },
-      })
+    const d1User = await createD1User({
+      email,
+      name: fullName,
+      passwordHash: hash,
+      status: registration.status,
+      registration,
+      subscription,
+    })
 
-      await tx.advisorData.create({
-        data: {
-          userId: user.id,
-          settings: {
-            registration,
-            subscription: {
-              status: registration.subscriptionStatus,
-              planId,
-              trialDays: adminInfrastructureDefaults.registration.defaultTrialDays,
+    if (!d1User) {
+      const prisma = await getPrisma()
+      const existing = await prisma.user.findUnique({ where: { email } })
+      if (existing) {
+        return NextResponse.json({ error: 'קיים כבר משתמש עם האימייל הזה.' }, { status: 409 })
+      }
+
+      await prisma.$transaction(async tx => {
+        const user = await tx.user.create({
+          data: {
+            email,
+            name: fullName,
+            password: hash,
+          },
+        })
+
+        await tx.advisorData.create({
+          data: {
+            userId: user.id,
+            settings: {
+              registration,
+              subscription,
             },
           },
-        },
+        })
       })
+    }
+
+    const thanks = registrationThanksEmail({ fullName })
+    const adminMail = adminNewRegistrationEmail({
+      fullName,
+      email,
+      phone,
+      userType,
+      planId,
+      adminUrl: new URL('/admin-panel', request.url).toString(),
     })
+    await Promise.allSettled([
+      sendSystemEmail({ to: email, ...thanks }),
+      sendSystemEmail({ to: adminNotificationEmail(), ...adminMail }),
+    ])
 
     return NextResponse.json({
       ok: true,
@@ -151,7 +190,7 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error('Registration failed', error)
     return NextResponse.json(
-      { error: 'לא ניתן לבצע הרשמה כרגע. ודא שמסד הנתונים פעיל ומוגדר בסביבת הפרויקט.' },
+      { error: 'לא ניתן לבצע הרשמה כרגע. ודא שמסד הנתונים פעיל ומוגדר בסביבת Cloudflare.' },
       { status: 503 },
     )
   }

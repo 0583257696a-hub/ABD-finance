@@ -99,6 +99,28 @@ async function authorizeDatabaseUser(email: string, password: string) {
   }
 }
 
+async function authorizeD1User(email: string, password: string) {
+  try {
+    const { findD1UserByEmail } = await import('./system-db')
+    const user = await findD1UserByEmail(email)
+    if (!user) return null
+
+    const valid = await bcrypt.compare(password, user.password_hash)
+    if (!valid) return null
+    if (!['active', 'trial_active'].includes(user.status)) return null
+
+    return {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: normalizeEmail(user.email) === normalizeEmail(ADMIN_EMAIL) || user.role === 'admin' ? 'admin' as AppRole : 'advisor' as AppRole,
+    }
+  } catch (error) {
+    console.warn('D1 auth unavailable, falling back.', error)
+    return null
+  }
+}
+
 export const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({
@@ -113,7 +135,7 @@ export const authOptions: NextAuthOptions = {
         const email = normalizeEmail(credentials.email)
         const password = String(credentials.password)
 
-        return await authorizeStaticUser(email, password) || await authorizeDatabaseUser(email, password)
+        return await authorizeStaticUser(email, password) || await authorizeD1User(email, password) || await authorizeDatabaseUser(email, password)
       },
     }),
   ],

@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import Link from 'next/link'
 import { useState } from 'react'
@@ -22,7 +22,7 @@ export default function LoginPage() {
 
     setLoading(false)
     if (res?.error) {
-      setError('אימייל או סיסמה שגויים')
+      setError('׳׳™׳׳™׳™׳ ׳׳• ׳¡׳™׳¡׳׳” ׳©׳’׳•׳™׳™׳')
       return
     }
     router.push('/')
@@ -39,13 +39,13 @@ export default function LoginPage() {
           <div>
             <h1 style={brandTitleStyle}>ABD Finance</h1>
             <p style={brandTextStyle}>
-              מערכת פרישה ופיננסים ליועצים: קופות, פוליסות, תשואות, סימולציות וסיכום פגישה במקום אחד.
+              ׳׳¢׳¨׳›׳× ׳₪׳¨׳™׳©׳” ׳•׳₪׳™׳ ׳ ׳¡׳™׳ ׳׳™׳•׳¢׳¦׳™׳: ׳§׳•׳₪׳•׳×, ׳₪׳•׳׳™׳¡׳•׳×, ׳×׳©׳•׳׳•׳×, ׳¡׳™׳׳•׳׳¦׳™׳•׳× ׳•׳¡׳™׳›׳•׳ ׳₪׳’׳™׳©׳” ׳‘׳׳§׳•׳ ׳׳—׳“.
             </p>
           </div>
 
           <div style={brandStatsStyle}>
-            <div style={brandStatStyle}><strong>RTL</strong><span>עברית מלאה</span></div>
-            <div style={brandStatStyle}><strong>SaaS</strong><span>סביבת יועץ</span></div>
+            <div style={brandStatStyle}><strong>RTL</strong><span>׳¢׳‘׳¨׳™׳× ׳׳׳׳”</span></div>
+            <div style={brandStatStyle}><strong>SaaS</strong><span>׳¡׳‘׳™׳‘׳× ׳™׳•׳¢׳¥</span></div>
             <div style={brandStatStyle}><strong>ABD</strong><span>Finance</span></div>
           </div>
         </aside>
@@ -59,14 +59,14 @@ export default function LoginPage() {
           </div>
 
           <div style={loginHeaderStyle}>
-            <span style={eyebrowStyle}>כניסה מאובטחת</span>
-            <h2 style={loginTitleStyle}>כניסה למערכת</h2>
-            <p style={mutedStyle}>הזן את פרטי היועץ כדי להמשיך לסביבת העבודה.</p>
+            <span style={eyebrowStyle}>׳›׳ ׳™׳¡׳” ׳׳׳•׳‘׳˜׳—׳×</span>
+            <h2 style={loginTitleStyle}>׳›׳ ׳™׳¡׳” ׳׳׳¢׳¨׳›׳×</h2>
+            <p style={mutedStyle}>׳”׳–׳ ׳׳× ׳₪׳¨׳˜׳™ ׳”׳™׳•׳¢׳¥ ׳›׳“׳™ ׳׳”׳׳©׳™׳ ׳׳¡׳‘׳™׳‘׳× ׳”׳¢׳‘׳•׳“׳”.</p>
           </div>
 
           <form onSubmit={handleSubmit} style={formStyle}>
             <label style={fieldStyle}>
-              <span>אימייל</span>
+              <span>׳׳™׳׳™׳™׳</span>
               <div style={inputWrapStyle}>
                 <Mail size={18} color="#7EA0C9" />
                 <input
@@ -82,7 +82,7 @@ export default function LoginPage() {
             </label>
 
             <label style={fieldStyle}>
-              <span>סיסמה</span>
+              <span>׳¡׳™׳¡׳׳”</span>
               <div style={inputWrapStyle}>
                 <Lock size={18} color="#7EA0C9" />
                 <input
@@ -90,7 +90,7 @@ export default function LoginPage() {
                   value={password}
                   onChange={event => setPassword(event.target.value)}
                   required
-                  placeholder="••••••••"
+                  placeholder="ג€¢ג€¢ג€¢ג€¢ג€¢ג€¢ג€¢ג€¢"
                   autoComplete="current-password"
                   style={inputStyle}
                 />
@@ -99,12 +99,15 @@ export default function LoginPage() {
 
             {error && <p style={errorStyle}>{error}</p>}
             <button type="submit" disabled={loading} style={{ ...primaryButtonStyle, opacity: loading ? 0.72 : 1 }}>
-              {loading ? 'מתחבר...' : 'כניסה למערכת'}
+              {loading ? '׳׳×׳—׳‘׳¨...' : '׳›׳ ׳™׳¡׳” ׳׳׳¢׳¨׳›׳×'}
               <ArrowLeft size={18} />
             </button>
 
             <Link href="/register" style={registerButtonStyle}>
-              הרשמה ליועץ חדש
+              ׳”׳¨׳©׳׳” ׳׳™׳•׳¢׳¥ ׳—׳“׳©
+            </Link>
+            <Link href="/forgot-password" style={forgotPasswordStyle}>
+              שכחתי סיסמה
             </Link>
           </form>
         </section>
@@ -173,4 +176,6 @@ const inputWrapStyle: React.CSSProperties = { minHeight: 50, display: 'grid', gr
 const inputStyle: React.CSSProperties = { border: 0, outline: 0, background: 'transparent', color: 'var(--text-heading)', fontFamily: 'var(--font-main)', fontSize: 15, fontWeight: 700 }
 const primaryButtonStyle: React.CSSProperties = { minHeight: 50, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 10, border: 0, borderRadius: 14, background: 'var(--abd-accent)', color: '#FFFFFF', fontFamily: 'var(--font-main)', fontWeight: 900, cursor: 'pointer' }
 const registerButtonStyle: React.CSSProperties = { minHeight: 48, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #CFE6FA', borderRadius: 14, background: '#FFFFFF', color: 'var(--abd-primary)', fontFamily: 'var(--font-main)', fontWeight: 900, cursor: 'pointer', textDecoration: 'none' }
+const forgotPasswordStyle: React.CSSProperties = { textAlign: 'center', color: 'var(--text-muted)', fontFamily: 'var(--font-main)', fontWeight: 800, textDecoration: 'none' }
 const errorStyle: React.CSSProperties = { borderRadius: 12, padding: 10, background: 'var(--status-danger-bg)', color: 'var(--status-danger-text)', textAlign: 'center', fontWeight: 800 }
+
