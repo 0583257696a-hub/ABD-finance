@@ -14,6 +14,8 @@ export type RegistrationProfile = {
   approvedBy?: string
   blockedAt?: string
   blockedBy?: string
+  trialExtendedAt?: string
+  trialEndsAt?: string
   business?: {
     name: string
     id: string
@@ -31,6 +33,9 @@ export type RegistrationProfile = {
   terms?: {
     acceptedTermsAt: string
     acceptedPrivacyAt: string
+    termsVersion?: string
+    privacyVersion?: string
+    source?: string
   }
 }
 
@@ -41,6 +46,8 @@ export type RegistrationSettings = {
     planId: string
     trialDays: number
     trialStartedAt?: string
+    trialExtendedAt?: string
+    trialEndsAt?: string
   }
   [key: string]: unknown
 }

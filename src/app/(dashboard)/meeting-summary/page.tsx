@@ -170,6 +170,27 @@ function buildNeedsRows(needs: NeedsAssessmentData) {
   return { incomeRows, expenseRows, assetRows, totals: getNeedsTotals(needs) }
 }
 
+function recommendedMonthlyDeposit(needs: NeedsAssessmentData, trackingDeals: Record<string, unknown>[]) {
+  const legacyIndependentDeposit = num(needs.independentMonthlyDeposit)
+  const dealsDeposit = trackingDeals.reduce((sum, deal) => {
+    const salary = num(deal.salary)
+    const rates = num(deal.employeeRate) + num(deal.employerRate) + num(deal.compensationRate)
+    if (salary > 0 && rates > 0) return sum + (salary * rates / 100)
+    return sum
+  }, 0)
+  return legacyIndependentDeposit + dealsDeposit
+}
+
+function cashflowRows(needs: NeedsAssessmentData, trackingDeals: Record<string, unknown>[]) {
+  const totals = getNeedsTotals(needs)
+  const deposit = recommendedMonthlyDeposit(needs, trackingDeals)
+  return {
+    before: totals.balance,
+    deposit,
+    after: totals.balance - deposit,
+  }
+}
+
 function guaranteeLabel(track?: string) {
   switch (track) {
     case 'g60':
@@ -354,6 +375,7 @@ export default function MeetingSummaryPage() {
     [insurancePolicies, selectedInsurancePolicyIds],
   )
   const needsRows = useMemo(() => buildNeedsRows(needsAssessment), [needsAssessment])
+  const recommendationCashflow = useMemo(() => cashflowRows(needsAssessment, trackingDeals), [needsAssessment, trackingDeals])
   const followUps = useMemo(() => {
     const auto: MeetingFollowUp[] = [
       trackingDeals.length ? { id: 'auto-deals', text: 'להמשיך טיפול בביצוע הניודים והפעולות שנרשמו בטבלת המעקב.', isAuto: true } : null,
@@ -597,6 +619,9 @@ export default function MeetingSummaryPage() {
             <EditableHeading value={summary.documentTitle || defaultTitle(adviceType)} onBlur={value => updateInline('documentTitle', value)} style={paperH1Style} as="h1" />
             <EditableHeading value={summary.clientLine || `עבור ${clientName(client)}`} onBlur={value => updateInline('clientLine', value)} style={paperH2Style} as="h2" />
             <EditableParagraph value={summary.introText || defaultIntro(adviceType)} onBlur={value => updateInline('introText', value)} />
+            <p style={legalDisclaimerStyle}>
+              המידע המוצג נועד לסייע בארגון וסיכום מידע בלבד ואינו מהווה ייעוץ פנסיוני, ביטוחי, משפטי, השקעות או מס. האחריות לבדיקת הנתונים וקבלת ההחלטות חלה על המשתמש.
+            </p>
 
             {summary.showFundsSummaryTable !== false && (
               <PaperSection title="תמצית הכספים הפנסיוניים">
@@ -650,6 +675,13 @@ export default function MeetingSummaryPage() {
                     <NeedsLine label='סה"כ נכסים' value={money(needsRows.totals.assets)} total />
                   </NeedsCard>
                 </div>
+                {(recommendationCashflow.deposit > 0 || recommendationCashflow.before !== 0) && (
+                  <div style={cashflowSummaryStyle}>
+                    <Fact label="תזרים לפני המלצות" value={money(recommendationCashflow.before)} />
+                    <Fact label="הפקדה חודשית לפי ההמלצות" value={money(recommendationCashflow.deposit)} />
+                    <Fact label="תזרים לאחר המלצות" value={money(recommendationCashflow.after)} />
+                  </div>
+                )}
               </PaperSection>
             )}
 
@@ -891,12 +923,14 @@ const brandStyle: React.CSSProperties = { textAlign: 'center', marginBottom: 12,
 const paperH1Style: React.CSSProperties = { color: '#1E3F6F', textAlign: 'center', fontSize: 27, fontWeight: 900, textDecoration: 'underline', marginBottom: 6 }
 const paperH2Style: React.CSSProperties = { color: '#1E3F6F', textAlign: 'center', fontSize: 21, fontWeight: 800, marginBottom: 10 }
 const paperParagraphStyle: React.CSSProperties = { color: '#2F3A4C', lineHeight: 1.7, whiteSpace: 'pre-line', marginBottom: 8 }
+const legalDisclaimerStyle: React.CSSProperties = { margin: '12px 0', padding: 12, borderRadius: 12, background: '#FFF7E6', border: '1px solid #F4D28C', color: '#6B4A00', lineHeight: 1.65, fontWeight: 700, fontSize: 13 }
 const inlineHintStyle: React.CSSProperties = { color: '#7EA0C9', fontSize: 12, textAlign: 'center' }
 const paperSectionStyle: React.CSSProperties = { marginTop: 16 }
 const paperSectionTitleStyle: React.CSSProperties = { marginBottom: 8, borderBottom: '2px solid rgba(30,63,111,0.14)', paddingBottom: 5, color: '#1E3F6F' }
 const tableWrapStyle: React.CSSProperties = { overflowX: 'auto' }
 const tableStyle: React.CSSProperties = { width: '100%', borderCollapse: 'collapse', fontSize: 12 }
 const needsGridStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 10 }
+const cashflowSummaryStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 10, marginTop: 12 }
 const needsCardStyle: React.CSSProperties = { border: '1px solid #E0E8F3', borderRadius: 12, overflow: 'hidden', background: '#FBFDFF' }
 const needsLineStyle: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', gap: 8, padding: '7px 10px', borderBottom: '1px solid #EEF3FA', color: '#2F3A4C' }
 const needsTotalLineStyle: React.CSSProperties = { ...needsLineStyle, fontWeight: 900, color: '#1E3F6F', borderBottom: 0 }

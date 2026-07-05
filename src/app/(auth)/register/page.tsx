@@ -185,11 +185,11 @@ export default function RegisterPage() {
           <section style={sectionStyle}>
             <label style={checkStyle}>
               <input type="checkbox" checked={form.acceptedTerms} onChange={event => update('acceptedTerms', event.target.checked)} />
-              אני מאשר את תנאי השימוש.
+              <span>קראתי ואני מסכים ל<Link href="/terms" style={inlineLinkStyle}>תנאי השימוש</Link>.</span>
             </label>
             <label style={checkStyle}>
               <input type="checkbox" checked={form.acceptedPrivacy} onChange={event => update('acceptedPrivacy', event.target.checked)} />
-              אני מאשר את מדיניות הפרטיות.
+              <span>קראתי את <Link href="/privacy" style={inlineLinkStyle}>מדיניות הפרטיות</Link>.</span>
             </label>
           </section>
 
@@ -284,5 +284,6 @@ const checkStyle: React.CSSProperties = { display: 'flex', gap: 10, alignItems: 
 const actionsStyle: React.CSSProperties = { display: 'flex', gap: 12, alignItems: 'center' }
 const primaryButtonStyle: React.CSSProperties = { minHeight: 48, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 10, border: 0, borderRadius: 14, background: 'var(--abd-accent)', color: '#fff', fontFamily: 'var(--font-main)', fontWeight: 900, padding: '0 18px', cursor: 'pointer' }
 const secondaryLinkStyle: React.CSSProperties = { color: 'var(--abd-primary)', fontWeight: 900, textDecoration: 'none' }
+const inlineLinkStyle: React.CSSProperties = { color: 'var(--abd-accent)', fontWeight: 900, marginInline: 4 }
 const errorStyle: React.CSSProperties = { borderRadius: 12, padding: 12, background: 'var(--status-danger-bg)', color: 'var(--status-danger-text)', fontWeight: 900 }
 const passwordPolicyStyle: React.CSSProperties = { display: 'grid', gap: 5, padding: 12, borderRadius: 14, background: '#F8FBFF', border: '1px solid #D7EAFB', color: 'var(--abd-primary)', fontSize: 13, fontWeight: 800 }

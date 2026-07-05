@@ -13,7 +13,7 @@ import {
   Shield,
   TrendingUp,
 } from 'lucide-react'
-import { signOut, useSession } from 'next-auth/react'
+import { useSession } from 'next-auth/react'
 import { BRANDING_EVENT, readBrandingSettings, type BrandingSettings } from '@/lib/branding'
 import { useWorkspaceStore } from '@/lib/store/workspaceStore'
 
@@ -66,6 +66,10 @@ export default function Sidebar() {
     router.refresh()
   }
 
+  function logout() {
+    window.location.href = '/api/auth/logout'
+  }
+
   return (
     <aside style={sidebarStyle}>
       <div style={logoWrapStyle}>
@@ -105,7 +109,7 @@ export default function Sidebar() {
           <span>הגדרות</span>
         </Link>
         {session?.user && (
-          <button type="button" onClick={() => signOut({ callbackUrl: '/login' })} style={logoutStyle}>
+          <button type="button" onClick={logout} style={logoutStyle}>
             יציאה
           </button>
         )}

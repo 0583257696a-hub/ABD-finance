@@ -88,9 +88,29 @@ type AnnualRow = {
   netBalance: number
   realBalance: number
   nominalGain: number
+  realGain: number
   taxAmount: number
   afterTax: number
+  depositFees: number
+  accumulationFees: number
   totalFees: number
+}
+
+type MonthlyRow = {
+  month: number
+  openingBalance: number
+  grossDeposit: number
+  depositFeeAmount: number
+  netDeposit: number
+  monthlyReturnAmount: number
+  accumulationFeeAmount: number
+  closingBalance: number
+}
+
+type CompoundValidation = {
+  valid: boolean
+  errors: Partial<Record<keyof CompoundInputs, string>>
+  messages: string[]
 }
 
 const defaultCompoundInputs: CompoundInputs = {
@@ -206,80 +226,227 @@ function scenarioAnnualReturn(inputs: CompoundInputs) {
   return base
 }
 
-function calculateCompoundProjection(inputs: CompoundInputs) {
-  const years = Math.max(0, Math.round(num(inputs.years)))
-  const months = years * 12
+function calculateMonthlyRate(annualRatePercent: number) {
+  return Math.pow(1 + annualRatePercent / 100, 1 / 12) - 1
+}
+
+function calculateManagementFeeRate(annualFeePercent: number) {
+  return Math.pow(1 + annualFeePercent / 100, 1 / 12) - 1
+}
+
+function calculateTax(taxType: TaxType, nominalProfit: number, realProfit: number) {
+  if (taxType === 'exempt') return 0
+  if (taxType === 'nominal') return Math.max(0, nominalProfit * 0.25)
+  return Math.max(0, realProfit * 0.25)
+}
+
+function formatCurrency(value: unknown) {
+  return money(value)
+}
+
+function formatPercent(value: unknown) {
+  const parsed = num(value)
+  return Number.isFinite(parsed) ? `${parsed.toLocaleString('he-IL', { maximumFractionDigits: 2 })}%` : '-'
+}
+
+function validateCompoundInputs(inputs: CompoundInputs): CompoundValidation {
+  const errors: CompoundValidation['errors'] = {}
+  const checks: Array<[keyof CompoundInputs, string, number, number]> = [
+    ['initialAmount', 'סכום התחלתי חייב להיות בין 0 ל-100,000,000', 0, 100_000_000],
+    ['monthlyDeposit', 'הפקדה חודשית חייבת להיות בין 0 ל-1,000,000', 0, 1_000_000],
+    ['years', 'מספר שנים חייב להיות בין 0 ל-100', 0, 100],
+    ['depositFee', 'דמי ניהול מהפקדה חייבים להיות בין 0% ל-100%', 0, 100],
+    ['annualFee', 'דמי ניהול מצבירה חייבים להיות בין 0% ל-100%', 0, 100],
+    ['inflation', 'אינפלציה שנתית חייבת להיות בין 20%- ל-100%', -20, 100],
+  ]
+
+  checks.forEach(([key, message, min, max]) => {
+    const value = num(inputs[key])
+    if (!Number.isFinite(value) || value < min || value > max) errors[key] = message
+  })
+
   const annualReturn = scenarioAnnualReturn(inputs)
-  const annualFee = num(inputs.annualFee)
-  const depositFee = num(inputs.depositFee)
-  const inflation = num(inputs.inflation)
-  const monthlyReturn = Math.pow(1 + annualReturn / 100, 1 / 12) - 1
-  const monthlyBalanceFee = Math.max(0, annualFee / 100 / 12)
-  const monthlyInflation = Math.pow(1 + inflation / 100, 1 / 12) - 1
-  let balance = Math.max(0, num(inputs.initialAmount))
-  let totalDeposits = balance
-  let totalFees = 0
-  let monthlyDeposit = Math.max(0, num(inputs.monthlyDeposit))
+  if (!Number.isFinite(annualReturn) || annualReturn <= -100 || annualReturn > 100) {
+    errors.annualReturn = 'תשואה שנתית חייבת להיות גדולה מ-100%- ועד 100%.'
+  }
+
+  const messages = Object.values(errors).filter(Boolean) as string[]
+  return { valid: messages.length === 0, errors, messages }
+}
+
+function emptyCompoundResult(inputs: CompoundInputs, validation: CompoundValidation) {
+  return {
+    inputs,
+    validation,
+    annualRows: [] as AnnualRow[],
+    monthlyRows: [] as MonthlyRow[],
+    effectiveMonthlyReturn: 0,
+    annualReturnWithScenario: scenarioAnnualReturn(inputs),
+    grossDeposits: 0,
+    netFinal: 0,
+    realFinal: 0,
+    nominalProfit: 0,
+    realProfit: 0,
+    taxFinal: 0,
+    afterTaxFinal: 0,
+    profits: 0,
+    totalDepositFees: 0,
+    totalAccumulationFees: 0,
+    totalFees: 0,
+    totalBalanceFees: 0,
+    feeImpact: 0,
+    investmentMultiplier: null as number | null,
+  }
+}
+
+function runCompoundSimulation(params: {
+  initialAmount: number
+  monthlyDeposit: number
+  years: number
+  annualReturn: number
+  depositFee: number
+  annualAccumulationFee: number
+  inflation: number
+  taxType: TaxType
+  linked?: boolean
+}) {
+  const totalMonths = Math.round(params.years * 12)
+  const monthlyRate = calculateMonthlyRate(params.annualReturn)
+  const monthlyFeeRate = calculateManagementFeeRate(params.annualAccumulationFee)
+  const monthlyInflation = calculateMonthlyRate(params.inflation)
+  let balance = params.initialAmount
+  let grossDeposit = params.monthlyDeposit
+  let grossDeposits = params.initialAmount
+  let totalDepositFees = 0
+  let totalAccumulationFees = 0
+  const monthlyRows: MonthlyRow[] = []
   const annualRows: AnnualRow[] = []
 
-  for (let month = 1; month <= months; month += 1) {
-    const depositFeeAmount = monthlyDeposit * (depositFee / 100)
-    const netDeposit = monthlyDeposit - depositFeeAmount
-    balance += netDeposit
-    totalDeposits += monthlyDeposit
-    totalFees += depositFeeAmount
-    balance *= 1 + monthlyReturn
-    const balanceFeeAmount = balance * monthlyBalanceFee
-    balance -= balanceFeeAmount
-    totalFees += balanceFeeAmount
+  for (let month = 1; month <= totalMonths; month += 1) {
+    const openingBalance = balance
+    const depositFeeAmount = grossDeposit * (params.depositFee / 100)
+    const netDeposit = grossDeposit - depositFeeAmount
+    const balanceAfterDeposit = openingBalance + netDeposit
+    // סדר החישוב נשמר ללא עיגול: הפקדה נטו נכנסת קודם, לאחר מכן תשואה חודשית אפקטיבית, ואז דמי ניהול מצבירה על היתרה לאחר תשואה.
+    const balanceAfterReturn = balanceAfterDeposit * (1 + monthlyRate)
+    const monthlyReturnAmount = balanceAfterReturn - balanceAfterDeposit
+    const accumulationFeeAmount = balanceAfterReturn * monthlyFeeRate
+    const closingBalance = balanceAfterReturn - accumulationFeeAmount
 
-    if (inputs.linked) monthlyDeposit *= 1 + monthlyInflation
+    grossDeposits += grossDeposit
+    totalDepositFees += depositFeeAmount
+    totalAccumulationFees += accumulationFeeAmount
+    balance = closingBalance
 
-    if (month % 12 === 0) {
-      const year = month / 12
-      const realBalance = balance / Math.pow(1 + inflation / 100, year)
-      const nominalGain = Math.max(0, balance - totalDeposits)
-      const taxableGain = inputs.taxType === 'real'
-        ? Math.max(0, realBalance - totalDeposits)
-        : nominalGain
-      const taxAmount = inputs.taxType === 'exempt' ? 0 : taxableGain * 0.25
+    monthlyRows.push({
+      month,
+      openingBalance,
+      grossDeposit,
+      depositFeeAmount,
+      netDeposit,
+      monthlyReturnAmount,
+      accumulationFeeAmount,
+      closingBalance,
+    })
+
+    if (params.linked) grossDeposit *= 1 + monthlyInflation
+
+    if (month % 12 === 0 || month === totalMonths) {
+      const elapsedYears = month / 12
+      const realBalance = balance / Math.pow(1 + params.inflation / 100, elapsedYears)
+      const nominalGain = balance - grossDeposits
+      // חישוב רווח ריאלי מקורב בלבד: הוא מתעלם מכך שההפקדות בוצעו במועדים שונים ונשחקו מאינפלציה בשיעורים שונים.
+      // בעתיד ניתן לשדרג לחישוב מדויק שמנכה אינפלציה לכל הפקדה בנפרד לפי מועד ההפקדה שלה.
+      const realGain = realBalance - grossDeposits
+      const taxAmount = calculateTax(params.taxType, nominalGain, realGain)
       annualRows.push({
-        year,
-        grossDeposits: totalDeposits,
+        year: elapsedYears,
+        grossDeposits,
         netBalance: balance,
         realBalance,
         nominalGain,
+        realGain,
         taxAmount,
         afterTax: balance - taxAmount,
-        totalFees,
+        depositFees: totalDepositFees,
+        accumulationFees: totalAccumulationFees,
+        totalFees: totalDepositFees + totalAccumulationFees,
       })
     }
   }
 
-  const last = annualRows.at(-1) || {
-    year: 0,
-    grossDeposits: totalDeposits,
-    netBalance: balance,
-    realBalance: balance,
-    nominalGain: Math.max(0, balance - totalDeposits),
-    taxAmount: 0,
-    afterTax: balance,
-    totalFees,
+  const elapsedYears = totalMonths / 12
+  const realFinal = balance / Math.pow(1 + params.inflation / 100, elapsedYears)
+  const nominalProfit = balance - grossDeposits
+  const realProfit = realFinal - grossDeposits
+  const taxFinal = calculateTax(params.taxType, nominalProfit, realProfit)
+
+  return {
+    annualRows,
+    monthlyRows,
+    grossDeposits,
+    netFinal: balance,
+    realFinal,
+    nominalProfit,
+    realProfit,
+    taxFinal,
+    afterTaxFinal: balance - taxFinal,
+    totalDepositFees,
+    totalAccumulationFees,
+    totalFees: totalDepositFees + totalAccumulationFees,
+    effectiveMonthlyReturn: monthlyRate - monthlyFeeRate,
   }
+}
+
+function calculateCompoundProjection(inputs: CompoundInputs) {
+  const validation = validateCompoundInputs(inputs)
+  if (!validation.valid) return emptyCompoundResult(inputs, validation)
+
+  const annualReturn = scenarioAnnualReturn(inputs)
+  const base = runCompoundSimulation({
+    initialAmount: num(inputs.initialAmount),
+    monthlyDeposit: num(inputs.monthlyDeposit),
+    years: num(inputs.years),
+    annualReturn,
+    depositFee: num(inputs.depositFee),
+    annualAccumulationFee: num(inputs.annualFee),
+    inflation: num(inputs.inflation),
+    taxType: inputs.taxType,
+    linked: inputs.linked,
+  })
+  const noFee = runCompoundSimulation({
+    initialAmount: num(inputs.initialAmount),
+    monthlyDeposit: num(inputs.monthlyDeposit),
+    years: num(inputs.years),
+    annualReturn,
+    depositFee: 0,
+    annualAccumulationFee: 0,
+    inflation: num(inputs.inflation),
+    taxType: inputs.taxType,
+    linked: inputs.linked,
+  })
 
   return {
     inputs,
-    annualRows,
-    effectiveMonthlyReturn: monthlyReturn - monthlyBalanceFee,
+    validation,
+    annualRows: base.annualRows,
+    monthlyRows: base.monthlyRows,
+    effectiveMonthlyReturn: base.effectiveMonthlyReturn,
     annualReturnWithScenario: annualReturn,
-    grossDeposits: last.grossDeposits,
-    netFinal: last.netBalance,
-    realFinal: last.realBalance,
-    taxFinal: last.taxAmount,
-    afterTaxFinal: last.afterTax,
-    profits: Math.max(0, last.netBalance - last.grossDeposits),
-    totalBalanceFees: last.totalFees,
-    feeImpact: last.totalFees,
+    grossDeposits: base.grossDeposits,
+    netFinal: base.netFinal,
+    realFinal: base.realFinal,
+    nominalProfit: base.nominalProfit,
+    realProfit: base.realProfit,
+    taxFinal: base.taxFinal,
+    afterTaxFinal: base.afterTaxFinal,
+    profits: base.nominalProfit,
+    totalDepositFees: base.totalDepositFees,
+    totalAccumulationFees: base.totalAccumulationFees,
+    totalFees: base.totalFees,
+    totalBalanceFees: base.totalAccumulationFees,
+    feeImpact: Math.max(0, noFee.netFinal - base.netFinal),
+    investmentMultiplier: base.grossDeposits > 0 ? base.netFinal / base.grossDeposits : null,
   }
 }
 
@@ -666,8 +833,10 @@ function CompoundView({
   onChartModeChange: (mode: ChartMode) => void
   onFieldChange: <K extends keyof CompoundInputs>(key: K, value: CompoundInputs[K]) => void
 }) {
-  const multiplier = result.grossDeposits > 0 ? result.netFinal / result.grossDeposits : 0
+  const [showMonthlyRows, setShowMonthlyRows] = useState(false)
+  const multiplier = result.investmentMultiplier
   const mid = result.annualRows[Math.floor(result.annualRows.length / 2)]
+  const validation = result.validation
   const chartData = {
     labels: result.annualRows.map(row => `שנה ${row.year}`),
     datasets: [
@@ -700,10 +869,10 @@ function CompoundView({
         <div style={cardStyle}>
           <h2 style={sectionTitleStyle}>פרמטרי ההשקעה</h2>
           <div style={compoundGridStyle}>
-            <Field label="סכום התחלתי" suffix="₪" value={inputs.initialAmount} onChange={value => onFieldChange('initialAmount', value)} />
-            <Field label="הפקדה חודשית" suffix="₪" value={inputs.monthlyDeposit} onChange={value => onFieldChange('monthlyDeposit', value)} />
-            <Field label="תשואה שנתית" suffix="%" value={inputs.annualReturn} onChange={value => onFieldChange('annualReturn', value)} />
-            <Field label="מספר שנים" suffix="שנים" value={inputs.years} onChange={value => onFieldChange('years', value)} />
+            <Field label="סכום התחלתי" suffix="₪" value={inputs.initialAmount} error={validation.errors.initialAmount} onChange={value => onFieldChange('initialAmount', value)} />
+            <Field label="הפקדה חודשית" suffix="₪" value={inputs.monthlyDeposit} error={validation.errors.monthlyDeposit} onChange={value => onFieldChange('monthlyDeposit', value)} />
+            <Field label="תשואה שנתית" suffix="%" value={inputs.annualReturn} error={validation.errors.annualReturn} onChange={value => onFieldChange('annualReturn', value)} />
+            <Field label="מספר שנים" suffix="שנים" value={inputs.years} error={validation.errors.years} onChange={value => onFieldChange('years', value)} />
           </div>
 
           <button type="button" onClick={() => onFieldChange('advOpen', !inputs.advOpen)} style={advancedButtonStyle}>
@@ -712,9 +881,9 @@ function CompoundView({
 
           {inputs.advOpen && (
             <div style={advancedGridStyle}>
-              <Field label="דמי ניהול מהפקדה" suffix="%" value={inputs.depositFee} onChange={value => onFieldChange('depositFee', value)} />
-              <Field label="דמי ניהול מצבירה" suffix="%" value={inputs.annualFee} onChange={value => onFieldChange('annualFee', value)} />
-              <Field label="אינפלציה שנתית" suffix="%" value={inputs.inflation} onChange={value => onFieldChange('inflation', value)} />
+              <Field label="דמי ניהול מהפקדה" suffix="%" value={inputs.depositFee} error={validation.errors.depositFee} onChange={value => onFieldChange('depositFee', value)} />
+              <Field label="דמי ניהול מצבירה" suffix="%" value={inputs.annualFee} error={validation.errors.annualFee} onChange={value => onFieldChange('annualFee', value)} />
+              <Field label="אינפלציה שנתית" suffix="%" value={inputs.inflation} error={validation.errors.inflation} onChange={value => onFieldChange('inflation', value)} />
               <label style={{ display: 'grid', gap: 8 }}>
                 <span style={labelStyle}>סוג מס</span>
                 <select
@@ -748,19 +917,28 @@ function CompoundView({
               אופטימי (+2%)
             </button>
           </div>
+          {!validation.valid && (
+            <div style={validationBoxStyle}>
+              {validation.messages.map(message => (
+                <div key={message}>{message}</div>
+              ))}
+            </div>
+          )}
         </div>
 
         <div style={cardStyle}>
           <h2 style={sectionTitleStyle}>תוצאות</h2>
           <div style={simKpisStyle}>
-            <Kpi title="שווי נומינלי נטו" value={money(result.netFinal)} note={`אחרי ${inputs.years || 0} שנים ודמי ניהול`} />
-            <Kpi title="שווי ריאלי" value={money(result.realFinal)} note={`בערכי היום לפי ${inputs.inflation || 0}% אינפלציה`} />
-            <Kpi title="לאחר מס" value={money(result.afterTaxFinal)} note={`מס משוער: ${money(result.taxFinal)}`} />
-            <Kpi title='סה"כ הפקדות' value={money(result.grossDeposits)} note="כולל סכום התחלתי" />
-            <Kpi title="רווח נומינלי נטו" value={money(result.profits)} note={result.grossDeposits > 0 ? `${fmtNumber((result.profits / result.grossDeposits) * 100, 0)}% על ההשקעה` : ''} />
-            <Kpi title="מכפיל השקעה" value={`${fmtNumber(multiplier, 1)}x`} note={mid ? `שנת מחצית: ${mid.year} (${money(mid.netBalance)})` : '-'} />
-            <Kpi title='עלות ד"נ מצבירה' value={money(result.totalBalanceFees)} note="מצטבר לאורך התקופה" />
-            <Kpi title="השפעת דמי ניהול" value={money(result.feeImpact)} note="פוטנציאל אבוד לפרישה" danger />
+            <Kpi title="שווי נומינלי נטו" value={formatCurrency(result.netFinal)} note={`אחרי ${inputs.years || 0} שנים ודמי ניהול`} />
+            <Kpi title="שווי ריאלי" value={formatCurrency(result.realFinal)} note={`בערכי היום לפי ${formatPercent(inputs.inflation || 0)} אינפלציה`} />
+            <Kpi title='סה"כ הפקדות' value={formatCurrency(result.grossDeposits)} note="סכום התחלתי + הפקדות ברוטו" />
+            <Kpi title="רווח נומינלי נטו" value={formatCurrency(result.nominalProfit)} note={result.grossDeposits > 0 ? `${fmtNumber((result.nominalProfit / result.grossDeposits) * 100, 2)}% על ההשקעה` : '—'} />
+            <Kpi title="רווח ריאלי" value={formatCurrency(result.realProfit)} note="חישוב ריאלי מקורב" />
+            <Kpi title='דמי ניהול שנגבו' value={formatCurrency(result.totalFees)} note={`מהפקדות ${formatCurrency(result.totalDepositFees)} | מצבירה ${formatCurrency(result.totalAccumulationFees)}`} />
+            <Kpi title="השפעת דמי ניהול" value={formatCurrency(result.feeImpact)} note="שווי סופי ללא דמי ניהול פחות השווי בפועל" danger />
+            <Kpi title="מס" value={formatCurrency(result.taxFinal)} note={inputs.taxType === 'exempt' ? 'פטור ממס' : inputs.taxType === 'nominal' ? '25% נומינלי' : '25% ריאלי'} />
+            <Kpi title="שווי לאחר מס" value={formatCurrency(result.afterTaxFinal)} note={`מס משוער: ${formatCurrency(result.taxFinal)}`} />
+            <Kpi title="מכפיל השקעה" value={multiplier ? `${fmtNumber(multiplier, 2)}x` : '—'} note={mid ? `שנת מחצית: ${mid.year} (${formatCurrency(mid.netBalance)})` : 'לא רלוונטי ללא הפקדות'} />
           </div>
         </div>
       </section>
@@ -795,6 +973,51 @@ function CompoundView({
             }}
           />
         </div>
+      </section>
+
+      <section style={cardStyle}>
+        <div style={sectionHeaderStyle}>
+          <h2 style={sectionTitleStyle}>פירוט חודשי</h2>
+          <button type="button" onClick={() => setShowMonthlyRows(prev => !prev)} style={smallButtonStyle}>
+            {showMonthlyRows ? 'הסתר פירוט חודשי' : 'הצג פירוט חודשי'}
+          </button>
+        </div>
+        {showMonthlyRows && (
+          <div style={monthlyTableWrapStyle}>
+            <table style={monthlyTableStyle}>
+              <thead>
+                <tr>
+                  <th style={thStyle}>חודש</th>
+                  <th style={thStyle}>יתרת פתיחה</th>
+                  <th style={thStyle}>הפקדה ברוטו</th>
+                  <th style={thStyle}>דמי ניהול מהפקדה</th>
+                  <th style={thStyle}>הפקדה נטו</th>
+                  <th style={thStyle}>תשואה חודשית</th>
+                  <th style={thStyle}>דמי ניהול מצבירה</th>
+                  <th style={thStyle}>יתרת סוף חודש</th>
+                </tr>
+              </thead>
+              <tbody>
+                {result.monthlyRows.length ? result.monthlyRows.map(row => (
+                  <tr key={row.month} style={row.month % 2 === 0 ? activeRowStyle : undefined}>
+                    <td style={tdCenterStyle}>{row.month}</td>
+                    <td style={tdMoneyStyle}>{formatCurrency(row.openingBalance)}</td>
+                    <td style={tdMoneyStyle}>{formatCurrency(row.grossDeposit)}</td>
+                    <td style={tdMoneyStyle}>{formatCurrency(row.depositFeeAmount)}</td>
+                    <td style={tdMoneyStyle}>{formatCurrency(row.netDeposit)}</td>
+                    <td style={tdMoneyStyle}>{formatCurrency(row.monthlyReturnAmount)}</td>
+                    <td style={tdMoneyStyle}>{formatCurrency(row.accumulationFeeAmount)}</td>
+                    <td style={tdMoneyStyle}>{formatCurrency(row.closingBalance)}</td>
+                  </tr>
+                )) : (
+                  <tr>
+                    <td colSpan={8} style={tdCenterStyle}>אין נתוני חודשים להצגה. בדוק את תקינות הפרמטרים.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
       </section>
     </>
   )
@@ -1261,14 +1484,27 @@ function MoneyCell({ value, strong, style }: { value: number; strong?: boolean; 
   return <td style={{ ...(strong ? tdTotalMoneyStyle : tdMoneyStyle), ...style }}>{value > 0 ? money(value) : '-'}</td>
 }
 
-function Field({ label, suffix, value, onChange }: { label: string; suffix: string; value: string; onChange: (value: string) => void }) {
+function Field({
+  label,
+  suffix,
+  value,
+  error,
+  onChange,
+}: {
+  label: string
+  suffix: string
+  value: string
+  error?: string
+  onChange: (value: string) => void
+}) {
   return (
     <label style={{ display: 'grid', gap: 8 }}>
       <span style={labelStyle}>{label}</span>
-      <div style={inputWrapStyle}>
+      <div style={error ? invalidInputWrapStyle : inputWrapStyle}>
         <input dir="ltr" value={value} onChange={event => onChange(event.target.value)} inputMode="decimal" style={inputStyle} />
         <span style={{ color: '#7EA0C9', fontWeight: 800 }}>{suffix}</span>
       </div>
+      {error && <span style={fieldErrorStyle}>{error}</span>}
     </label>
   )
 }
@@ -1340,7 +1576,12 @@ const tfStyle: React.CSSProperties = { background: '#F7E7BD', color: 'var(--abd-
 const tfMoneyStyle: React.CSSProperties = { ...tfStyle, whiteSpace: 'nowrap' }
 const emptyStyle: React.CSSProperties = { display: 'grid', justifyItems: 'center', gap: 12, padding: 34, color: 'var(--abd-primary)', background: '#F8FBFF', borderRadius: 16, textAlign: 'center' }
 const inputWrapStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: '1fr auto', alignItems: 'center', gap: 10, border: '1px solid #CFE6FA', borderRadius: 12, padding: '0 12px', background: '#FBFDFF' }
+const invalidInputWrapStyle: React.CSSProperties = { ...inputWrapStyle, borderColor: '#FCA5A5', background: '#FFF7F7' }
 const inputStyle: React.CSSProperties = { minHeight: 42, border: 0, outline: 0, background: 'transparent', fontFamily: 'var(--font-main)', color: 'var(--abd-primary)', fontWeight: 800 }
+const fieldErrorStyle: React.CSSProperties = { color: '#B91C1C', fontSize: 12, fontWeight: 800, lineHeight: 1.5 }
+const validationBoxStyle: React.CSSProperties = { marginTop: 14, border: '1px solid #FCA5A5', background: '#FEF2F2', color: '#991B1B', borderRadius: 14, padding: 12, display: 'grid', gap: 4, fontWeight: 800, lineHeight: 1.6 }
+const monthlyTableWrapStyle: React.CSSProperties = { ...tableWrapStyle, maxHeight: 420, overflow: 'auto' }
+const monthlyTableStyle: React.CSSProperties = { ...tableStyle, minWidth: 980 }
 const projectionStyle: React.CSSProperties = { display: 'block', color: 'var(--abd-primary)', fontSize: 30, fontWeight: 900, marginTop: 16 }
 const miniMetricsStyle: React.CSSProperties = { display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 16, color: 'var(--abd-primary)' }
 const legendGridStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 12, margin: '16px 0' }

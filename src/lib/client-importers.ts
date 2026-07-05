@@ -1086,6 +1086,12 @@ function normalizeClearinghouseYesNo(value: string) {
   return text
 }
 
+function formatInsuranceTrackValue(value: string) {
+  const text = cleanText(value)
+  if (!text) return ''
+  return /^\d+$/.test(text) ? `(${text})` : text
+}
+
 function firstXmlNumberValue(root: Element | Document | null | undefined, names: string[]) {
   const value = xmlNumberOrNaN(root, names)
   return Number.isFinite(value) ? value : undefined
@@ -1101,7 +1107,9 @@ function isFundInsuranceCoverageRelevant(productType?: string, planName?: string
 
 function buildFundInsuranceCoverage(policyNode: Element, coverageNodes: Element[], productType?: string, planName?: string): FundInsuranceCoverage | undefined {
   if (!isFundInsuranceCoverageRelevant(productType, planName)) return undefined
+  const pensionCoverageNode = firstXmlNode(policyNode, 'KisuiBKerenPensia')
   const insuranceNode =
+    pensionCoverageNode ||
     firstXmlNode(policyNode, 'NetuneiKisuiBituachi') ||
     firstXmlNode(policyNode, 'KisuiBituachi') ||
     firstXmlNode(policyNode, 'PirteiKisuiBituachi') ||
@@ -1109,38 +1117,56 @@ function buildFundInsuranceCoverage(policyNode: Element, coverageNodes: Element[
     firstXmlNode(policyNode, 'MaslulBituach') ||
     coverageNodes[0] ||
     policyNode
+  const insuredInPensionFund = normalizeClearinghouseYesNo(tagText(insuranceNode, [
+    'AMIT-MEVUTACH-BEKEREN-PENSIA',
+    'IND-AMIT-MEVUTACH-BEKEREN-PENSIA',
+    'IND-AMIT-MEVUTACH',
+    'AMIT-MEVUTACH',
+  ])) || (pensionCoverageNode ? 'כן' : '')
+
   const coverage: FundInsuranceCoverage = {
     dataValueDate: formatXmlDate(tagText(policyNode, [
       'TAARICH-ERECH-LENETUNIM',
       'TAARICH-ERECH-NETUNIM',
       'TAARICH-ERECH',
+      'TAARICH-ERECH-LANENTUNIM',
+      'TAARICH-ERECH-LANETUNIM',
+      'TAARICH-DIVUACH',
+      'TAARICH-NECHONUT',
+    ]) || tagText(insuranceNode, [
+      'TAARICH-ERECH-LENETUNIM',
+      'TAARICH-ERECH-NETUNIM',
+      'TAARICH-ERECH',
+      'TAARICH-ERECH-LANENTUNIM',
+      'TAARICH-ERECH-LANETUNIM',
       'TAARICH-DIVUACH',
       'TAARICH-NECHONUT',
     ]) || tagText(policyNode.ownerDocument, [
       'TAARICH-ERECH-LENETUNIM',
       'TAARICH-ERECH-NETUNIM',
       'TAARICH-ERECH',
+      'TAARICH-ERECH-LANENTUNIM',
+      'TAARICH-ERECH-LANETUNIM',
       'TAARICH-DIVUACH',
       'TAARICH-NECHONUT',
     ])),
-    insuredInPensionFund: normalizeClearinghouseYesNo(tagText(insuranceNode, [
-      'AMIT-MEVUTACH-BEKEREN-PENSIA',
-      'IND-AMIT-MEVUTACH-BEKEREN-PENSIA',
-      'IND-AMIT-MEVUTACH',
-      'AMIT-MEVUTACH',
-    ])),
-    insuranceTrack: tagText(insuranceNode, [
+    insuredInPensionFund,
+    insuranceTrack: formatInsuranceTrackValue(tagText(insuranceNode, [
       'SHEM-MASLUL-BITUAH',
       'SHEM-MASLUL-BITUACH',
+      'SHEM-MASLUL-HABITUAH',
       'MASLUL-BITUAH',
       'MASLUL-BITUACH',
+      'MASLUL-BITUACH-BAKEREN-PENSIA',
+      'MASLUL-BITUAH-BAKEREN-PENSIA',
       'SHEM-MASLUL-KISUI',
       'SHEM-MASLOL',
       'SHEM-MASLUL',
-    ]),
+    ])),
     salaryForDisabilityAndSurvivors: firstXmlNumberValue(insuranceNode, [
       'SACHAR-KOVEA-LEKISUI-NECHUT-VE-SHEERIM',
       'SACHAR-KOVEA-LENACHUT-VE-SHEERIM',
+      'SACHAR-KOVEA-LE-NECHUT-VE-SHEERIM',
       'SACHAR-KOVEA-NECHUT-SHEERIM',
       'SACHAR-KOVEA',
     ]),
@@ -1148,25 +1174,28 @@ function buildFundInsuranceCoverage(policyNode: Element, coverageNodes: Element[
       'TAARICH-NECHONUT-SACHAR-KOVEA',
       'TAARICH-NECHONUT-HASACHAR',
       'TAARICH-SACHAR-KOVEA',
+      'TAARICH-MASKORET-NECHUT-VE-SHEERIM',
     ])),
-    disabilityCoverageCost: firstXmlNumberValue(insuranceNode, ['ALUT-KISUI-NECHUT', 'ALUT-KISUI-NACHUT', 'DMEI-BITUAH-NECHUT']),
-    survivorsCoverageCost: firstXmlNumberValue(insuranceNode, ['ALUT-KISUI-SHEERIM', 'ALUT-KISUI-SHEARIM', 'DMEI-BITUAH-SHEERIM']),
+    disabilityCoverageCost: firstXmlNumberValue(insuranceNode, ['ALUT-KISUI-NECHUT', 'ALUT-KISUI-NACHUT', 'ALUT-KISUY-NECHUT', 'DMEI-BITUAH-NECHUT']),
+    survivorsCoverageCost: firstXmlNumberValue(insuranceNode, ['ALUT-KISUI-SHEERIM', 'ALUT-KISUI-SHEARIM', 'ALUT-KISUY-SHEERIM', 'DMEI-BITUAH-SHEERIM']),
     disabledSurvivorsPensionCoverageCost: firstXmlNumberValue(insuranceNode, [
       'ALUT-KISUI-PENSIAT-SHEERIM-SHEL-NACHE',
       'ALUT-KISUI-PENSIAT-SHEARIM-SHEL-NACHE',
+      'ALUT-KISUI-PNS-SHRM-NECHE',
+      'ALUT-KISUY-PNS-SHRM-NECHE',
       'ALUT-PENSIAT-SHEERIM-SHEL-NACHE',
     ]),
-    disabilityCoverageRate: firstXmlNumberValue(insuranceNode, ['SHIUR-KISUI-NECHUT', 'SHEUR-KISUI-NECHUT', 'SHIUR-KISUI-NACHUT']),
-    widowerCoverageRate: firstXmlNumberValue(insuranceNode, ['SHIUR-KISUI-LEALMAN', 'SHEUR-KISUI-LEALMAN', 'SHIUR-KISUI-ALMAN']),
-    orphanCoverageRate: firstXmlNumberValue(insuranceNode, ['SHIUR-KISUI-LEYATOM', 'SHEUR-KISUI-LEYATOM', 'SHIUR-KISUI-YATOM']),
-    supportedParentCoverageRate: firstXmlNumberValue(insuranceNode, ['SHIUR-KISUI-LEHORE-NITMACH', 'SHEUR-KISUI-LEHORE-NITMACH', 'SHIUR-KISUI-HORE-NITMACH']),
+    disabilityCoverageRate: firstXmlNumberValue(insuranceNode, ['SHIUR-KISUI-NECHUT', 'SHEUR-KISUI-NECHUT', 'SHEUR-KISUY-NECHUT', 'SHIUR-KISUI-NACHUT']),
+    widowerCoverageRate: firstXmlNumberValue(insuranceNode, ['SHIUR-KISUI-LEALMAN', 'SHEUR-KISUI-LEALMAN', 'SHIUR-KISUI-ALMAN', 'SHIUR-KISUY-ALMAN-O-ALMANA']),
+    orphanCoverageRate: firstXmlNumberValue(insuranceNode, ['SHIUR-KISUI-LEYATOM', 'SHEUR-KISUI-LEYATOM', 'SHIUR-KISUI-YATOM', 'SHIUR-KISUY-YATOM']),
+    supportedParentCoverageRate: firstXmlNumberValue(insuranceNode, ['SHIUR-KISUI-LEHORE-NITMACH', 'SHEUR-KISUI-LEHORE-NITMACH', 'SHIUR-KISUI-HORE-NITMACH', 'SHIUR-KISUY-HORE-NITMACH']),
     fullDisabilityPension: firstXmlNumberValue(insuranceNode, [
       'SACH-PENSIAT-NECHUT-LEFI-NECHUT-MELEA',
       'SACH-PENSIAT-NECHUT',
       'KITZVAT-NECHUT',
       'PENSIAT-NECHUT',
     ]),
-    widowerSurvivorsPension: firstXmlNumberValue(insuranceNode, ['KITZBAT-SHEERIM-LEALMAN', 'KITZBAT-SHEARIM-LEALMAN', 'PENSIAT-SHEERIM-LEALMAN']),
+    widowerSurvivorsPension: firstXmlNumberValue(insuranceNode, ['KITZBAT-SHEERIM-LEALMAN', 'KITZBAT-SHEARIM-LEALMAN', 'KITZBAT-SHEERIM-LEALMAN-O-ALMANA', 'PENSIAT-SHEERIM-LEALMAN']),
     orphanSurvivorsPension: firstXmlNumberValue(insuranceNode, ['KITZBAT-SHEERIM-LEYATOM', 'KITZBAT-SHEARIM-LEYATOM', 'PENSIAT-SHEERIM-LEYATOM']),
     supportedParentSurvivorsPension: firstXmlNumberValue(insuranceNode, ['KITZBAT-SHEERIM-LEHORE-NITMACH', 'KITZBAT-SHEARIM-LEHORE-NITMACH']),
     disabilityCoverageWaiverOver60: normalizeClearinghouseYesNo(tagText(insuranceNode, [

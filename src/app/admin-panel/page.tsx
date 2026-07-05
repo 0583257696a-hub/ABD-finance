@@ -125,6 +125,50 @@ type AuditEvent = {
   actor: string
 }
 
+type ReturnsUpload = {
+  id: string
+  fileName: string
+  uploadedAt: string
+  size: number
+}
+
+type AgencyOverride = {
+  taxId?: string
+  address?: string
+  logoUrl?: string
+  brandColor?: string
+  notes?: string
+  plan?: string
+  status?: string
+  trialEnds?: string
+}
+
+type AgencyRow = {
+  name: string
+  manager: string
+  email: string
+  phone: string
+  users: number
+  plan: string
+  status: string
+  createdAt: string
+  trialEnds: string
+  members: AdminUser[]
+  taxId?: string
+  address?: string
+  logoUrl?: string
+  brandColor?: string
+  notes?: string
+}
+
+type LeadStatus = 'open' | 'assigned' | 'emailed' | 'closed' | 'converted'
+
+type LeadOverride = {
+  status?: LeadStatus
+  owner?: string
+  updatedAt?: string
+}
+
 type AdminTab =
   | 'dashboard'
   | 'users'
@@ -184,6 +228,16 @@ const FEATURE_FLAGS = [
 ]
 
 const ADMIN_PANEL_VERSION = 'admin-panel-v2-d96129e'
+const ADMIN_LEADS_STORAGE_KEY = 'abd-admin-leads-v1'
+const ADMIN_AGENCIES_STORAGE_KEY = 'abd-admin-agencies-v1'
+
+function leadStatusLabel(status: LeadStatus) {
+  if (status === 'converted') return 'הומר למשתמש'
+  if (status === 'assigned') return 'שויך ליועץ'
+  if (status === 'emailed') return 'נשלח מייל'
+  if (status === 'closed') return 'סגור'
+  return 'ממתין לטיפול'
+}
 
 export default function AdminPanelPage() {
   const { data: session, status } = useSession()
@@ -199,6 +253,27 @@ export default function AdminPanelPage() {
   const [search, setSearch] = useState('')
   const [loadingUsers, setLoadingUsers] = useState(false)
   const [newPasswords, setNewPasswords] = useState<Record<string, string>>({})
+  const [returnsUploads, setReturnsUploads] = useState<ReturnsUpload[]>([])
+  const [activeRoleId, setActiveRoleId] = useState('super_admin')
+  const [selectedAgencyName, setSelectedAgencyName] = useState('')
+  const [agencyOverrides, setAgencyOverrides] = useState<Record<string, AgencyOverride>>(() => {
+    if (typeof window === 'undefined') return {}
+    try {
+      const stored = JSON.parse(localStorage.getItem(ADMIN_AGENCIES_STORAGE_KEY) || '{}')
+      return stored && typeof stored === 'object' ? stored : {}
+    } catch {
+      return {}
+    }
+  })
+  const [leadOverrides, setLeadOverrides] = useState<Record<string, LeadOverride>>(() => {
+    if (typeof window === 'undefined') return {}
+    try {
+      const stored = JSON.parse(localStorage.getItem(ADMIN_LEADS_STORAGE_KEY) || '{}')
+      return stored && typeof stored === 'object' ? stored : {}
+    } catch {
+      return {}
+    }
+  })
   const returnsInputRef = useRef<HTMLInputElement>(null)
 
   const isAdmin = session?.user?.role === 'admin' || session?.user?.email === 'admin@abd-finance.co.il'
@@ -208,9 +283,18 @@ export default function AdminPanelPage() {
     if (!isAdmin) return
     void loadUsers()
     void loadInfrastructure()
+    void loadLeadOverrides()
     addAudit('כניסה לפאנל Admin', 'admin-panel', 'success')
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAdmin])
+
+  useEffect(() => {
+    localStorage.setItem(ADMIN_LEADS_STORAGE_KEY, JSON.stringify(leadOverrides))
+  }, [leadOverrides])
+
+  useEffect(() => {
+    localStorage.setItem(ADMIN_AGENCIES_STORAGE_KEY, JSON.stringify(agencyOverrides))
+  }, [agencyOverrides])
 
   const filteredUsers = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -230,13 +314,19 @@ export default function AdminPanelPage() {
   }, [search, users])
 
   const agencies = useMemo(() => {
-    const grouped = new Map<string, { name: string; manager: string; email: string; phone: string; users: number; plan: string; status: string; createdAt: string }>()
+    const grouped = new Map<string, AgencyRow>()
     users.forEach(user => {
       const agencyName = user.businessName || user.agencyName
       if (!agencyName) return
       const existing = grouped.get(agencyName)
       if (existing) {
         existing.users += 1
+        existing.members.push(user)
+        if (String(user.userTypeLabel || '').includes('מנהל')) {
+          existing.manager = user.name || existing.manager
+          existing.email = user.email
+          existing.phone = user.phone || existing.phone
+        }
         return
       }
       grouped.set(agencyName, {
@@ -248,10 +338,26 @@ export default function AdminPanelPage() {
         plan: user.planId || '-',
         status: user.subscriptionStatus || user.status || 'pending_approval',
         createdAt: formatDate(user.createdAt),
+        trialEnds: 'אין נתון',
+        members: [user],
       })
     })
-    return Array.from(grouped.values())
-  }, [users])
+    return Array.from(grouped.values()).map(agency => {
+      const override = agencyOverrides[agency.name] || {}
+      return {
+        ...agency,
+        ...override,
+        plan: override.plan || agency.plan,
+        status: override.status || agency.status,
+        trialEnds: override.trialEnds || agency.trialEnds,
+      }
+    })
+  }, [agencyOverrides, users])
+
+  const selectedAgency = useMemo(
+    () => agencies.find(agency => agency.name === selectedAgencyName) || agencies[0] || null,
+    [agencies, selectedAgencyName],
+  )
 
   const leads = useMemo(() => {
     return users.map(user => ({
@@ -263,34 +369,37 @@ export default function AdminPanelPage() {
       type: user.userTypeLabel || 'יועץ',
       business: user.businessName || user.agencyName || '-',
       plan: user.planId || 'trial',
-      status: user.approved ? 'הומר למשתמש' : 'ממתין לטיפול',
-      owner: 'מנהל מערכת',
+      statusCode: leadOverrides[user.id]?.status || (user.approved ? 'converted' : 'open'),
+      status: leadStatusLabel(leadOverrides[user.id]?.status || (user.approved ? 'converted' : 'open')),
+      owner: leadOverrides[user.id]?.owner || 'מנהל מערכת',
       createdAt: user.createdAt,
     }))
-  }, [users])
+  }, [leadOverrides, users])
 
   const metrics = useMemo(() => {
     const activeUsers = users.filter(user => user.status === 'active' || user.approved).length
     const pendingUsers = users.filter(user => user.status === 'pending_approval' || !user.approved).length
-    const blockedUsers = users.filter(user => user.status === 'blocked').length
     const activeAgencies = agencies.filter(agency => agency.status === 'active' || agency.status === 'trial_active').length
     const trialAgencies = agencies.filter(agency => String(agency.status).includes('trial')).length
-    const activePlans = infrastructure?.plans.filter(plan => plan.status === 'active').length || 0
+    const activeSubscriptions = users.filter(user => ['active', 'trial_active', 'trial'].includes(String(user.subscriptionStatus || user.status))).length
+    const expiredSubscriptions = users.filter(user => ['expired', 'blocked', 'suspended'].includes(String(user.subscriptionStatus || user.status))).length
+    const newLeads = leads.filter(lead => ['open', 'assigned', 'emailed'].includes(lead.statusCode)).length
+    const recentErrors = auditEvents.filter(event => event.result === 'failure').length
 
     return [
-      { label: 'משתמשים פעילים', value: activeUsers, tone: 'green' },
-      { label: 'ממתינים לאישור', value: pendingUsers, tone: 'orange' },
-      { label: 'משתמשים חסומים', value: blockedUsers, tone: 'red' },
-      { label: 'סוכנויות פעילות', value: activeAgencies, tone: 'blue' },
-      { label: 'סוכנויות בניסיון', value: trialAgencies, tone: 'blue' },
-      { label: 'תוכניות פעילות', value: activePlans, tone: 'green' },
-      { label: 'לידים חדשים', value: 0, tone: 'gray' },
-      { label: 'פגישות החודש', value: 0, tone: 'gray' },
-      { label: 'סיכומים שיוצאו', value: 0, tone: 'gray' },
-      { label: 'קבצי תשואות אחרונים', value: 0, tone: 'gray' },
-      { label: 'שגיאות מערכת', value: 0, tone: 'gray' },
+      { label: 'משתמשים פעילים', value: activeUsers, tone: 'green', note: 'מאושרים או פעילים' },
+      { label: 'משתמשים ממתינים לאישור', value: pendingUsers, tone: 'orange', note: 'נרשמים שדורשים אישור' },
+      { label: 'סוכנויות פעילות', value: activeAgencies, tone: 'blue', note: 'נגזר מפרטי הרשמה' },
+      { label: 'סוכנויות בתקופת ניסיון', value: trialAgencies, tone: 'blue', note: 'סטטוס trial' },
+      { label: 'מנויים פעילים', value: activeSubscriptions, tone: 'green', note: 'משתמשים פעילים / ניסיון' },
+      { label: 'מנויים שפג תוקפם', value: expiredSubscriptions, tone: 'red', note: 'פג / חסום / מוקפא' },
+      { label: 'לידים חדשים', value: newLeads, tone: 'orange', note: 'פתוחים, משויכים או נשלח מייל' },
+      { label: 'פגישות שנוצרו החודש', value: 0, tone: 'gray', note: 'ממתין לחיבור מקור נתונים' },
+      { label: 'סיכומי פגישה שיוצאו', value: 0, tone: 'gray', note: 'ממתין לחיבור מקור נתונים' },
+      { label: 'קבצי תשואות אחרונים', value: returnsUploads.length, tone: returnsUploads.length ? 'green' : 'gray', note: returnsUploads.length ? 'נקלטו בסשן הנוכחי' : 'לא הועלו בסשן' },
+      { label: 'שגיאות מערכת אחרונות', value: recentErrors, tone: recentErrors ? 'red' : 'green', note: 'לפי לוג פעילות במסך' },
     ]
-  }, [agencies, infrastructure?.plans, users])
+  }, [agencies, auditEvents, leads, returnsUploads.length, users])
 
   async function login(event: React.FormEvent) {
     event.preventDefault()
@@ -324,6 +433,89 @@ export default function AdminPanelPage() {
     setInfrastructure(data.infrastructure || null)
   }
 
+  async function saveInfrastructure(nextInfrastructure: AdminInfrastructure, successMessage = 'ההגדרות נשמרו בהצלחה') {
+    setInfrastructure(nextInfrastructure)
+    const res = await fetch('/api/admin/infrastructure', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ infrastructure: nextInfrastructure }),
+    })
+    if (res.ok) {
+      setMessage(successMessage)
+      addAudit('שמירת תשתית ניהול', 'admin-infrastructure', 'success')
+      return true
+    }
+    setMessage('העדכון נשמר במסך בלבד. שמירה קבועה דורשת D1 פעיל.')
+    addAudit('שמירת תשתית ניהול', 'admin-infrastructure', 'failure')
+    return false
+  }
+
+  async function updatePlan(planId: string, patch: Partial<AdminInfrastructure['plans'][number]>) {
+    if (!infrastructure) return
+    const next = {
+      ...infrastructure,
+      plans: infrastructure.plans.map(plan => plan.id === planId ? { ...plan, ...patch } : plan),
+    }
+    await saveInfrastructure(next, 'התוכנית עודכנה בהצלחה')
+  }
+
+  async function updatePlanFeature(planId: string, featureKey: string, enabled: boolean) {
+    if (!infrastructure) return
+    const next = {
+      ...infrastructure,
+      plans: infrastructure.plans.map(plan => {
+        if (plan.id !== planId) return plan
+        return {
+          ...plan,
+          features: {
+            ...(plan.features || {}),
+            [featureKey]: enabled,
+          },
+        }
+      }),
+    }
+    await saveInfrastructure(next, 'יכולת התוכנית עודכנה בהצלחה')
+  }
+
+  async function clonePlan(planId: string) {
+    if (!infrastructure) return
+    const source = infrastructure.plans.find(plan => plan.id === planId)
+    if (!source) return
+    const nextPlan = {
+      ...source,
+      id: `${source.id}-copy-${Date.now()}`,
+      name: `${source.name} - עותק`,
+      status: 'draft',
+    }
+    await saveInfrastructure({ ...infrastructure, plans: [nextPlan, ...infrastructure.plans] }, 'התוכנית שוכפלה בהצלחה')
+  }
+
+  async function createPlan() {
+    if (!infrastructure) return
+    const nextPlan = {
+      id: `plan-${Date.now()}`,
+      name: 'תוכנית חדשה',
+      shortDescription: 'תיאור תוכנית חדש.',
+      monthlyPrice: 0,
+      annualPrice: 0,
+      includedUsers: 1,
+      monthlyMeetings: 10,
+      clientLimit: 50,
+      features: {},
+      status: 'draft',
+    }
+    await saveInfrastructure({ ...infrastructure, plans: [nextPlan, ...infrastructure.plans] }, 'נוצרה תוכנית חדשה')
+  }
+
+  async function loadLeadOverrides() {
+    const res = await fetch('/api/admin/leads')
+    if (!res.ok) return
+    const data = await res.json()
+    if (data.overrides && typeof data.overrides === 'object') {
+      setLeadOverrides(data.overrides)
+    }
+  }
+
   function addAudit(action: string, entity: string, result: AuditEvent['result']) {
     setAuditEvents(prev => [
       {
@@ -350,6 +542,16 @@ export default function AdminPanelPage() {
     if (ok) await loadUsers()
   }
 
+  async function setUserSubscription(userId: string, planId: string, subscriptionStatus: string) {
+    await patchUser(
+      userId,
+      { action: 'set_subscription', planId, subscriptionStatus },
+      'המנוי עודכן ידנית בהצלחה',
+      'עדכון המנוי נכשל',
+      'שינוי מנוי ידני',
+    )
+  }
+
   async function resetPassword(userId: string) {
     const nextPassword = newPasswords[userId]
     if (!nextPassword) {
@@ -361,10 +563,89 @@ export default function AdminPanelPage() {
     setNewPasswords(prev => ({ ...prev, [userId]: '' }))
   }
 
+  async function toggleRolePermission(roleId: string, permissionId: string, checked: boolean) {
+    if (!infrastructure) return
+    const next = {
+      ...infrastructure,
+      roles: infrastructure.roles.map(role => {
+        if (role.id !== roleId) return role
+        const permissions = checked
+          ? Array.from(new Set([...role.permissions, permissionId]))
+          : role.permissions.filter(id => id !== permissionId)
+        return { ...role, permissions }
+      }),
+    }
+    await saveInfrastructure(next, 'הרשאות התפקיד עודכנו בהצלחה')
+  }
+
+  function rolePermissionCount(roleId: string) {
+    return infrastructure?.roles.find(role => role.id === roleId)?.permissions.length || 0
+  }
+
   function uploadReturns(files: FileList | null) {
     if (!files?.length) return
+    const uploadedAt = new Date().toISOString()
+    setReturnsUploads(prev => [
+      ...Array.from(files).map(file => ({
+        id: `${uploadedAt}-${file.name}`,
+        fileName: file.name,
+        uploadedAt,
+        size: file.size,
+      })),
+      ...prev,
+    ].slice(0, 12))
     setMessage(`${files.length} קבצי תשואות נקלטו בפאנל הניהול. שמירה מרכזית מלאה תחובר בשלב קבצי הנתונים.`)
     addAudit('העלאת קובץ תשואות', 'data-imports', 'info')
+  }
+
+  async function quickCreatePlan() {
+    setActiveTab('plans')
+    await createPlan()
+  }
+
+  function updateAgencyOverride(agencyName: string, patch: AgencyOverride, successMessage = 'פרטי הסוכנות עודכנו במסך') {
+    setAgencyOverrides(prev => ({
+      ...prev,
+      [agencyName]: {
+        ...prev[agencyName],
+        ...patch,
+      },
+    }))
+    setMessage(`${successMessage}. שמירה קבועה לטבלת סוכנויות ייעודית תחובר לאחר אישור מבנה DB.`)
+    addAudit('עדכון סוכנות', agencyName, 'info')
+  }
+
+  async function updateLeadStatus(leadId: string, nextStatus: LeadStatus) {
+    const nextOwner = nextStatus === 'assigned' ? (session?.user?.name || session?.user?.email || 'מנהל מערכת') : undefined
+    setLeadOverrides(prev => ({
+      ...prev,
+      [leadId]: {
+        ...prev[leadId],
+        status: nextStatus,
+        owner: nextOwner || prev[leadId]?.owner || 'מנהל מערכת',
+        updatedAt: new Date().toISOString(),
+      },
+    }))
+    setMessage(`הליד עודכן לסטטוס: ${leadStatusLabel(nextStatus)}`)
+    addAudit(`עדכון ליד: ${leadStatusLabel(nextStatus)}`, leadId, 'success')
+
+    const res = await fetch('/api/admin/leads', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ leadId, status: nextStatus, owner: nextOwner || 'מנהל מערכת' }),
+    })
+    if (!res.ok) {
+      setMessage(`הליד עודכן מקומית בלבד: ${leadStatusLabel(nextStatus)}. שמירה קבועה דורשת D1 פעיל.`)
+      addAudit(`שמירת ליד נכשלה: ${leadStatusLabel(nextStatus)}`, leadId, 'failure')
+    }
+  }
+
+  function validateDataImportKind(kind: NonNullable<AdminInfrastructure['dataImportKinds']>[number]) {
+    const required = kind.requiredColumns.join(', ')
+    const accepts = kind.accepts.join(', ')
+    const usage = kind.id.includes('returns') ? 'מסלולי תשואה ותשואות ABD' : 'נתוני עזר למערכת'
+    setMessage(`בדיקת ${kind.label}: פורמטים מותרים ${accepts}. עמודות חובה: ${required}. שימוש: ${usage}.`)
+    addAudit(`בדיקת קובץ ${kind.label}`, kind.id, 'success')
   }
 
   if (status !== 'loading' && !isAdmin) {
@@ -447,6 +728,7 @@ export default function AdminPanelPage() {
             <article key={metric.label} style={metricCardStyle(metric.tone)}>
               <span>{metric.label}</span>
               <strong>{metric.value}</strong>
+              <small>{metric.note}</small>
             </article>
           ))}
         </section>
@@ -455,9 +737,9 @@ export default function AdminPanelPage() {
           <article style={cardStyle}>
             <h2 style={sectionTitleStyle}>פעולות מהירות</h2>
             <div style={quickActionsStyle}>
-              <button style={quickButtonStyle} type="button" onClick={() => setActiveTab('users')}><Users size={18} /> הוסף משתמש</button>
-              <button style={quickButtonStyle} type="button" onClick={() => setActiveTab('agencies')}><Building2 size={18} /> צור סוכנות</button>
-              <button style={quickButtonStyle} type="button" onClick={() => setActiveTab('plans')}><BriefcaseBusiness size={18} /> צור תוכנית</button>
+              <button style={quickButtonStyle} type="button" onClick={() => { setActiveTab('users'); setMessage('עבור למסך משתמשים והרשאות כדי לאשר משתמשים או לאפס סיסמה. יצירת משתמש ידנית תחובר לאחר הרחבת בסיס הנתונים.') }}><Users size={18} /> הוסף משתמש</button>
+              <button style={quickButtonStyle} type="button" onClick={() => { setActiveTab('agencies'); setMessage('יצירת סוכנות ידנית תחובר לאחר הרחבת בסיס הנתונים. כרגע סוכנויות נגזרות מהרשמה.') }}><Building2 size={18} /> צור סוכנות</button>
+              <button style={quickButtonStyle} type="button" onClick={() => void quickCreatePlan()}><BriefcaseBusiness size={18} /> צור תוכנית</button>
               <button style={quickButtonStyle} type="button" onClick={() => returnsInputRef.current?.click()}><FileUp size={18} /> העלה קובץ תשואות</button>
               <button style={quickButtonStyle} type="button" onClick={() => setActiveTab('landing')}><Home size={18} /> ערוך דף נחיתה</button>
               <button style={quickButtonStyle} type="button" onClick={() => setActiveTab('messages')}><Bell size={18} /> שלח הודעת מערכת</button>
@@ -479,6 +761,42 @@ export default function AdminPanelPage() {
               </div>
             ) : (
               <EmptyState title="אין פעילות להצגה" text="פעולות רגישות שתבצע בפאנל יופיעו כאן." />
+            )}
+          </article>
+        </section>
+
+        <section style={twoColumnStyle}>
+          <article style={cardStyle}>
+            <h2 style={sectionTitleStyle}>קבצי תשואות אחרונים</h2>
+            {returnsUploads.length ? (
+              <div style={activityListStyle}>
+                {returnsUploads.slice(0, 6).map(file => (
+                  <div key={file.id} style={activityRowStyle}>
+                    <span style={statusDotStyle('success')} />
+                    <strong>{file.fileName}</strong>
+                    <small>{formatBytes(file.size)} · {formatTime(file.uploadedAt)}</small>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <EmptyState title="לא הועלו קבצי תשואות בסשן הנוכחי" text="העלאה דרך הפעולות המהירות תעדכן כאן את הרשימה ותירשם בלוג פעילות." />
+            )}
+          </article>
+
+          <article style={cardStyle}>
+            <h2 style={sectionTitleStyle}>שגיאות מערכת אחרונות</h2>
+            {auditEvents.some(event => event.result === 'failure') ? (
+              <div style={activityListStyle}>
+                {auditEvents.filter(event => event.result === 'failure').slice(0, 6).map(event => (
+                  <div key={event.id} style={activityRowStyle}>
+                    <span style={statusDotStyle('failure')} />
+                    <strong>{event.action}</strong>
+                    <small>{event.entity} · {formatTime(event.time)}</small>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <EmptyState title="אין שגיאות פעילות" text="כישלונות טעינה או שמירה יופיעו כאן כדי לאפשר טיפול מהיר." />
             )}
           </article>
         </section>
@@ -547,20 +865,51 @@ export default function AdminPanelPage() {
             <h2 style={sectionTitleStyle}>Roles</h2>
             <div style={cardsListStyle}>
               {(infrastructure?.roles || []).map(role => (
-                <div key={role.id} style={roleCardStyle}>
+                <button
+                  key={role.id}
+                  type="button"
+                  onClick={() => setActiveRoleId(role.id)}
+                  style={activeRoleId === role.id ? activeRoleCardStyle : roleCardStyle}
+                >
                   <strong>{role.label}</strong>
                   <span>{role.description}</span>
                   <small>{role.permissions.length} הרשאות</small>
-                </div>
+                </button>
               ))}
             </div>
           </article>
           <article style={cardStyle}>
-            <h2 style={sectionTitleStyle}>Permissions</h2>
-            <div style={permissionGridStyle}>
-              {(infrastructure?.permissions || []).map(permission => (
-                <span key={permission.id} style={permissionPillStyle}>{permission.id}</span>
-              ))}
+            <div style={sectionHeaderStyle}>
+              <div>
+                <h2 style={sectionTitleStyle}>עריכת הרשאות</h2>
+                <p style={mutedStyle}>
+                  {infrastructure?.roles.find(role => role.id === activeRoleId)?.label || 'בחר תפקיד'} · {rolePermissionCount(activeRoleId)} הרשאות פעילות
+                </p>
+              </div>
+              <KeyRound color="var(--abd-accent)" />
+            </div>
+            <div style={permissionEditorStyle}>
+              {(infrastructure?.permissions || []).map(permission => {
+                const activeRole = infrastructure?.roles.find(role => role.id === activeRoleId)
+                const checked = Boolean(activeRole?.permissions.includes(permission.id))
+                return (
+                  <label key={permission.id} style={permissionToggleStyle(checked)}>
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={event => void toggleRolePermission(activeRoleId, permission.id, event.target.checked)}
+                    />
+                    <span>
+                      <strong>{permission.label}</strong>
+                      <small>{permission.description}</small>
+                      <code>{permission.id}</code>
+                    </span>
+                  </label>
+                )
+              })}
+            </div>
+            <div style={userOverrideNoteStyle}>
+              החרגת הרשאות למשתמש ספציפי דורשת שדה קבוע במודל המשתמש. בשלב זה לא הוספתי מודל חדש כדי לא לשבור את בסיס הנתונים; זה השלב הבא אחרי אישור מבנה DB.
             </div>
           </article>
         </section>
@@ -569,51 +918,203 @@ export default function AdminPanelPage() {
   }
 
   function renderAgencies() {
+    const selectedPlan = infrastructure?.plans.find(plan => plan.id === selectedAgency?.plan)
+
     return (
-      <section style={cardStyle}>
-        <div style={sectionHeaderStyle}>
-          <div>
-            <h2 style={sectionTitleStyle}>סוכנויות / עסקים</h2>
-            <p style={mutedStyle}>בשלב זה הסוכנויות נגזרות מפרטי ההרשמה של המשתמשים. טבלת סוכנויות עצמאית תחובר במיגרציה הבאה.</p>
+      <div style={stackStyle}>
+        <section style={metricsGridStyle}>
+          <article style={metricCardStyle('blue')}><span>סוכנויות / עסקים</span><strong>{agencies.length}</strong><small>נגזר מהרשמות קיימות</small></article>
+          <article style={metricCardStyle('green')}><span>משתמשים בסוכנויות</span><strong>{agencies.reduce((sum, agency) => sum + agency.users, 0)}</strong><small>כולל מנהלי סוכנות ועובדים</small></article>
+          <article style={metricCardStyle('orange')}><span>בתקופת ניסיון</span><strong>{agencies.filter(agency => String(agency.status).includes('trial')).length}</strong><small>לפי סטטוס מנוי</small></article>
+          <article style={metricCardStyle('red')}><span>מוקפאות / חסומות</span><strong>{agencies.filter(agency => ['blocked', 'suspended', 'archived'].includes(String(agency.status))).length}</strong><small>לפי עדכון מנהל</small></article>
+        </section>
+
+        <section style={cardStyle}>
+          <div style={sectionHeaderStyle}>
+            <div>
+              <h2 style={sectionTitleStyle}>סוכנויות / עסקים</h2>
+              <p style={mutedStyle}>הסוכנויות נגזרות כרגע מפרטי ההרשמה של המשתמשים. פרטי עסק נוספים נשמרים בפאנל עד חיבור טבלת agencies קבועה.</p>
+            </div>
+            <button type="button" style={primaryButtonStyle} onClick={() => setMessage('יצירת סוכנות ידנית דורשת טבלת agencies קבועה. כרגע סוכנויות נפתחות דרך הרשמת מנהל סוכנות.')}>צור סוכנות</button>
           </div>
-          <button type="button" style={primaryButtonStyle} onClick={() => setMessage('יצירת סוכנות ידנית תחובר בשלב הבא אחרי הרחבת בסיס הנתונים.')}>צור סוכנות</button>
-        </div>
-        <div style={tableWrapStyle}>
-          <table style={tableStyle}>
-            <thead>
-              <tr>
-                <th style={thStyle}>שם העסק</th>
-                <th style={thStyle}>מנהל ראשי</th>
-                <th style={thStyle}>מייל</th>
-                <th style={thStyle}>טלפון</th>
-                <th style={thStyle}>משתמשים</th>
-                <th style={thStyle}>תוכנית</th>
-                <th style={thStyle}>סטטוס מנוי</th>
-                <th style={thStyle}>תאריך הצטרפות</th>
-                <th style={thStyle}>סיום ניסיון</th>
-                <th style={thStyle}>פעולות</th>
-              </tr>
-            </thead>
-            <tbody>
-              {agencies.map(agency => (
-                <tr key={agency.name}>
-                  <td style={tdStyle}>{agency.name}</td>
-                  <td style={tdStyle}>{agency.manager}</td>
-                  <td style={tdStyle}>{agency.email}</td>
-                  <td style={tdStyle}>{agency.phone}</td>
-                  <td style={tdStyle}>{agency.users}</td>
-                  <td style={tdStyle}>{agency.plan}</td>
-                  <td style={tdStyle}><span style={statusPillStyle(agency.status)}>{agency.status}</span></td>
-                  <td style={tdStyle}>{agency.createdAt}</td>
-                  <td style={tdStyle}>אין נתון</td>
-                  <td style={tdStyle}><button type="button" style={smallButtonStyle} onClick={() => setMessage('עמוד סוכנות פנימי יחובר בשלב הבא.')}>פתח</button></td>
+          <div style={tableWrapStyle}>
+            <table style={tableStyle}>
+              <thead>
+                <tr>
+                  <th style={thStyle}>שם העסק</th>
+                  <th style={thStyle}>מנהל ראשי</th>
+                  <th style={thStyle}>מייל</th>
+                  <th style={thStyle}>טלפון</th>
+                  <th style={thStyle}>משתמשים</th>
+                  <th style={thStyle}>תוכנית</th>
+                  <th style={thStyle}>סטטוס מנוי</th>
+                  <th style={thStyle}>תאריך הצטרפות</th>
+                  <th style={thStyle}>סיום ניסיון</th>
+                  <th style={thStyle}>פעולות</th>
                 </tr>
-              ))}
-              {!agencies.length && <tr><td style={tdStyle} colSpan={10}>אין סוכנויות להצגה. סוכנות תופיע לאחר הרשמת מנהל סוכנות או עסק עצמאי.</td></tr>}
-            </tbody>
-          </table>
-        </div>
-      </section>
+              </thead>
+              <tbody>
+                {agencies.map(agency => (
+                  <tr key={agency.name} style={selectedAgency?.name === agency.name ? selectedTableRowStyle : undefined}>
+                    <td style={tdStyle}>{agency.name}</td>
+                    <td style={tdStyle}>{agency.manager}</td>
+                    <td style={tdStyle}>{agency.email}</td>
+                    <td style={tdStyle}>{agency.phone}</td>
+                    <td style={tdStyle}>{agency.users}</td>
+                    <td style={tdStyle}>{agency.plan}</td>
+                    <td style={tdStyle}><span style={statusPillStyle(agency.status)}>{agency.status}</span></td>
+                    <td style={tdStyle}>{agency.createdAt}</td>
+                    <td style={tdStyle}>{agency.trialEnds}</td>
+                    <td style={tdStyle}><button type="button" style={smallButtonStyle} onClick={() => setSelectedAgencyName(agency.name)}>פתח</button></td>
+                  </tr>
+                ))}
+                {!agencies.length && <tr><td style={tdStyle} colSpan={10}>אין סוכנויות להצגה. סוכנות תופיע לאחר הרשמת מנהל סוכנות או עסק עצמאי.</td></tr>}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        {selectedAgency && (
+          <section style={cardStyle}>
+            <div style={agencyDetailHeaderStyle}>
+              <div>
+                <h2 style={sectionTitleStyle}>עמוד סוכנות: {selectedAgency.name}</h2>
+                <p style={mutedStyle}>{selectedAgency.manager} · {selectedAgency.users} משתמשים · {selectedAgency.plan}</p>
+              </div>
+              <div style={agencyBrandPreviewStyle}>
+                {selectedAgency.logoUrl ? <img src={selectedAgency.logoUrl} alt={selectedAgency.name} style={agencyLogoStyle} /> : <Building2 size={28} />}
+                <span style={{ width: 28, height: 28, borderRadius: 999, border: '1px solid #CFE6FA', background: selectedAgency.brandColor || '#2563EB' }} />
+              </div>
+            </div>
+
+            <section style={twoColumnStyle}>
+              <article style={innerCardStyle}>
+                <h3 style={smallSectionTitleStyle}>פרטי עסק</h3>
+                <label style={adminFieldStyle}>ח.פ / עוסק
+                  <input style={inputStyle} value={selectedAgency.taxId || ''} onChange={event => updateAgencyOverride(selectedAgency.name, { taxId: event.target.value })} placeholder="מספר עסק" />
+                </label>
+                <label style={adminFieldStyle}>כתובת
+                  <input style={inputStyle} value={selectedAgency.address || ''} onChange={event => updateAgencyOverride(selectedAgency.name, { address: event.target.value })} placeholder="כתובת העסק" />
+                </label>
+                <label style={adminFieldStyle}>לוגו
+                  <input style={inputStyle} value={selectedAgency.logoUrl || ''} onChange={event => updateAgencyOverride(selectedAgency.name, { logoUrl: event.target.value })} placeholder="URL ללוגו" />
+                </label>
+                <label style={adminFieldStyle}>צבע מותג
+                  <input type="color" value={selectedAgency.brandColor || '#2563EB'} onChange={event => updateAgencyOverride(selectedAgency.name, { brandColor: event.target.value })} style={colorInputStyle} />
+                </label>
+              </article>
+
+              <article style={innerCardStyle}>
+                <h3 style={smallSectionTitleStyle}>תוכנית ומנוי</h3>
+                <label style={adminFieldStyle}>תוכנית
+                  <select style={inputStyle} value={selectedAgency.plan} onChange={event => updateAgencyOverride(selectedAgency.name, { plan: event.target.value }, 'תוכנית הסוכנות עודכנה')}>
+                    {(infrastructure?.plans || []).map(plan => <option key={plan.id} value={plan.id}>{plan.name}</option>)}
+                    {!infrastructure?.plans?.some(plan => plan.id === selectedAgency.plan) && <option value={selectedAgency.plan}>{selectedAgency.plan}</option>}
+                  </select>
+                </label>
+                <label style={adminFieldStyle}>סטטוס מנוי
+                  <select style={inputStyle} value={selectedAgency.status} onChange={event => updateAgencyOverride(selectedAgency.name, { status: event.target.value }, 'סטטוס הסוכנות עודכן')}>
+                    <option value="active">פעיל</option>
+                    <option value="trial_active">בתקופת ניסיון</option>
+                    <option value="suspended">מוקפא</option>
+                    <option value="blocked">חסום</option>
+                    <option value="archived">ארכיון</option>
+                  </select>
+                </label>
+                <label style={adminFieldStyle}>סיום ניסיון
+                  <input type="date" style={inputStyle} value={selectedAgency.trialEnds === 'אין נתון' ? '' : selectedAgency.trialEnds} onChange={event => updateAgencyOverride(selectedAgency.name, { trialEnds: event.target.value }, 'תאריך סיום ניסיון עודכן')} />
+                </label>
+                <div style={rowActionsStyle}>
+                  <button type="button" style={smallButtonStyle} onClick={() => updateAgencyOverride(selectedAgency.name, { status: 'trial_active' }, 'תקופת הניסיון הוארכה/נפתחה')}>הארכת ניסיון</button>
+                  <button type="button" style={smallButtonStyle} onClick={() => updateAgencyOverride(selectedAgency.name, { status: 'suspended' }, 'הסוכנות הוקפאה')}>הקפאה</button>
+                  <button type="button" style={dangerButtonStyle} onClick={() => updateAgencyOverride(selectedAgency.name, { status: 'blocked' }, 'הסוכנות נחסמה')}>חסימה</button>
+                  <button type="button" style={dangerButtonStyle} onClick={() => updateAgencyOverride(selectedAgency.name, { status: 'archived' }, 'הסוכנות הועברה לארכיון')}>מחיקה רכה</button>
+                </div>
+              </article>
+            </section>
+
+            <section style={twoColumnStyle}>
+              <article style={innerCardStyle}>
+                <h3 style={smallSectionTitleStyle}>מגבלות שימוש</h3>
+                <div style={limitsGridStyle}>
+                  <Limit label="משתמשים כלולים" value={selectedPlan?.includedUsers || '-'} />
+                  <Limit label="פגישות חודשיות" value={selectedPlan?.monthlyMeetings || '-'} />
+                  <Limit label="לקוחות" value={selectedPlan?.clientLimit || '-'} />
+                  <Limit label="מיתוג אישי" value={yesNo(selectedPlan?.features?.customBranding)} />
+                </div>
+              </article>
+              <article style={innerCardStyle}>
+                <h3 style={smallSectionTitleStyle}>הערות פנימיות</h3>
+                <textarea
+                  style={notesTextAreaStyle}
+                  value={selectedAgency.notes || ''}
+                  onChange={event => updateAgencyOverride(selectedAgency.name, { notes: event.target.value })}
+                  placeholder="הערות פנימיות למנהל מערכת בלבד"
+                />
+              </article>
+            </section>
+
+            <section style={cardStyle}>
+              <div style={sectionHeaderStyle}>
+                <h3 style={smallSectionTitleStyle}>משתמשים בסוכנות</h3>
+                <button type="button" style={smallButtonStyle} onClick={() => setMessage('הוספת משתמש לסוכנות קיימת דורשת שיוך קבוע במודל המשתמש. כרגע ניתן לאשר/לחסום משתמשים קיימים.')}>הוסף משתמש</button>
+              </div>
+              <div style={tableWrapStyle}>
+                <table style={tableStyle}>
+                  <thead>
+                    <tr>
+                      <th style={thStyle}>שם</th>
+                      <th style={thStyle}>מייל</th>
+                      <th style={thStyle}>טלפון</th>
+                      <th style={thStyle}>תפקיד</th>
+                      <th style={thStyle}>סטטוס</th>
+                      <th style={thStyle}>פעולות</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {selectedAgency.members.map(member => (
+                      <tr key={member.id}>
+                        <td style={tdStyle}>{member.name || '-'}</td>
+                        <td style={tdStyle}>{member.email}</td>
+                        <td style={tdStyle}>{member.phone || 'לא הוזן'}</td>
+                        <td style={tdStyle}>{member.userTypeLabel || 'משתמש'}</td>
+                        <td style={tdStyle}><span style={statusPillStyle(member.status)}>{member.statusLabel || member.status || '-'}</span></td>
+                        <td style={tdStyle}>
+                          <div style={rowActionsStyle}>
+                            <button type="button" style={smallButtonStyle} onClick={() => void patchUser(member.id, { action: 'extend_trial' }, 'תקופת הניסיון הוארכה', 'הארכת ניסיון נכשלה', 'הארכת ניסיון')}>הארך ניסיון</button>
+                            <button type="button" style={smallButtonStyle} onClick={() => void patchUser(member.id, { action: 'approve' }, 'המשתמש אושר', 'אישור המשתמש נכשל', 'אישור משתמש')}>אשר</button>
+                            <button type="button" style={dangerButtonStyle} onClick={() => void patchUser(member.id, { action: 'block' }, 'המשתמש נחסם', 'חסימת המשתמש נכשלה', 'חסימת משתמש')}>חסום</button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+
+            <section style={twoColumnStyle}>
+              <article style={innerCardStyle}>
+                <h3 style={smallSectionTitleStyle}>תבניות פרטיות</h3>
+                <EmptyState title="אין תבניות פרטיות לסוכנות" text="התשתית תתחבר בשלב תבניות וסיכומי פגישה." />
+              </article>
+              <article style={innerCardStyle}>
+                <h3 style={smallSectionTitleStyle}>היסטוריית פעילות</h3>
+                <div style={activityListStyle}>
+                  {auditEvents.filter(event => event.entity === selectedAgency.name).slice(0, 6).map(event => (
+                    <div key={event.id} style={activityRowStyle}>
+                      <span style={statusDotStyle(event.result)} />
+                      <strong>{event.action}</strong>
+                      <small>{formatTime(event.time)}</small>
+                    </div>
+                  ))}
+                  {!auditEvents.some(event => event.entity === selectedAgency.name) && <EmptyState title="אין פעילות לסוכנות" text="פעולות שתבצע בעמוד הסוכנות יופיעו כאן." />}
+                </div>
+              </article>
+            </section>
+          </section>
+        )}
+      </div>
     )
   }
 
@@ -689,39 +1190,69 @@ export default function AdminPanelPage() {
           <div style={sectionHeaderStyle}>
             <div>
               <h2 style={sectionTitleStyle}>תוכניות שימוש</h2>
-              <p style={mutedStyle}>ניהול תוכניות בשלב זה מתבסס על ברירות המחדל של התשתית. עריכה ושמירה קבועה יחוברו לאחר הרחבת בסיס הנתונים.</p>
+              <p style={mutedStyle}>ניהול תוכניות שימוש ומגבלות. השינויים נשמרים בתשתית הניהול המרכזית כאשר D1 מחובר.</p>
             </div>
-            <button type="button" style={primaryButtonStyle} onClick={() => stageAction('יצירת תוכנית')}>צור תוכנית</button>
+            <button type="button" style={primaryButtonStyle} onClick={() => void createPlan()}>צור תוכנית</button>
           </div>
           <div style={planCardsGridStyle}>
             {plans.map(plan => (
               <article key={plan.id} style={planCardStyle}>
                 <div style={sectionHeaderStyle}>
                   <div>
-                    <h3 style={planTitleStyle}>{plan.name}</h3>
-                    <p style={mutedStyle}>{plan.shortDescription || 'תוכנית שימוש במערכת.'}</p>
+                    <input
+                      aria-label="שם תוכנית"
+                      value={plan.name}
+                      onChange={event => void updatePlan(plan.id, { name: event.target.value })}
+                      style={{ ...inputStyle, fontWeight: 900, fontSize: 18 }}
+                    />
+                    <input
+                      aria-label="תיאור תוכנית"
+                      value={plan.shortDescription || ''}
+                      onChange={event => void updatePlan(plan.id, { shortDescription: event.target.value })}
+                      style={inputStyle}
+                    />
                   </div>
-                  <span style={statusPillStyle(plan.status)}>{plan.status}</span>
+                  <select value={plan.status} onChange={event => void updatePlan(plan.id, { status: event.target.value })} style={{ ...inputStyle, width: 130 }}>
+                    <option value="draft">טיוטה</option>
+                    <option value="active">פעיל</option>
+                    <option value="hidden">מוסתר</option>
+                    <option value="archived">ארכיון</option>
+                  </select>
                 </div>
-                <div style={planPriceStyle}>₪{plan.monthlyPrice}<small> / חודש</small></div>
+                <div style={planPriceStyle}>
+                  ₪
+                  <input
+                    aria-label="מחיר חודשי"
+                    type="number"
+                    value={plan.monthlyPrice}
+                    onChange={event => void updatePlan(plan.id, { monthlyPrice: Number(event.target.value) || 0 })}
+                    style={priceInputStyle}
+                  />
+                  <small> / חודש</small>
+                </div>
                 <div style={limitsGridStyle}>
-                  <Limit label="משתמשים" value={plan.includedUsers} />
-                  <Limit label="פגישות חודשיות" value={plan.monthlyMeetings} />
-                  <Limit label="לקוחות" value={plan.clientLimit || 0} />
-                  <Limit label="מחיר שנתי" value={`₪${plan.annualPrice || 0}`} />
+                  <PlanNumberInput label="משתמשים" value={plan.includedUsers} onChange={value => void updatePlan(plan.id, { includedUsers: value })} />
+                  <PlanNumberInput label="פגישות חודשיות" value={plan.monthlyMeetings} onChange={value => void updatePlan(plan.id, { monthlyMeetings: value })} />
+                  <PlanNumberInput label="לקוחות" value={plan.clientLimit || 0} onChange={value => void updatePlan(plan.id, { clientLimit: value })} />
+                  <PlanNumberInput label="מחיר שנתי" value={plan.annualPrice || 0} onChange={value => void updatePlan(plan.id, { annualPrice: value })} />
                 </div>
                 <div style={featureListStyle}>
                   {Object.entries(plan.features || {}).map(([key, enabled]) => (
-                    <span key={key} style={featureItemStyle(enabled)}>
+                    <label key={key} style={featureItemStyle(enabled)}>
+                      <input
+                        type="checkbox"
+                        checked={Boolean(enabled)}
+                        onChange={event => void updatePlanFeature(plan.id, key, event.target.checked)}
+                      />
                       {enabled ? <CheckCircle2 size={14} /> : <XCircle size={14} />}
                       {featureLabel(key)}
-                    </span>
+                    </label>
                   ))}
                 </div>
                 <div style={rowActionsStyle}>
-                  <button type="button" style={smallButtonStyle} onClick={() => stageAction(`עריכת תוכנית ${plan.name}`)}>ערוך</button>
-                  <button type="button" style={smallButtonStyle} onClick={() => stageAction(`שכפול תוכנית ${plan.name}`)}>שכפל</button>
-                  <button type="button" style={dangerButtonStyle} onClick={() => stageAction(`הסתרת תוכנית ${plan.name}`)}>הסתר</button>
+                  <button type="button" style={smallButtonStyle} onClick={() => void updatePlan(plan.id, { status: 'active' })}>הפעל</button>
+                  <button type="button" style={smallButtonStyle} onClick={() => void clonePlan(plan.id)}>שכפל</button>
+                  <button type="button" style={dangerButtonStyle} onClick={() => void updatePlan(plan.id, { status: 'hidden' })}>הסתר</button>
                 </div>
               </article>
             ))}
@@ -748,15 +1279,36 @@ export default function AdminPanelPage() {
                   <tr key={row.id}>
                     <td style={tdStyle}>{row.name}</td>
                     <td style={tdStyle}>{row.owner}</td>
-                    <td style={tdStyle}>{row.plan}</td>
+                    <td style={tdStyle}>
+                      <select
+                        value={row.plan}
+                        onChange={event => void setUserSubscription(row.id, event.target.value, row.subscriptionStatus)}
+                        style={smallSelectStyle}
+                      >
+                        {plans.map(plan => <option key={plan.id} value={plan.id}>{plan.name}</option>)}
+                        {!plans.some(plan => plan.id === row.plan) && <option value={row.plan}>{row.plan}</option>}
+                      </select>
+                    </td>
                     <td style={tdStyle}>{row.users}</td>
-                    <td style={tdStyle}><span style={statusPillStyle(row.subscriptionStatus)}>{row.subscriptionStatus}</span></td>
+                    <td style={tdStyle}>
+                      <select
+                        value={row.subscriptionStatus}
+                        onChange={event => void setUserSubscription(row.id, row.plan, event.target.value)}
+                        style={smallSelectStyle}
+                      >
+                        <option value="trial_active">בתקופת ניסיון</option>
+                        <option value="active">פעיל</option>
+                        <option value="expired">מנוי פג</option>
+                        <option value="blocked">חסום</option>
+                        <option value="cancelled">בוטל</option>
+                      </select>
+                    </td>
                     <td style={tdStyle}>{row.trialEnds}</td>
                     <td style={tdStyle}>
                       <div style={rowActionsStyle}>
-                        <button type="button" style={smallButtonStyle} onClick={() => stageAction('הארכת ניסיון')}>הארך ניסיון</button>
-                        <button type="button" style={smallButtonStyle} onClick={() => stageAction('פתיחה ידנית')}>פתח ידנית</button>
-                        <button type="button" style={dangerButtonStyle} onClick={() => stageAction('חסימת שימוש')}>חסום</button>
+                        <button type="button" style={smallButtonStyle} onClick={() => void patchUser(row.id, { action: 'extend_trial' }, 'תקופת הניסיון הוארכה', 'הארכת ניסיון נכשלה', 'הארכת ניסיון')}>הארך ניסיון</button>
+                        <button type="button" style={smallButtonStyle} onClick={() => void patchUser(row.id, { action: 'approve' }, 'המנוי נפתח לשימוש', 'פתיחת מנוי נכשלה', 'פתיחה ידנית')}>פתח ידנית</button>
+                        <button type="button" style={dangerButtonStyle} onClick={() => void patchUser(row.id, { action: 'block' }, 'המנוי נחסם', 'חסימת מנוי נכשלה', 'חסימת שימוש')}>חסום</button>
                       </div>
                     </td>
                   </tr>
@@ -814,7 +1366,7 @@ export default function AdminPanelPage() {
             <h2 style={sectionTitleStyle}>מצב תחזוקה והודעות</h2>
             <label style={adminFieldStyle}>שם מערכת<input style={inputStyle} defaultValue="ABD Finance" /></label>
             <label style={adminFieldStyle}>הודעת מערכת גלובלית<textarea style={{ ...inputStyle, minHeight: 94 }} placeholder="הודעה שתוצג למשתמשים בעתיד" /></label>
-            <button type="button" style={primaryButtonStyle} onClick={() => stageAction('שמירת הגדרות מערכת')}>שמור הגדרות</button>
+            <button type="button" style={primaryButtonStyle} onClick={() => infrastructure && void saveInfrastructure(infrastructure, 'הגדרות המערכת נשמרו')}>שמור הגדרות</button>
           </article>
         </section>
       </div>
@@ -963,8 +1515,8 @@ export default function AdminPanelPage() {
   }
 
   function renderLeads() {
-    const openLeads = leads.filter(lead => lead.status === 'ממתין לטיפול').length
-    const convertedLeads = leads.length - openLeads
+    const openLeads = leads.filter(lead => lead.statusCode === 'open' || lead.statusCode === 'assigned' || lead.statusCode === 'emailed').length
+    const convertedLeads = leads.filter(lead => lead.statusCode === 'converted').length
 
     return (
       <div style={stackStyle}>
@@ -979,7 +1531,7 @@ export default function AdminPanelPage() {
           <div style={sectionHeaderStyle}>
             <div>
               <h2 style={sectionTitleStyle}>לידים ולקוחות</h2>
-              <p style={mutedStyle}>תצוגת תשתית ללידים שמגיעים מהרשמה ומדף נחיתה עתידי. אין כאן שמירה חדשה למסד נתונים בשלב הזה.</p>
+              <p style={mutedStyle}>לידים שמגיעים מהרשמה ומדף נחיתה עתידי. הפעולות נשמרות מקומית בפאנל עד חיבור טבלת לידים ייעודית ב-D1.</p>
             </div>
             <button type="button" style={primaryButtonStyle} onClick={() => stageAction('פתיחת ליד ידני', 3)}>הוסף ליד</button>
           </div>
@@ -1009,13 +1561,13 @@ export default function AdminPanelPage() {
                     <td style={tdStyle}>{lead.type}</td>
                     <td style={tdStyle}>{lead.business}</td>
                     <td style={tdStyle}>{lead.plan}</td>
-                    <td style={tdStyle}><span style={statusPillStyle(lead.status === 'הומר למשתמש' ? 'active' : 'pending_approval')}>{lead.status}</span></td>
+                    <td style={tdStyle}><span style={statusPillStyle(lead.statusCode === 'converted' ? 'active' : lead.statusCode === 'closed' ? 'blocked' : 'pending_approval')}>{lead.status}</span></td>
                     <td style={tdStyle}>{lead.owner}</td>
                     <td style={tdStyle}>
                       <div style={rowActionsStyle}>
-                        <button type="button" style={smallButtonStyle} onClick={() => stageAction('שיוך ליד ליועץ', 3)}>שייך</button>
-                        <button type="button" style={smallButtonStyle} onClick={() => stageAction('שליחת מייל לליד', 3)}>שלח מייל</button>
-                        <button type="button" style={dangerButtonStyle} onClick={() => stageAction('סגירת ליד', 3)}>סגור</button>
+                        <button type="button" style={smallButtonStyle} onClick={() => updateLeadStatus(lead.id, 'assigned')}>שייך</button>
+                        <button type="button" style={smallButtonStyle} onClick={() => updateLeadStatus(lead.id, 'emailed')}>סמן מייל</button>
+                        <button type="button" style={dangerButtonStyle} onClick={() => updateLeadStatus(lead.id, 'closed')}>סגור</button>
                       </div>
                     </td>
                   </tr>
@@ -1241,8 +1793,8 @@ export default function AdminPanelPage() {
                     <td style={tdStyle}>{kind.id.includes('returns') ? 'תשואות ABD ומסלולי השקעה' : 'נתוני עזר לפגישה חכמה'}</td>
                     <td style={tdStyle}>
                       <div style={rowActionsStyle}>
-                        <button type="button" style={smallButtonStyle} onClick={() => stageAction(`מיפוי קובץ ${kind.label}`, 5)}>מיפוי</button>
-                        <button type="button" style={smallButtonStyle} onClick={() => stageAction(`בדיקת קובץ ${kind.label}`, 5)}>בדיקה</button>
+                        <button type="button" style={smallButtonStyle} onClick={() => validateDataImportKind(kind)}>מיפוי</button>
+                        <button type="button" style={smallButtonStyle} onClick={() => validateDataImportKind(kind)}>בדיקה</button>
                       </div>
                     </td>
                   </tr>
@@ -1257,7 +1809,7 @@ export default function AdminPanelPage() {
   }
 
   function stageAction(label: string, stage = 2) {
-    setMessage(`${label} הוכן כתשתית בשלב 2. שמירה קבועה תחובר לאחר הרחבת בסיס הנתונים.`)
+    setMessage(`${label}: פעולה זו עדיין ממתינה לחיבור מלא בשלב ${stage}.`)
     addAudit(label, `stage-${stage}`, 'info')
   }
 }
@@ -1278,6 +1830,20 @@ function Limit({ label, value }: { label: string; value: string | number }) {
       <span>{label}</span>
       <strong>{value}</strong>
     </div>
+  )
+}
+
+function PlanNumberInput({ label, value, onChange }: { label: string; value: number; onChange: (value: number) => void }) {
+  return (
+    <label style={limitStyle}>
+      <span>{label}</span>
+      <input
+        type="number"
+        value={value}
+        onChange={event => onChange(Number(event.target.value) || 0)}
+        style={compactNumberInputStyle}
+      />
+    </label>
   )
 }
 
@@ -1318,6 +1884,12 @@ function formatDate(value?: string) {
 function formatTime(value: string) {
   const date = new Date(value)
   return date.toLocaleString('he-IL', { dateStyle: 'short', timeStyle: 'short' })
+}
+
+function formatBytes(value: number) {
+  if (!Number.isFinite(value) || value <= 0) return '0 KB'
+  if (value < 1024 * 1024) return `${Math.ceil(value / 1024).toLocaleString('he-IL')} KB`
+  return `${(value / 1024 / 1024).toLocaleString('he-IL', { maximumFractionDigits: 1 })} MB`
 }
 
 function statusPillStyle(status?: string): React.CSSProperties {
@@ -1399,6 +1971,7 @@ const sectionHeaderStyle: React.CSSProperties = { display: 'flex', justifyConten
 const sectionTitleStyle: React.CSSProperties = { color: 'var(--abd-primary)', fontSize: 22, fontWeight: 900 }
 const toolbarStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, alignItems: 'center' }
 const inputStyle: React.CSSProperties = { minHeight: 44, border: '1px solid #CFE6FA', borderRadius: 12, padding: '8px 12px', fontFamily: 'var(--font-main)', color: 'var(--abd-primary)' }
+const compactNumberInputStyle: React.CSSProperties = { width: '100%', minHeight: 34, border: '1px solid #CFE6FA', borderRadius: 10, padding: '4px 8px', fontFamily: 'var(--font-main)', color: 'var(--abd-primary)', fontWeight: 900, direction: 'ltr', textAlign: 'center' }
 const searchInputStyle: React.CSSProperties = { ...inputStyle, width: '100%' }
 const primaryButtonStyle: React.CSSProperties = { minHeight: 44, border: 0, borderRadius: 12, background: 'var(--abd-accent)', color: '#fff', fontFamily: 'var(--font-main)', fontWeight: 900, padding: '0 16px', cursor: 'pointer' }
 const smallButtonStyle: React.CSSProperties = { ...primaryButtonStyle, minHeight: 36, padding: '0 10px' }
@@ -1411,20 +1984,47 @@ const tableWrapStyle: React.CSSProperties = { overflowX: 'auto', border: '1px so
 const tableStyle: React.CSSProperties = { width: '100%', borderCollapse: 'collapse', minWidth: 1020 }
 const thStyle: React.CSSProperties = { textAlign: 'right', background: 'var(--abd-primary)', color: '#fff', padding: 11, whiteSpace: 'nowrap' }
 const tdStyle: React.CSSProperties = { padding: 11, borderBottom: '1px solid #E6EEF7', color: 'var(--abd-primary)', fontWeight: 700, verticalAlign: 'middle' }
+const selectedTableRowStyle: React.CSSProperties = { background: '#EFF6FF', boxShadow: 'inset 4px 0 0 var(--abd-accent)' }
 const pillBaseStyle: React.CSSProperties = { borderRadius: 999, padding: '5px 9px', fontWeight: 900, whiteSpace: 'nowrap' }
 const rowActionsStyle: React.CSSProperties = { display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }
 const smallInputStyle: React.CSSProperties = { ...inputStyle, minHeight: 36, width: 138 }
+const smallSelectStyle: React.CSSProperties = { ...inputStyle, minHeight: 36, width: 150, padding: '4px 8px', fontWeight: 900 }
 const activityListStyle: React.CSSProperties = { display: 'grid', gap: 9 }
 const activityRowStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: '12px 1fr auto', alignItems: 'center', gap: 9, padding: 10, borderRadius: 12, background: '#F8FBFF', color: 'var(--abd-primary)' }
 const cardsListStyle: React.CSSProperties = { display: 'grid', gap: 10, maxHeight: 360, overflow: 'auto' }
-const roleCardStyle: React.CSSProperties = { display: 'grid', gap: 5, border: '1px solid #D7EAFB', borderRadius: 14, padding: 12, color: 'var(--abd-primary)', background: '#FBFDFF' }
+const roleCardStyle: React.CSSProperties = { display: 'grid', gap: 5, border: '1px solid #D7EAFB', borderRadius: 14, padding: 12, color: 'var(--abd-primary)', background: '#FBFDFF', textAlign: 'right', fontFamily: 'var(--font-main)', cursor: 'pointer' }
+const activeRoleCardStyle: React.CSSProperties = { ...roleCardStyle, borderColor: 'var(--abd-accent)', background: '#EFF6FF', boxShadow: 'inset 0 0 0 1px rgba(37,99,235,0.25)' }
+const innerCardStyle: React.CSSProperties = { display: 'grid', gap: 13, border: '1px solid #D7EAFB', borderRadius: 18, background: '#FBFDFF', padding: 16 }
+const smallSectionTitleStyle: React.CSSProperties = { color: 'var(--abd-primary)', fontSize: 18, fontWeight: 900 }
+const agencyDetailHeaderStyle: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, borderBottom: '1px solid #E6EEF7', paddingBottom: 14 }
+const agencyBrandPreviewStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: '70px 28px', gap: 10, alignItems: 'center', color: 'var(--abd-primary)' }
+const agencyLogoStyle: React.CSSProperties = { width: 70, height: 48, objectFit: 'contain', border: '1px solid #D7EAFB', borderRadius: 12, background: '#fff', padding: 6 }
+const colorInputStyle: React.CSSProperties = { width: 72, height: 42, border: '1px solid #CFE6FA', borderRadius: 12, background: '#fff', padding: 4, cursor: 'pointer' }
+const notesTextAreaStyle: React.CSSProperties = { ...inputStyle, minHeight: 155, resize: 'vertical' }
 const permissionGridStyle: React.CSSProperties = { display: 'flex', flexWrap: 'wrap', gap: 8 }
 const permissionPillStyle: React.CSSProperties = { borderRadius: 999, padding: '6px 10px', background: '#EFF6FF', border: '1px solid #CFE6FA', color: 'var(--abd-primary)', fontWeight: 900, fontSize: 12 }
+const permissionEditorStyle: React.CSSProperties = { display: 'grid', gap: 10, maxHeight: 560, overflowY: 'auto', paddingInlineEnd: 4 }
+const permissionToggleStyle = (active: boolean): React.CSSProperties => ({
+  display: 'grid',
+  gridTemplateColumns: 'auto 1fr',
+  gap: 10,
+  alignItems: 'start',
+  border: '1px solid',
+  borderColor: active ? '#93C5FD' : '#D7EAFB',
+  borderRadius: 14,
+  background: active ? '#EFF6FF' : '#FFFFFF',
+  color: 'var(--abd-primary)',
+  padding: 12,
+  cursor: 'pointer',
+  lineHeight: 1.55,
+})
+const userOverrideNoteStyle: React.CSSProperties = { marginTop: 14, border: '1px dashed #BFE2FB', borderRadius: 14, background: '#F8FBFF', color: '#5F789C', padding: 12, fontWeight: 800, lineHeight: 1.7 }
 const emptyStateStyle: React.CSSProperties = { minHeight: 180, display: 'grid', placeItems: 'center', alignContent: 'center', gap: 8, borderRadius: 18, border: '1px dashed #CFE6FA', background: '#F8FBFF', color: 'var(--abd-primary)', textAlign: 'center', padding: 20 }
 const planCardsGridStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 14 }
 const planCardStyle: React.CSSProperties = { display: 'grid', gap: 14, padding: 16, borderRadius: 18, border: '1px solid #D7EAFB', background: '#FBFDFF', color: 'var(--abd-primary)' }
 const planTitleStyle: React.CSSProperties = { fontSize: 22, fontWeight: 900, color: 'var(--abd-primary)' }
 const planPriceStyle: React.CSSProperties = { fontSize: 28, fontWeight: 900, color: 'var(--abd-primary)' }
+const priceInputStyle: React.CSSProperties = { width: 110, border: '1px solid #CFE6FA', borderRadius: 12, padding: '4px 8px', marginInline: 6, fontFamily: 'var(--font-main)', color: 'var(--abd-primary)', fontSize: 26, fontWeight: 900, direction: 'ltr', textAlign: 'center' }
 const limitsGridStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 8 }
 const limitStyle: React.CSSProperties = { display: 'grid', gap: 4, padding: 10, borderRadius: 12, background: '#EFF6FF', color: 'var(--abd-primary)' }
 const featureListStyle: React.CSSProperties = { display: 'flex', flexWrap: 'wrap', gap: 8 }

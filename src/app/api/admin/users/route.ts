@@ -169,17 +169,33 @@ export async function PATCH(request: Request) {
       const hash = await bcrypt.hash(String(body.password), 10)
       const updated = await updateD1UserPassword(userId, hash)
       if (updated) return NextResponse.json({ ok: true, mode: 'd1' })
-    } else if (action === 'approve' || action === 'block') {
+    } else if (action === 'approve' || action === 'block' || action === 'extend_trial' || action === 'set_subscription') {
       const now = new Date().toISOString()
+      const trialEndsAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString()
+      const nextSubscriptionStatus = String(body?.subscriptionStatus || 'active')
+      const nextPlanId = String(body?.planId || 'trial')
       const updated = await updateD1UserStatus(
         userId,
-        action === 'approve' ? 'active' : 'blocked',
+        action === 'block' ? 'blocked' : action === 'set_subscription' && nextSubscriptionStatus === 'blocked' ? 'blocked' : 'active',
         action === 'approve'
           ? {
               status: 'active',
               approvedAt: now,
               approvedBy: session?.user?.email || 'admin',
               subscriptionStatus: 'trial_active',
+            }
+          : action === 'extend_trial'
+          ? {
+              status: 'active',
+              trialExtendedAt: now,
+              trialEndsAt,
+              subscriptionStatus: 'trial_active',
+            }
+          : action === 'set_subscription'
+          ? {
+              status: nextSubscriptionStatus === 'blocked' ? 'blocked' : 'active',
+              subscriptionStatus: nextSubscriptionStatus,
+              planId: nextPlanId,
             }
           : {
               status: 'blocked',
@@ -189,6 +205,10 @@ export async function PATCH(request: Request) {
             },
         action === 'approve'
           ? { status: 'trial_active', trialStartedAt: now }
+          : action === 'extend_trial'
+          ? { status: 'trial_active', trialExtendedAt: now, trialEndsAt }
+          : action === 'set_subscription'
+          ? { status: nextSubscriptionStatus, planId: nextPlanId }
           : { status: 'blocked' },
       )
       if (updated) return NextResponse.json({ ok: true, mode: 'd1' })
@@ -206,12 +226,15 @@ export async function PATCH(request: Request) {
         where: { id: userId },
         data: { password: hash },
       })
-    } else if (action === 'approve' || action === 'block') {
+    } else if (action === 'approve' || action === 'block' || action === 'extend_trial' || action === 'set_subscription') {
       const existing = await prisma.advisorData.findUnique({
         where: { userId },
         select: { settings: true },
       })
       const now = new Date().toISOString()
+      const trialEndsAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString()
+      const nextSubscriptionStatus = String(body?.subscriptionStatus || 'active')
+      const nextPlanId = String(body?.planId || 'trial')
       const settings = mergeRegistrationSettings(
         existing?.settings,
         action === 'approve'
@@ -223,6 +246,19 @@ export async function PATCH(request: Request) {
               blockedBy: undefined,
               subscriptionStatus: 'trial_active',
             }
+          : action === 'extend_trial'
+          ? {
+              status: 'active',
+              trialExtendedAt: now,
+              trialEndsAt,
+              subscriptionStatus: 'trial_active',
+            }
+          : action === 'set_subscription'
+          ? {
+              status: nextSubscriptionStatus === 'blocked' ? 'blocked' : 'active',
+              subscriptionStatus: nextSubscriptionStatus,
+              planId: nextPlanId,
+            }
           : {
               status: 'blocked',
               blockedAt: now,
@@ -231,6 +267,10 @@ export async function PATCH(request: Request) {
             },
         action === 'approve'
           ? { status: 'trial_active', trialStartedAt: now }
+          : action === 'extend_trial'
+          ? { status: 'trial_active', trialExtendedAt: now, trialEndsAt }
+          : action === 'set_subscription'
+          ? { status: nextSubscriptionStatus, planId: nextPlanId }
           : { status: 'blocked' },
       )
       const jsonSettings = JSON.parse(JSON.stringify(settings))

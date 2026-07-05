@@ -1,10 +1,13 @@
 import type { Metadata } from 'next'
 import './globals.css'
 import { Providers } from './providers'
+import LegalFooter from '@/components/layout/LegalFooter'
+import CookieConsent from '@/components/layout/CookieConsent'
+import AccessibilityMenu from '@/components/layout/AccessibilityMenu'
 
 export const metadata: Metadata = {
-  title: 'ABD Finance — מערכת פרישה',
-  description: 'מערכת ניהול פרישה מקצועית',
+  title: 'פגישה חכמה - ABD Finance',
+  description: 'מערכת SaaS מקצועית לניהול פגישות פרישה ופיננסים',
 }
 
 export default function RootLayout({
@@ -15,7 +18,15 @@ export default function RootLayout({
   return (
     <html lang="he" dir="rtl">
       <body>
-        <Providers>{children}</Providers>
+        <Providers>
+          <a href="#main-content" className="skip-link">דלג לתוכן המרכזי</a>
+          <div id="main-content">
+            {children}
+          </div>
+          <LegalFooter />
+          <CookieConsent />
+          <AccessibilityMenu />
+        </Providers>
       </body>
     </html>
   )

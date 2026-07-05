@@ -110,6 +110,17 @@ export async function ensureSystemSchema(db?: D1DatabaseLike | null) {
       metadata_json TEXT,
       created_at TEXT NOT NULL
     )`,
+    `CREATE TABLE IF NOT EXISTS admin_lead_overrides (
+      lead_id TEXT PRIMARY KEY,
+      status TEXT NOT NULL,
+      owner TEXT,
+      updated_at TEXT NOT NULL
+    )`,
+    `CREATE TABLE IF NOT EXISTS admin_settings (
+      key TEXT PRIMARY KEY,
+      value_json TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )`,
   ]
 
   for (const statement of statements) {
@@ -179,6 +190,71 @@ export async function listD1Users() {
      ORDER BY u.created_at DESC`,
   ).all<SystemUserRecord>()
   return result.results || []
+}
+
+export async function exportD1UserData(userId: string) {
+  const db = await ensureSystemSchema()
+  if (!db) return null
+  const user = await findD1UserById(userId)
+  if (!user) return null
+  const audit = await db.prepare(
+    `SELECT actor_email, action, target_id, metadata_json, created_at
+     FROM audit_events
+     WHERE actor_email = ? OR target_id = ?
+     ORDER BY created_at DESC
+     LIMIT 200`,
+  ).bind(user.email, userId).all()
+  return {
+    user: {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      status: user.status,
+      createdAt: user.created_at,
+      updatedAt: user.updated_at,
+    },
+    settings: parseUserSettings(user),
+    auditEvents: audit.results || [],
+  }
+}
+
+export async function requestD1AccountDeletion(userId: string) {
+  const db = await ensureSystemSchema()
+  if (!db) return false
+  const user = await findD1UserById(userId)
+  if (!user) return false
+  const registration = { ...(safeJson(user.registration_json) || {}), deletionRequestedAt: new Date().toISOString() }
+  await db.prepare(
+    `UPDATE user_settings SET registration_json = ?, updated_at = ? WHERE user_id = ?`,
+  ).bind(JSON.stringify(registration), new Date().toISOString(), userId).run()
+  await writeAuditEvent({ actorEmail: user.email, action: 'privacy.deletion_requested', targetId: userId })
+  return true
+}
+
+export async function updateD1UserProfile(userId: string, input: { name?: string; phone?: string }) {
+  const db = await ensureSystemSchema()
+  if (!db) return false
+  const user = await findD1UserById(userId)
+  if (!user) return false
+  const now = new Date().toISOString()
+  const registration = { ...(safeJson(user.registration_json) || {}) }
+  if (typeof input.phone === 'string') registration.phone = input.phone
+  if (typeof input.name === 'string') {
+    await db.prepare(`UPDATE users SET name = ?, updated_at = ? WHERE id = ?`).bind(input.name, now, userId).run()
+  }
+  await db.prepare(
+    `UPDATE user_settings SET registration_json = ?, updated_at = ? WHERE user_id = ?`,
+  ).bind(JSON.stringify(registration), now, userId).run()
+  await writeAuditEvent({ actorEmail: user.email, action: 'privacy.profile_updated', targetId: userId, metadata: { fields: Object.keys(input) } })
+  return true
+}
+
+export async function deleteD1UserAccount(userId: string) {
+  const db = await ensureSystemSchema()
+  if (!db) return false
+  await db.prepare(`DELETE FROM users WHERE id = ?`).bind(userId).run()
+  return true
 }
 
 export async function updateD1UserStatus(userId: string, status: string, registrationPatch: Record<string, unknown>, subscriptionPatch: Record<string, unknown>) {
@@ -262,6 +338,81 @@ export async function writeEmailOutbox(input: {
     new Date().toISOString(),
     input.status === 'sent' ? new Date().toISOString() : null,
   ).run()
+}
+
+export async function writeAuditEvent(input: {
+  actorEmail?: string | null
+  action: string
+  targetId?: string | null
+  metadata?: unknown
+}) {
+  const db = await ensureSystemSchema()
+  if (!db) return
+  await db.prepare(
+    `INSERT INTO audit_events (id, actor_email, action, target_id, metadata_json, created_at)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+  ).bind(
+    crypto.randomUUID(),
+    input.actorEmail || null,
+    input.action,
+    input.targetId || null,
+    JSON.stringify(input.metadata || {}),
+    new Date().toISOString(),
+  ).run()
+}
+
+export async function listD1LeadOverrides() {
+  const db = await ensureSystemSchema()
+  if (!db) return null
+  const result = await db.prepare(
+    `SELECT lead_id, status, owner, updated_at
+     FROM admin_lead_overrides
+     ORDER BY updated_at DESC`,
+  ).all<{ lead_id: string; status: string; owner: string | null; updated_at: string }>()
+  return result.results || []
+}
+
+export async function upsertD1LeadOverride(input: {
+  leadId: string
+  status: string
+  owner?: string | null
+}) {
+  const db = await ensureSystemSchema()
+  if (!db) return false
+  const now = new Date().toISOString()
+  await db.prepare(
+    `INSERT INTO admin_lead_overrides (lead_id, status, owner, updated_at)
+     VALUES (?, ?, ?, ?)
+     ON CONFLICT(lead_id) DO UPDATE SET
+       status = excluded.status,
+       owner = excluded.owner,
+       updated_at = excluded.updated_at`,
+  ).bind(input.leadId, input.status, input.owner || null, now).run()
+  return true
+}
+
+export async function getD1AdminSetting<T = unknown>(key: string) {
+  const db = await ensureSystemSchema()
+  if (!db) return null
+  const row = await db.prepare(
+    `SELECT value_json FROM admin_settings WHERE key = ?`,
+  ).bind(key).first<{ value_json: string }>()
+  if (!row?.value_json) return null
+  return safeJson(row.value_json) as T | null
+}
+
+export async function setD1AdminSetting(key: string, value: unknown) {
+  const db = await ensureSystemSchema()
+  if (!db) return false
+  const now = new Date().toISOString()
+  await db.prepare(
+    `INSERT INTO admin_settings (key, value_json, updated_at)
+     VALUES (?, ?, ?)
+     ON CONFLICT(key) DO UPDATE SET
+       value_json = excluded.value_json,
+       updated_at = excluded.updated_at`,
+  ).bind(key, JSON.stringify(value || {}), now).run()
+  return true
 }
 
 export function parseUserSettings(user: Pick<SystemUserRecord, 'registration_json' | 'subscription_json'>) {

@@ -15,6 +15,11 @@ import {
   registrationThanksEmail,
   sendSystemEmail,
 } from '@/lib/system-mail'
+import { clientIp, rateLimit, rateLimitResponse, requireSameOrigin, sanitizeText } from '@/lib/security'
+import { writeAuditEvent } from '@/lib/system-db'
+
+const TERMS_VERSION = '2026-07-05'
+const PRIVACY_VERSION = '2026-07-05'
 
 type RegisterBody = {
   userType?: RegistrationUserType
@@ -40,7 +45,7 @@ type RegisterBody = {
 }
 
 function clean(value: unknown) {
-  return String(value || '').trim()
+  return sanitizeText(value, 500)
 }
 
 function isAllowedUserType(value: unknown): value is RegistrationUserType {
@@ -79,6 +84,16 @@ function validateRegistration(body: RegisterBody) {
 }
 
 export async function POST(request: Request) {
+  const csrf = requireSameOrigin(request)
+  if (csrf) return csrf
+
+  const limited = rateLimit(`register:${clientIp(request)}`, {
+    limit: 8,
+    windowMs: 10 * 60 * 1000,
+    blockMs: 30 * 60 * 1000,
+  })
+  if (!limited.allowed) return rateLimitResponse(limited.retryAfter)
+
   const body = await request.json().catch(() => null) as RegisterBody | null
   if (!body) {
     return NextResponse.json({ error: 'בקשת הרשמה לא תקינה.' }, { status: 400 })
@@ -117,6 +132,9 @@ export async function POST(request: Request) {
       terms: {
         acceptedTermsAt: now,
         acceptedPrivacyAt: now,
+        termsVersion: TERMS_VERSION,
+        privacyVersion: PRIVACY_VERSION,
+        source: 'registration',
       },
     }
     const subscription = {
@@ -181,6 +199,12 @@ export async function POST(request: Request) {
       sendSystemEmail({ to: email, ...thanks }),
       sendSystemEmail({ to: adminNotificationEmail(), ...adminMail }),
     ])
+    await writeAuditEvent({
+      actorEmail: email,
+      action: 'registration.submitted',
+      targetId: email,
+      metadata: { userType, planId, termsVersion: TERMS_VERSION, privacyVersion: PRIVACY_VERSION },
+    })
 
     return NextResponse.json({
       ok: true,

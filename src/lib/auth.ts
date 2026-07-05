@@ -2,6 +2,8 @@ import type { NextAuthOptions } from 'next-auth'
 import CredentialsProvider from 'next-auth/providers/credentials'
 import bcrypt from 'bcryptjs'
 import { isApprovedRegistration } from './admin/registration'
+import { rateLimit } from './security'
+import { writeAuditEvent } from './system-db'
 
 type AppRole = 'admin' | 'advisor'
 
@@ -134,13 +136,39 @@ export const authOptions: NextAuthOptions = {
 
         const email = normalizeEmail(credentials.email)
         const password = String(credentials.password)
+        const limited = rateLimit(`login:${email}`, {
+          limit: 6,
+          windowMs: 10 * 60 * 1000,
+          blockMs: 30 * 60 * 1000,
+        })
+        if (!limited.allowed) {
+          await writeAuditEvent({ actorEmail: email, action: 'auth.login.rate_limited', targetId: email })
+          return null
+        }
 
-        return await authorizeStaticUser(email, password) || await authorizeD1User(email, password) || await authorizeDatabaseUser(email, password)
+        const user = await authorizeStaticUser(email, password) || await authorizeD1User(email, password) || await authorizeDatabaseUser(email, password)
+        await writeAuditEvent({
+          actorEmail: email,
+          action: user ? 'auth.login.success' : 'auth.login.failed',
+          targetId: email,
+        })
+        return user
       },
     }),
   ],
   pages: { signIn: '/login' },
-  session: { strategy: 'jwt' },
+  session: { strategy: 'jwt', maxAge: 8 * 60 * 60 },
+  cookies: {
+    sessionToken: {
+      name: `${process.env.NODE_ENV === 'production' ? '__Secure-' : ''}next-auth.session-token`,
+      options: {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        secure: process.env.NODE_ENV === 'production',
+      },
+    },
+  },
   secret: AUTH_SECRET,
   callbacks: {
     jwt({ token, user }) {

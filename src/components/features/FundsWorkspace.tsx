@@ -189,6 +189,16 @@ function toNumber(value: unknown) {
   return Number.isFinite(parsed) ? parsed : 0
 }
 
+function editableNumber(value: unknown, maxFractionDigits = 3) {
+  if (value === null || value === undefined || value === '') return ''
+  const numberValue = Number(value)
+  if (!Number.isFinite(numberValue)) return ''
+  return numberValue.toLocaleString('en-US', {
+    useGrouping: false,
+    maximumFractionDigits: maxFractionDigits,
+  })
+}
+
 function money(value: unknown) {
   return toNumber(value).toLocaleString('he-IL', {
     style: 'currency',
@@ -1046,16 +1056,16 @@ function FundModal({
           <h3 style={sectionTitleStyle}>עדכון נתוני קופה</h3>
           <div style={editGridStyle}>
             <Field label='סה"כ צבירה'>
-              <input dir="ltr" type="number" value={fund.currentBalance || ''} onChange={event => updateFundNumber('currentBalance', event.target.value)} style={inputStyle} />
+              <input dir="ltr" type="number" step="0.001" value={editableNumber(fund.currentBalance)} onChange={event => updateFundNumber('currentBalance', event.target.value)} style={inputStyle} />
             </Field>
             <Field label="הון צפוי לפרישה">
-              <input dir="ltr" type="number" value={fund.retirementCapital || ''} onChange={event => updateFundNumber('retirementCapital', event.target.value)} style={inputStyle} />
+              <input dir="ltr" type="number" step="0.001" value={editableNumber(fund.retirementCapital)} onChange={event => updateFundNumber('retirementCapital', event.target.value)} style={inputStyle} />
             </Field>
             <Field label="קצבה חודשית מיובאת">
-              <input dir="ltr" type="number" value={fund.importedPension || ''} onChange={event => updateFundNumber('importedPension', event.target.value)} style={inputStyle} />
+              <input dir="ltr" type="number" step="0.001" value={editableNumber(fund.importedPension)} onChange={event => updateFundNumber('importedPension', event.target.value)} style={inputStyle} />
             </Field>
             <Field label="מקדם מיובא / בסיס">
-              <input dir="ltr" type="number" value={fund.guaranteedCoefficient || ''} onChange={event => updateFundNumber('guaranteedCoefficient', event.target.value)} style={inputStyle} />
+              <input dir="ltr" type="number" step="0.001" value={editableNumber(fund.guaranteedCoefficient)} onChange={event => updateFundNumber('guaranteedCoefficient', event.target.value)} style={inputStyle} />
             </Field>
             <Field label="סטטוס">
               <select value={fund.status || 'לא ידוע'} onChange={event => updateFundField('status', event.target.value)} style={inputStyle}>
@@ -1309,9 +1319,6 @@ function NeedsModal({ funds, onClose }: { funds: FundRecord[]; onClose: () => vo
   const primaryIncome = toNumber(needs.incomeWorkPrimary) + toNumber(needs.incomeBituachPrimary) + toNumber(needs.incomePensionPrimary) + toNumber(needs.incomeRentPrimary) + toNumber(needs.incomeOtherPrimary)
   const spouseIncome = toNumber(needs.incomeWorkSpouse) + toNumber(needs.incomeBituachSpouse) + toNumber(needs.incomePensionSpouse) + toNumber(needs.incomeRentSpouse) + toNumber(needs.incomeOtherSpouse)
   const totalExpenses = toNumber(needs.fixedExpenses) + toNumber(needs.variableExpenses)
-  const independentDeposit = toNumber(needs.independentMonthlyDeposit)
-  const cashflowBefore = primaryIncome + spouseIncome - totalExpenses
-  const cashflowAfter = cashflowBefore - independentDeposit
   const totalAssets = toNumber(needs.assetBank) + toNumber(needs.assetPortfolio) + toNumber(needs.assetPolicies) + toNumber(needs.assetProvident) + toNumber(needs.assetStudyFunds) + toNumber(needs.assetInheritance) + toNumber(needs.assetRealEstate) + toNumber(needs.assetOther)
 
   return (
@@ -1396,13 +1403,7 @@ function NeedsModal({ funds, onClose }: { funds: FundRecord[]; onClose: () => vo
             <div style={needsSummaryStyle}>
               <KpiCard title="סה״כ הכנסות" value={money(primaryIncome + spouseIncome)} sub="מבוטח/ת + בן/בת זוג" icon={<BarChart2 size={18} />} />
               <KpiCard title="סה״כ הוצאות" value={money(totalExpenses)} sub="קבועות + משתנות" icon={<FileText size={18} />} />
-              <KpiCard title="תזרים לפני המלצות" value={money(cashflowBefore)} sub="הכנסות פחות הוצאות" icon={<Briefcase size={18} />} />
-              <KpiCard title="תזרים לאחר המלצות" value={money(cashflowAfter)} sub="כולל הפקדה עצמאית" icon={<Briefcase size={18} />} />
-            </div>
-
-            <div style={cashflowBarStyle}>
-              <strong>השפעת הפקדה עצמאית על התזרים</strong>
-              <NeedsInput label="הפקדה חודשית עצמאית לקופה" value={needs.independentMonthlyDeposit} onChange={value => update('independentMonthlyDeposit', value)} />
+              <KpiCard title="סה״כ נכסים" value={money(totalAssets)} sub="נכסים קיימים משוערים" icon={<Briefcase size={18} />} />
             </div>
 
             <div style={needsLayoutStyle}>
@@ -1722,8 +1723,8 @@ const pillStyle: React.CSSProperties = { display: 'inline-flex', justifyContent:
 const targetButtonStyle = (value?: string): React.CSSProperties => ({ ...pillStyle, cursor: 'pointer', background: value === 'משוך קצבה' ? '#E5F8EE' : '#F8FBFF', borderColor: value === 'משוך קצבה' ? '#93E0B3' : '#B9DDF7', color: value === 'משוך קצבה' ? '#047857' : 'var(--abd-primary)' })
 const emptyCellStyle: React.CSSProperties = { padding: 34, textAlign: 'center', color: 'var(--text-muted)' }
 const statusStyle: React.CSSProperties = { display: 'inline-flex', alignItems: 'center', borderRadius: 999, padding: '5px 11px', fontSize: 13, fontWeight: 900 }
-const modalOverlayStyle: React.CSSProperties = { position: 'fixed', inset: 0, zIndex: 100, display: 'grid', placeItems: 'center', background: 'rgba(191,219,254,0.55)', backdropFilter: 'blur(2px)', padding: 24 }
-const modalStyle: React.CSSProperties = { position: 'relative', width: 'min(860px, 96vw)', maxHeight: '90vh', overflow: 'auto', background: '#fff', border: '1px solid #D7EAFB', borderRadius: 24, padding: 24, boxShadow: '0 24px 70px rgba(15,25,41,0.18)' }
+const modalOverlayStyle: React.CSSProperties = { position: 'fixed', inset: 0, zIndex: 100, display: 'grid', placeItems: 'start center', overflowY: 'auto', background: 'rgba(191,219,254,0.55)', backdropFilter: 'blur(2px)', padding: '72px 24px 24px' }
+const modalStyle: React.CSSProperties = { position: 'relative', width: 'min(860px, 96vw)', maxHeight: 'calc(100dvh - 96px)', overflow: 'auto', background: '#fff', border: '1px solid #D7EAFB', borderRadius: 24, padding: 24, boxShadow: '0 24px 70px rgba(15,25,41,0.18)' }
 const modalCloseStyle: React.CSSProperties = { position: 'absolute', top: 16, left: 16, width: 38, height: 38, borderRadius: 14, border: '1px solid #CFE6FA', background: '#fff', color: 'var(--abd-primary)', fontSize: 24, cursor: 'pointer' }
 const modalHeaderStyle: React.CSSProperties = { textAlign: 'center', marginBottom: 18 }
 const modalTitleStyle: React.CSSProperties = { color: 'var(--abd-primary)', fontSize: 26, fontWeight: 900 }
