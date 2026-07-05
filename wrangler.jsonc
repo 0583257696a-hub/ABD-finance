@@ -14,6 +14,13 @@
       "name": "EMAIL"
     }
   ],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "abd-finance-db",
+      "database_id": "e3f1c20d-7613-4af1-8416-1968299d4bde"
+    }
+  ],
   "build": {
     "command": "npm run cf:build"
   },
