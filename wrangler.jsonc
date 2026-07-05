@@ -9,6 +9,11 @@
     "directory": ".open-next/assets",
     "binding": "ASSETS"
   },
+  "send_email": [
+    {
+      "name": "SEND_EMAIL"
+    }
+  ],
   "build": {
     "command": "npm run cf:build"
   },

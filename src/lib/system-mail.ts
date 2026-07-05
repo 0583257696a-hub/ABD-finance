@@ -20,40 +20,74 @@ export async function sendSystemEmail(input: MailInput) {
     process.env.EMAIL_FROM ||
     'Smart Meeting <noreply@abd-finance.co.il>'
 
-  const resendKey = env?.RESEND_API_KEY || process.env.RESEND_API_KEY
-  if (!resendKey) {
-    await writeEmailOutbox({ ...input, to, status: 'queued', error: 'No mail provider configured' })
-    return { ok: false, queued: true, reason: 'missing-provider' }
-  }
-
   try {
-    const response = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${resendKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        from,
-        to,
-        subject: input.subject,
-        html: input.html,
-        text: input.text,
-      }),
-    })
-
-    if (!response.ok) {
-      const errorText = await response.text().catch(() => '')
-      await writeEmailOutbox({ ...input, to, status: 'error', error: errorText || `HTTP ${response.status}` })
-      return { ok: false, error: errorText || `HTTP ${response.status}` }
+    const binding = env?.SEND_EMAIL || env?.EMAIL || env?.MAIL || env?.SMART_MEETING_MAIL
+    if (!binding?.send) {
+      await writeEmailOutbox({ ...input, to, status: 'queued', error: 'Cloudflare Send Email binding missing' })
+      return { ok: false, queued: true, reason: 'missing-cloudflare-email-binding' }
     }
 
+    await sendViaCloudflareEmail(binding, {
+      from,
+      to,
+      subject: input.subject,
+      html: input.html,
+      text: input.text,
+    })
     await writeEmailOutbox({ ...input, to, status: 'sent' })
     return { ok: true }
   } catch (error) {
     await writeEmailOutbox({ ...input, to, status: 'error', error: error instanceof Error ? error.message : String(error) })
     return { ok: false, error }
   }
+}
+
+async function sendViaCloudflareEmail(binding: { send: (message: unknown) => Promise<unknown> }, input: MailInput & { from: string }) {
+  const { EmailMessage } = await new Function('return import("cloudflare:email")')()
+  const fromAddress = parseEmailAddress(input.from)
+  const toAddress = parseEmailAddress(input.to)
+  const raw = buildMimeMessage(input)
+  const message = new EmailMessage(fromAddress, toAddress, raw)
+  await binding.send(message)
+}
+
+function parseEmailAddress(value: string) {
+  const text = String(value || '').trim()
+  const match = text.match(/<([^>]+)>/)
+  return (match?.[1] || text).trim()
+}
+
+function buildMimeMessage(input: MailInput & { from: string }) {
+  const boundary = `smart-meeting-${crypto.randomUUID()}`
+  const headers = [
+    `From: ${input.from}`,
+    `To: ${input.to}`,
+    `Subject: ${encodeMimeHeader(input.subject)}`,
+    'MIME-Version: 1.0',
+    `Content-Type: multipart/alternative; boundary="${boundary}"`,
+  ]
+  return [
+    ...headers,
+    '',
+    `--${boundary}`,
+    'Content-Type: text/plain; charset=UTF-8',
+    'Content-Transfer-Encoding: 8bit',
+    '',
+    input.text,
+    '',
+    `--${boundary}`,
+    'Content-Type: text/html; charset=UTF-8',
+    'Content-Transfer-Encoding: 8bit',
+    '',
+    input.html,
+    '',
+    `--${boundary}--`,
+    '',
+  ].join('\r\n')
+}
+
+function encodeMimeHeader(value: string) {
+  return `=?UTF-8?B?${Buffer.from(String(value || ''), 'utf8').toString('base64')}?=`
 }
 
 export function adminNotificationEmail() {
