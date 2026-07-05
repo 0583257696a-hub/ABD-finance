@@ -11,7 +11,7 @@
   },
   "send_email": [
     {
-      "name": "SEND_EMAIL"
+      "name": "EMAIL"
     }
   ],
   "build": {

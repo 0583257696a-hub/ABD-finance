@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useState } from 'react'
 import { signIn } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Lock, Mail, ShieldCheck } from 'lucide-react'
+import { ArrowLeft, Lock, Mail } from 'lucide-react'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -22,7 +22,7 @@ export default function LoginPage() {
 
     setLoading(false)
     if (res?.error) {
-      setError('׳׳™׳׳™׳™׳ ׳׳• ׳¡׳™׳¡׳׳” ׳©׳’׳•׳™׳™׳')
+      setError('אימייל או סיסמה שגויים')
       return
     }
     router.push('/')
@@ -39,34 +39,27 @@ export default function LoginPage() {
           <div>
             <h1 style={brandTitleStyle}>ABD Finance</h1>
             <p style={brandTextStyle}>
-              ׳׳¢׳¨׳›׳× ׳₪׳¨׳™׳©׳” ׳•׳₪׳™׳ ׳ ׳¡׳™׳ ׳׳™׳•׳¢׳¦׳™׳: ׳§׳•׳₪׳•׳×, ׳₪׳•׳׳™׳¡׳•׳×, ׳×׳©׳•׳׳•׳×, ׳¡׳™׳׳•׳׳¦׳™׳•׳× ׳•׳¡׳™׳›׳•׳ ׳₪׳’׳™׳©׳” ׳‘׳׳§׳•׳ ׳׳—׳“.
+              מערכת פרישה ופיננסים ליועצים: קופות, פוליסות, תשואות, סימולציות וסיכום פגישה במקום אחד.
             </p>
           </div>
 
           <div style={brandStatsStyle}>
-            <div style={brandStatStyle}><strong>RTL</strong><span>׳¢׳‘׳¨׳™׳× ׳׳׳׳”</span></div>
-            <div style={brandStatStyle}><strong>SaaS</strong><span>׳¡׳‘׳™׳‘׳× ׳™׳•׳¢׳¥</span></div>
+            <div style={brandStatStyle}><strong>RTL</strong><span>עברית מלאה</span></div>
+            <div style={brandStatStyle}><strong>SaaS</strong><span>סביבת יועץ</span></div>
             <div style={brandStatStyle}><strong>ABD</strong><span>Finance</span></div>
           </div>
         </aside>
 
         <section style={loginCardStyle}>
-          <div style={topLinksStyle}>
-            <Link href="/admin-panel" style={adminLinkStyle}>
-              <ShieldCheck size={15} />
-              Admin Panel
-            </Link>
-          </div>
-
           <div style={loginHeaderStyle}>
-            <span style={eyebrowStyle}>׳›׳ ׳™׳¡׳” ׳׳׳•׳‘׳˜׳—׳×</span>
-            <h2 style={loginTitleStyle}>׳›׳ ׳™׳¡׳” ׳׳׳¢׳¨׳›׳×</h2>
-            <p style={mutedStyle}>׳”׳–׳ ׳׳× ׳₪׳¨׳˜׳™ ׳”׳™׳•׳¢׳¥ ׳›׳“׳™ ׳׳”׳׳©׳™׳ ׳׳¡׳‘׳™׳‘׳× ׳”׳¢׳‘׳•׳“׳”.</p>
+            <span style={eyebrowStyle}>כניסה מאובטחת</span>
+            <h2 style={loginTitleStyle}>כניסה למערכת</h2>
+            <p style={mutedStyle}>הזן את פרטי היועץ כדי להמשיך לסביבת העבודה.</p>
           </div>
 
           <form onSubmit={handleSubmit} style={formStyle}>
             <label style={fieldStyle}>
-              <span>׳׳™׳׳™׳™׳</span>
+              <span>אימייל</span>
               <div style={inputWrapStyle}>
                 <Mail size={18} color="#7EA0C9" />
                 <input
@@ -82,7 +75,7 @@ export default function LoginPage() {
             </label>
 
             <label style={fieldStyle}>
-              <span>׳¡׳™׳¡׳׳”</span>
+              <span>סיסמה</span>
               <div style={inputWrapStyle}>
                 <Lock size={18} color="#7EA0C9" />
                 <input
@@ -90,7 +83,7 @@ export default function LoginPage() {
                   value={password}
                   onChange={event => setPassword(event.target.value)}
                   required
-                  placeholder="ג€¢ג€¢ג€¢ג€¢ג€¢ג€¢ג€¢ג€¢"
+                  placeholder="••••••••"
                   autoComplete="current-password"
                   style={inputStyle}
                 />
@@ -99,12 +92,12 @@ export default function LoginPage() {
 
             {error && <p style={errorStyle}>{error}</p>}
             <button type="submit" disabled={loading} style={{ ...primaryButtonStyle, opacity: loading ? 0.72 : 1 }}>
-              {loading ? '׳׳×׳—׳‘׳¨...' : '׳›׳ ׳™׳¡׳” ׳׳׳¢׳¨׳›׳×'}
+              {loading ? 'מתחבר...' : 'כניסה למערכת'}
               <ArrowLeft size={18} />
             </button>
 
             <Link href="/register" style={registerButtonStyle}>
-              ׳”׳¨׳©׳׳” ׳׳™׳•׳¢׳¥ ׳—׳“׳©
+              הרשמה ליועץ חדש
             </Link>
             <Link href="/forgot-password" style={forgotPasswordStyle}>
               שכחתי סיסמה
