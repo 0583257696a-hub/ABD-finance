@@ -995,7 +995,7 @@ function FundModal({
 
   return (
     <div style={modalOverlayStyle} onClick={onClose}>
-      <section style={modalStyle} onClick={event => event.stopPropagation()}>
+      <section style={fundModalStyle} onClick={event => event.stopPropagation()}>
         <button type="button" aria-label="סגירה" onClick={onClose} style={modalCloseStyle}>×</button>
         <header style={modalHeaderStyle}>
           <h2 style={modalTitleStyle}>{fund.manufacturer || 'יצרן לא ידוע'}</h2>
@@ -1725,15 +1725,16 @@ const emptyCellStyle: React.CSSProperties = { padding: 34, textAlign: 'center', 
 const statusStyle: React.CSSProperties = { display: 'inline-flex', alignItems: 'center', borderRadius: 999, padding: '5px 11px', fontSize: 13, fontWeight: 900 }
 const modalOverlayStyle: React.CSSProperties = { position: 'fixed', inset: 0, zIndex: 100, display: 'grid', placeItems: 'start center', overflowY: 'auto', background: 'rgba(191,219,254,0.55)', backdropFilter: 'blur(2px)', padding: '72px 24px 24px' }
 const modalStyle: React.CSSProperties = { position: 'relative', width: 'min(860px, 96vw)', maxHeight: 'calc(100dvh - 96px)', overflow: 'auto', background: '#fff', border: '1px solid #D7EAFB', borderRadius: 24, padding: 24, boxShadow: '0 24px 70px rgba(15,25,41,0.18)' }
+const fundModalStyle: React.CSSProperties = { ...modalStyle, width: 'min(1180px, calc(100vw - 64px))', maxHeight: 'calc(100dvh - 88px)', padding: 28 }
 const modalCloseStyle: React.CSSProperties = { position: 'absolute', top: 16, left: 16, width: 38, height: 38, borderRadius: 14, border: '1px solid #CFE6FA', background: '#fff', color: 'var(--abd-primary)', fontSize: 24, cursor: 'pointer' }
 const modalHeaderStyle: React.CSSProperties = { textAlign: 'center', marginBottom: 18 }
 const modalTitleStyle: React.CSSProperties = { color: 'var(--abd-primary)', fontSize: 26, fontWeight: 900 }
-const modalGridStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', border: '1px solid #D7EAFB', borderRadius: 16, overflow: 'hidden' }
+const modalGridStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', border: '1px solid #D7EAFB', borderRadius: 16, overflow: 'hidden' }
 const modalCellStyle: React.CSSProperties = { minHeight: 82, display: 'grid', gap: 6, alignContent: 'center', justifyItems: 'center', padding: 12, borderLeft: '1px solid #E6EEF7', borderBottom: '1px solid #E6EEF7', textAlign: 'center', color: 'var(--abd-primary)' }
 const trackBoxStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: '150px 1fr auto', gap: 14, alignItems: 'center', border: '1px solid #D7EAFB', borderRadius: 14, padding: 14, marginTop: 14, color: 'var(--abd-primary)' }
 const trackActionsStyle: React.CSSProperties = { display: 'flex', gap: 8, justifyContent: 'flex-end', flexWrap: 'wrap' }
 const editPanelStyle: React.CSSProperties = { display: 'grid', gap: 12, border: '1px solid #D7EAFB', borderRadius: 16, padding: 16, marginTop: 14, background: '#FBFDFF' }
-const editGridStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 12 }
+const editGridStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 12 }
 const smallButtonStyle: React.CSSProperties = { ...ghostButtonStyle, minHeight: 36, padding: '0 12px' }
 const miniDangerStyle: React.CSSProperties = { border: '1px solid #F5B5B5', borderRadius: 10, background: '#FFF5F5', color: '#B42318', width: 34, minHeight: 34, fontWeight: 900, cursor: 'pointer' }
 const insuranceCoveragePanelStyle: React.CSSProperties = { display: 'grid', gap: 12, border: '1px solid #D7EAFB', borderRadius: 16, padding: 16, marginTop: 14, background: '#FFFFFF', color: 'var(--abd-primary)' }

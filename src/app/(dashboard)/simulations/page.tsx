@@ -175,18 +175,18 @@ const simViews: Array<{ id: SimView; label: string; note: string }> = [
 ]
 
 const infrastructureColumns = [
-  { key: 'index', label: '#', width: 54, minWidth: 44 },
-  { key: 'manufacturer', label: 'יצרן', width: 130, minWidth: 90 },
-  { key: 'accountNumber', label: 'מס׳ פוליסה', width: 140, minWidth: 100 },
-  { key: 'startDate', label: 'תחילת ביטוח', width: 120, minWidth: 96 },
-  { key: 'compensationPension', label: 'פיצויים למס', width: 150, minWidth: 110 },
-  { key: 'compensationCapital', label: 'פיצויים מעסיק הון', width: 160, minWidth: 120 },
-  { key: 'capitalBefore2008', label: 'תגמולי הון עד 2008', width: 170, minWidth: 130 },
-  { key: 'capitalAfter2008', label: 'תגמולי הון מ-2008', width: 180, minWidth: 130 },
-  { key: 'pensionBefore2000', label: 'תגמולים לקצבה עד 2000', width: 190, minWidth: 140 },
-  { key: 'pensionAfter2000', label: 'תגמולים לקצבה אחרי 2000', width: 200, minWidth: 150 },
-  { key: 'total', label: 'סה"כ', width: 150, minWidth: 110 },
-  { key: 'yieldMode', label: 'אופן תשואה / מסלול', width: 220, minWidth: 150 },
+  { key: 'index', label: '#', width: 48, minWidth: 40 },
+  { key: 'manufacturer', label: 'יצרן', width: 118, minWidth: 88 },
+  { key: 'accountNumber', label: 'מס׳ פוליסה', width: 112, minWidth: 90 },
+  { key: 'startDate', label: 'תחילת ביטוח', width: 106, minWidth: 88 },
+  { key: 'compensationPension', label: 'פיצויים למס', width: 128, minWidth: 98 },
+  { key: 'compensationCapital', label: 'פיצויים מעסיק הון', width: 136, minWidth: 104 },
+  { key: 'capitalBefore2008', label: 'תגמולי הון עד 2008', width: 144, minWidth: 112 },
+  { key: 'capitalAfter2008', label: 'תגמולי הון מ-2008', width: 144, minWidth: 112 },
+  { key: 'pensionBefore2000', label: 'תגמולים לקצבה עד 2000', width: 154, minWidth: 120 },
+  { key: 'pensionAfter2000', label: 'תגמולים לקצבה אחרי 2000', width: 164, minWidth: 124 },
+  { key: 'total', label: 'סה"כ', width: 118, minWidth: 94 },
+  { key: 'yieldMode', label: 'אופן תשואה / מסלול', width: 172, minWidth: 128 },
 ] as const
 
 type InfrastructureColumnKey = typeof infrastructureColumns[number]['key']
