@@ -994,7 +994,7 @@ function FundModal({
   }
 
   return (
-    <div style={modalOverlayStyle} onClick={onClose}>
+    <div style={fundModalOverlayStyle} onClick={onClose}>
       <section style={fundModalStyle} onClick={event => event.stopPropagation()}>
         <button type="button" aria-label="סגירה" onClick={onClose} style={modalCloseStyle}>×</button>
         <header style={modalHeaderStyle}>
@@ -1724,8 +1724,9 @@ const targetButtonStyle = (value?: string): React.CSSProperties => ({ ...pillSty
 const emptyCellStyle: React.CSSProperties = { padding: 34, textAlign: 'center', color: 'var(--text-muted)' }
 const statusStyle: React.CSSProperties = { display: 'inline-flex', alignItems: 'center', borderRadius: 999, padding: '5px 11px', fontSize: 13, fontWeight: 900 }
 const modalOverlayStyle: React.CSSProperties = { position: 'fixed', inset: 0, zIndex: 100, display: 'grid', placeItems: 'start center', overflowY: 'auto', background: 'rgba(191,219,254,0.55)', backdropFilter: 'blur(2px)', padding: '72px 24px 24px' }
+const fundModalOverlayStyle: React.CSSProperties = { position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', background: 'rgba(191,219,254,0.55)', backdropFilter: 'blur(2px)', padding: 28, boxSizing: 'border-box' }
 const modalStyle: React.CSSProperties = { position: 'relative', width: 'min(860px, 96vw)', maxHeight: 'calc(100dvh - 96px)', overflow: 'auto', background: '#fff', border: '1px solid #D7EAFB', borderRadius: 24, padding: 24, boxShadow: '0 24px 70px rgba(15,25,41,0.18)' }
-const fundModalStyle: React.CSSProperties = { ...modalStyle, width: 'min(1180px, calc(100vw - 64px))', maxHeight: 'calc(100dvh - 88px)', padding: 28 }
+const fundModalStyle: React.CSSProperties = { ...modalStyle, width: 'min(1320px, calc(100vw - 56px))', maxHeight: 'calc(100dvh - 56px)', padding: 30, boxSizing: 'border-box' }
 const modalCloseStyle: React.CSSProperties = { position: 'absolute', top: 16, left: 16, width: 38, height: 38, borderRadius: 14, border: '1px solid #CFE6FA', background: '#fff', color: 'var(--abd-primary)', fontSize: 24, cursor: 'pointer' }
 const modalHeaderStyle: React.CSSProperties = { textAlign: 'center', marginBottom: 18 }
 const modalTitleStyle: React.CSSProperties = { color: 'var(--abd-primary)', fontSize: 26, fontWeight: 900 }
