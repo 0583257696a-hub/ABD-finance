@@ -164,7 +164,7 @@ export async function POST(request: Request) {
       )
     }
 
-    const thanks = registrationThanksEmail({ fullName })
+    const thanks = registrationThanksEmail({ fullName, loginUrl: new URL('/login', request.url).toString() })
     const adminMail = adminNewRegistrationEmail({
       fullName,
       email,
