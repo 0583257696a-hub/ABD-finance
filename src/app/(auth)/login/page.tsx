@@ -67,7 +67,7 @@ export default function LoginPage() {
                   value={email}
                   onChange={event => setEmail(event.target.value)}
                   required
-                  placeholder="admin@abd-finance.co.il"
+                  placeholder="name@company.com"
                   autoComplete="email"
                   style={inputStyle}
                 />
