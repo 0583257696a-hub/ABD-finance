@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
-import { getPrisma } from '@/lib/db'
 import { adminInfrastructureDefaults } from '@/lib/admin/defaults'
 import {
   normalizeRegistrationEmail,
@@ -159,31 +158,10 @@ export async function POST(request: Request) {
     })
 
     if (!d1User) {
-      const prisma = await getPrisma()
-      const existing = await prisma.user.findUnique({ where: { email } })
-      if (existing) {
-        return NextResponse.json({ error: 'קיים כבר משתמש עם האימייל הזה.' }, { status: 409 })
-      }
-
-      await prisma.$transaction(async tx => {
-        const user = await tx.user.create({
-          data: {
-            email,
-            name: fullName,
-            password: hash,
-          },
-        })
-
-        await tx.advisorData.create({
-          data: {
-            userId: user.id,
-            settings: {
-              registration,
-              subscription,
-            },
-          },
-        })
-      })
+      return NextResponse.json(
+        { error: 'מסד הנתונים (Cloudflare D1) אינו זמין כעת. נסה שוב מאוחר יותר.' },
+        { status: 503 },
+      )
     }
 
     const thanks = registrationThanksEmail({ fullName })

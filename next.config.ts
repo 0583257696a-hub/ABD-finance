@@ -6,12 +6,6 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: process.cwd(),
   },
-  outputFileTracingIncludes: {
-    '/*': [
-      './node_modules/pg-cloudflare/dist/**/*',
-      './node_modules/pg-cloudflare/esm/**/*',
-    ],
-  },
   async headers() {
     const securityHeaders = [
       {

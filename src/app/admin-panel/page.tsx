@@ -284,6 +284,7 @@ export default function AdminPanelPage() {
     void loadUsers()
     void loadInfrastructure()
     void loadLeadOverrides()
+    void loadAgencyOverrides()
     addAudit('כניסה לפאנל Admin', 'admin-panel', 'success')
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAdmin])
@@ -516,6 +517,15 @@ export default function AdminPanelPage() {
     }
   }
 
+  async function loadAgencyOverrides() {
+    const res = await fetch('/api/admin/agencies')
+    if (!res.ok) return
+    const data = await res.json()
+    if (data.overrides && typeof data.overrides === 'object') {
+      setAgencyOverrides(data.overrides)
+    }
+  }
+
   function addAudit(action: string, entity: string, result: AuditEvent['result']) {
     setAuditEvents(prev => [
       {
@@ -603,7 +613,7 @@ export default function AdminPanelPage() {
     await createPlan()
   }
 
-  function updateAgencyOverride(agencyName: string, patch: AgencyOverride, successMessage = 'פרטי הסוכנות עודכנו במסך') {
+  async function updateAgencyOverride(agencyName: string, patch: AgencyOverride, successMessage = 'פרטי הסוכנות עודכנו') {
     setAgencyOverrides(prev => ({
       ...prev,
       [agencyName]: {
@@ -611,8 +621,18 @@ export default function AdminPanelPage() {
         ...patch,
       },
     }))
-    setMessage(`${successMessage}. שמירה קבועה לטבלת סוכנויות ייעודית תחובר לאחר אישור מבנה DB.`)
-    addAudit('עדכון סוכנות', agencyName, 'info')
+    setMessage(successMessage)
+    addAudit('עדכון סוכנות', agencyName, 'success')
+
+    const res = await fetch('/api/admin/agencies', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ agencyName, override: patch }),
+    })
+    if (!res.ok) {
+      setMessage(`${successMessage} (מקומית בלבד — שמירה קבועה דורשת D1 פעיל).`)
+      addAudit('שמירת סוכנות נכשלה', agencyName, 'failure')
+    }
   }
 
   async function updateLeadStatus(leadId: string, nextStatus: LeadStatus) {

@@ -2,13 +2,10 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import bcrypt from 'bcryptjs'
 import { authOptions } from '@/lib/auth'
-import { getPrisma } from '@/lib/db'
 import { listD1Users, parseUserSettings, updateD1UserPassword, updateD1UserStatus } from '@/lib/system-db'
 import {
-  getRegistrationSettings,
   getRegistrationStatusLabel,
   getUserTypeLabel,
-  mergeRegistrationSettings,
 } from '@/lib/admin/registration'
 
 type AdminSession = {
@@ -17,17 +14,6 @@ type AdminSession = {
     role?: string | null
   }
 } | null
-
-type AdminUserRow = {
-  id: string
-  email: string
-  name: string | null
-  password: string
-  createdAt: Date
-  advisorData: {
-    settings: unknown
-  } | null
-}
 
 function isAdmin(session: AdminSession) {
   return session?.user?.role === 'admin' || session?.user?.email === 'admin@abd-finance.co.il'
@@ -102,46 +88,8 @@ export async function GET() {
       })
     }
 
-    const prisma = await getPrisma()
-    const users = await prisma.user.findMany({
-      orderBy: { createdAt: 'desc' },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        password: true,
-        createdAt: true,
-        advisorData: {
-          select: { settings: true },
-        },
-      },
-    })
-
-    return NextResponse.json({
-      users: users.map((user: AdminUserRow) => {
-        const settings = getRegistrationSettings(user.advisorData?.settings)
-        const registration = settings.registration
-        const status = registration?.status || 'active'
-
-        return {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          createdAt: user.createdAt.toISOString(),
-          phone: registration?.phone || '',
-          approved: status === 'active',
-          status,
-          statusLabel: getRegistrationStatusLabel(status),
-          userType: registration?.userType || 'legacy',
-          userTypeLabel: registration ? getUserTypeLabel(registration.userType) : 'משתמש קיים',
-          planId: registration?.planId || settings.subscription?.planId || 'legacy',
-          subscriptionStatus: settings.subscription?.status || registration?.subscriptionStatus || 'active',
-          businessName: registration?.business?.name || '',
-          agencyName: registration?.agencyJoin?.agencyName || '',
-          passwordPreview: user.password ? `${user.password.slice(0, 14)}...` : '',
-        }
-      }),
-    })
+    // D1 unavailable — fall back to env-configured static accounts.
+    return NextResponse.json({ users: staticUsers(), mode: 'static-auth' })
   } catch {
     return NextResponse.json({ users: staticUsers(), mode: 'static-auth' })
   }
@@ -214,80 +162,19 @@ export async function PATCH(request: Request) {
       if (updated) return NextResponse.json({ ok: true, mode: 'd1' })
     }
 
-    const prisma = await getPrisma()
-
-    if (action === 'reset_password') {
-      if (!body?.password) {
-        return NextResponse.json({ error: 'חסרה סיסמה חדשה' }, { status: 400 })
-      }
-
-      const hash = await bcrypt.hash(String(body.password), 10)
-      await prisma.user.update({
-        where: { id: userId },
-        data: { password: hash },
-      })
-    } else if (action === 'approve' || action === 'block' || action === 'extend_trial' || action === 'set_subscription') {
-      const existing = await prisma.advisorData.findUnique({
-        where: { userId },
-        select: { settings: true },
-      })
-      const now = new Date().toISOString()
-      const trialEndsAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString()
-      const nextSubscriptionStatus = String(body?.subscriptionStatus || 'active')
-      const nextPlanId = String(body?.planId || 'trial')
-      const settings = mergeRegistrationSettings(
-        existing?.settings,
-        action === 'approve'
-          ? {
-              status: 'active',
-              approvedAt: now,
-              approvedBy: session?.user?.email || 'admin',
-              blockedAt: undefined,
-              blockedBy: undefined,
-              subscriptionStatus: 'trial_active',
-            }
-          : action === 'extend_trial'
-          ? {
-              status: 'active',
-              trialExtendedAt: now,
-              trialEndsAt,
-              subscriptionStatus: 'trial_active',
-            }
-          : action === 'set_subscription'
-          ? {
-              status: nextSubscriptionStatus === 'blocked' ? 'blocked' : 'active',
-              subscriptionStatus: nextSubscriptionStatus,
-              planId: nextPlanId,
-            }
-          : {
-              status: 'blocked',
-              blockedAt: now,
-              blockedBy: session?.user?.email || 'admin',
-              subscriptionStatus: 'blocked',
-            },
-        action === 'approve'
-          ? { status: 'trial_active', trialStartedAt: now }
-          : action === 'extend_trial'
-          ? { status: 'trial_active', trialExtendedAt: now, trialEndsAt }
-          : action === 'set_subscription'
-          ? { status: nextSubscriptionStatus, planId: nextPlanId }
-          : { status: 'blocked' },
-      )
-      const jsonSettings = JSON.parse(JSON.stringify(settings))
-
-      await prisma.advisorData.upsert({
-        where: { userId },
-        update: { settings: jsonSettings },
-        create: { userId, settings: jsonSettings },
-      })
-    } else {
+    const supportedActions = ['reset_password', 'approve', 'block', 'extend_trial', 'set_subscription']
+    if (!supportedActions.includes(action)) {
       return NextResponse.json({ error: 'פעולת עדכון לא נתמכת' }, { status: 400 })
     }
 
-    return NextResponse.json({ ok: true })
+    // Action is valid but D1 could not apply it (user not found or DB unavailable).
+    return NextResponse.json(
+      { error: 'המשתמש לא נמצא במסד הנתונים (Cloudflare D1) או שהמסד אינו זמין.' },
+      { status: 404 },
+    )
   } catch {
     return NextResponse.json(
-      { error: 'אין מסד נתונים פעיל. במצב static-auth מחליפים סיסמה דרך ADMIN_PASSWORD / APP_USER_PASSWORD בסביבת Cloudflare.' },
+      { error: 'מסד הנתונים (Cloudflare D1) אינו זמין. במצב static-auth מחליפים סיסמה דרך ADMIN_PASSWORD / APP_USER_PASSWORD בסביבת Cloudflare.' },
       { status: 503 },
     )
   }

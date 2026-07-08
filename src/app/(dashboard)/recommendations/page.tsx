@@ -34,6 +34,13 @@ type Recommendation = {
 
 const FUNDS_KEY = 'abd_next_funds'
 const RECOMMENDATIONS_KEY = 'abd_next_recommendations'
+const recommendationTargetCompanies: Record<string, string[]> = {
+  'קרן פנסיה': ['הפניקס', 'הראל', 'מגדל', 'כלל', 'מנורה מבטחים', 'מיטב', 'אלטשולר שחם', 'מור'],
+  'קופת גמל': ['הפניקס', 'הראל', 'מגדל', 'כלל', 'מנורה מבטחים', 'מיטב', 'אלטשולר שחם', 'מור', 'אנליסט', 'ילין לפידות'],
+  'קרן השתלמות': ['הפניקס', 'הראל', 'מגדל', 'כלל', 'מנורה מבטחים', 'מיטב', 'אלטשולר שחם', 'מור', 'אנליסט', 'ילין לפידות'],
+  'קופת גמל להשקעה': ['הפניקס', 'הראל', 'מגדל', 'כלל', 'מנורה מבטחים', 'מיטב', 'אלטשולר שחם', 'מור', 'אנליסט', 'ילין לפידות'],
+  'פוליסה פיננסית': ['הפניקס', 'הראל', 'מגדל', 'כלל', 'מנורה מבטחים'],
+}
 
 function money(value: unknown) {
   const numeric = Number(String(value || '').replace(/[^\d.-]/g, ''))
@@ -73,7 +80,12 @@ export default function RecommendationsPage() {
   }, [])
 
   const selectedFund = funds.find(fund => fund.id === selectedFundId)
-  const manufacturers = useMemo(() => getManufacturersByProductType(productType), [productType])
+  const manufacturers = useMemo(() => {
+    const fromReturns = getManufacturersByProductType(productType)
+    const fromRules = recommendationTargetCompanies[productType] || []
+    return Array.from(new Set([...fromReturns, ...fromRules].map(normalizeManufacturerName).filter(Boolean)))
+      .sort((a, b) => a.localeCompare(b, 'he'))
+  }, [productType])
   const tracks = useMemo(() => getTracksByProductAndManufacturer(productType, manufacturer), [manufacturer, productType])
   const selectedTrack = trackId ? getTrackDetails(trackId) : tracks[0]
 

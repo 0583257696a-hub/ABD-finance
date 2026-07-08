@@ -18,7 +18,8 @@
     {
       "binding": "DB",
       "database_name": "abd-finance-db",
-      "database_id": "e3f1c20d-7613-4af1-8416-1968299d4bde"
+      "database_id": "e3f1c20d-7613-4af1-8416-1968299d4bde",
+      "migrations_dir": "migrations"
     }
   ],
   "build": {

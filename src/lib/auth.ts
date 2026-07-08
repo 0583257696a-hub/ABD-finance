@@ -1,7 +1,6 @@
 import type { NextAuthOptions } from 'next-auth'
 import CredentialsProvider from 'next-auth/providers/credentials'
 import bcrypt from 'bcryptjs'
-import { isApprovedRegistration } from './admin/registration'
 import { rateLimit } from './security'
 import { writeAuditEvent } from './system-db'
 
@@ -71,36 +70,6 @@ async function authorizeStaticUser(email: string, password: string) {
   }
 }
 
-async function authorizeDatabaseUser(email: string, password: string) {
-  try {
-    const { getPrisma } = await import('./db')
-    const prisma = await getPrisma()
-    const user = await prisma.user.findUnique({
-      where: { email },
-      include: {
-        advisorData: {
-          select: { settings: true },
-        },
-      },
-    })
-    if (!user) return null
-
-    const valid = await bcrypt.compare(password, user.password)
-    if (!valid) return null
-    if (!isApprovedRegistration(user.advisorData?.settings)) return null
-
-    return {
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      role: normalizeEmail(user.email) === normalizeEmail(ADMIN_EMAIL) ? 'admin' as AppRole : 'advisor' as AppRole,
-    }
-  } catch (error) {
-    console.warn('Database auth unavailable, static credentials only.', error)
-    return null
-  }
-}
-
 async function authorizeD1User(email: string, password: string) {
   try {
     const { findD1UserByEmail } = await import('./system-db')
@@ -146,7 +115,7 @@ export const authOptions: NextAuthOptions = {
           return null
         }
 
-        const user = await authorizeStaticUser(email, password) || await authorizeD1User(email, password) || await authorizeDatabaseUser(email, password)
+        const user = await authorizeStaticUser(email, password) || await authorizeD1User(email, password)
         await writeAuditEvent({
           actorEmail: email,
           action: user ? 'auth.login.success' : 'auth.login.failed',

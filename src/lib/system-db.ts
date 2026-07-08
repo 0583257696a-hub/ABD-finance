@@ -415,6 +415,32 @@ export async function setD1AdminSetting(key: string, value: unknown) {
   return true
 }
 
+export async function getD1GeneralSettings(userId: string): Promise<Record<string, unknown> | null> {
+  const db = await ensureSystemSchema()
+  if (!db) return null
+  const row = await db.prepare(
+    `SELECT general_settings_json FROM user_settings WHERE user_id = ?`,
+  ).bind(userId).first<{ general_settings_json: string | null }>()
+  if (!row) return null
+  return (safeJson(row.general_settings_json) as Record<string, unknown> | null) || {}
+}
+
+export async function setD1GeneralSettingValue(userId: string, key: string, value: unknown): Promise<Record<string, unknown> | null> {
+  const db = await ensureSystemSchema()
+  if (!db) return null
+  const now = new Date().toISOString()
+  const current = (await getD1GeneralSettings(userId)) || {}
+  const next = { ...current, [key]: value }
+  await db.prepare(
+    `INSERT INTO user_settings (user_id, general_settings_json, created_at, updated_at)
+     VALUES (?, ?, ?, ?)
+     ON CONFLICT(user_id) DO UPDATE SET
+       general_settings_json = excluded.general_settings_json,
+       updated_at = excluded.updated_at`,
+  ).bind(userId, JSON.stringify(next), now, now).run()
+  return next
+}
+
 export function parseUserSettings(user: Pick<SystemUserRecord, 'registration_json' | 'subscription_json'>) {
   return {
     registration: safeJson(user.registration_json),
