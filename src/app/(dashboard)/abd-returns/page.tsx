@@ -184,6 +184,20 @@ export default function AbdReturnsPage() {
 
   return (
     <main dir="rtl" style={{ fontFamily: 'var(--font-main)' }}>
+      <style>{`
+        .abd-returns-grid {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 22px;
+          align-items: start;
+        }
+        @media (max-width: 1180px) {
+          .abd-returns-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
+        @media (max-width: 680px) {
+          .abd-returns-grid { grid-template-columns: 1fr; }
+        }
+      `}</style>
       <header style={headerStyle}>
         <div>
           <h1 style={titleStyle}>תשואות ABD Finance</h1>
@@ -207,7 +221,7 @@ export default function AbdReturnsPage() {
         ))}
       </section>
 
-      <section style={tablesGridStyle}>
+      <section className="abd-returns-grid">
         {groups.map(group => (
           <article key={group.id} style={tableCardStyle}>
             <h2 style={tableTitleStyle}>{group.title}</h2>
@@ -308,7 +322,14 @@ export default function AbdReturnsPage() {
 
 function PeriodHeader({ label, active, dir, onClick }: { label: string; active: boolean; dir: SortDir; onClick: () => void }) {
   return (
-    <th onClick={onClick} style={{ ...periodThStyle, cursor: 'pointer', color: active ? '#0B5CAD' : 'var(--abd-primary)' }}>
+    <th
+      onClick={onClick}
+      role="button"
+      tabIndex={0}
+      onKeyDown={event => (event.key === 'Enter' || event.key === ' ') && (event.preventDefault(), onClick())}
+      aria-sort={active ? (dir === 'desc' ? 'descending' : 'ascending') : 'none'}
+      style={{ ...periodThStyle, cursor: 'pointer', color: active ? '#0B5CAD' : 'var(--abd-primary)' }}
+    >
       {label}{active ? (dir === 'desc' ? ' ▼' : ' ▲') : ''}
     </th>
   )
@@ -332,7 +353,7 @@ function ReturnTd({ value, highlightStyle }: { value: number | null | undefined;
   )
 }
 
-const headerStyle: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 18, marginBottom: 16 }
+const headerStyle: React.CSSProperties = { display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 18, marginBottom: 16 }
 const titleStyle: React.CSSProperties = { color: 'var(--abd-primary)', fontSize: 30, fontWeight: 900 }
 const mutedStyle: React.CSSProperties = { color: 'var(--text-muted)', marginTop: 5, lineHeight: 1.6, fontSize: 14 }
 const modeToggleStyle: React.CSSProperties = { display: 'flex', gap: 6, padding: 5, border: '1px solid #CFE6FA', borderRadius: 14, background: '#fff' }
@@ -340,8 +361,7 @@ const modeButtonStyle: React.CSSProperties = { border: 0, borderRadius: 10, back
 const activeModeStyle: React.CSSProperties = { ...modeButtonStyle, background: 'var(--abd-accent)', color: '#fff' }
 const productTabsStyle: React.CSSProperties = { display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 20, background: '#fff', border: '1px solid #D7EAFB', borderRadius: 14, padding: 10, boxShadow: 'var(--shadow-card)' }
 const productTabStyle: React.CSSProperties = { border: '1px solid #CFE6FA', borderRadius: 999, background: '#F8FBFF', color: 'var(--abd-primary)', padding: '9px 14px', fontFamily: 'var(--font-main)', fontWeight: 900, cursor: 'pointer' }
-const activeProductTabStyle: React.CSSProperties = { ...productTabStyle, background: 'var(--abd-accent)', borderColor: 'var(--abd-accent)', color: '#fff', boxShadow: '0 8px 18px rgba(37,99,235,0.18)' }
-const tablesGridStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 22, alignItems: 'start' }
+const activeProductTabStyle: React.CSSProperties = { ...productTabStyle, background: 'var(--abd-accent)', border: '1px solid var(--abd-accent)', color: '#fff', boxShadow: '0 8px 18px rgba(37,99,235,0.18)' }
 const tableCardStyle: React.CSSProperties = { minWidth: 0, height: 432, background: '#fff', border: '0', borderRadius: 0, boxShadow: 'none', overflow: 'hidden' }
 const tableTitleStyle: React.CSSProperties = { color: 'var(--abd-primary)', fontSize: 22, fontWeight: 900, textAlign: 'center', marginBottom: 8, lineHeight: 1.1 }
 const miniTableStyle: React.CSSProperties = { width: '100%', tableLayout: 'fixed', borderCollapse: 'separate', borderSpacing: 0, fontSize: 12.5 }

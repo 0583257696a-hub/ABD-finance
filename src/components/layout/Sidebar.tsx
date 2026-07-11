@@ -93,7 +93,7 @@ export default function Sidebar() {
                 ...navItemStyle,
                 background: active ? '#E6F3FF' : 'transparent',
                 color: active ? 'var(--abd-primary)' : '#6F8DB5',
-                borderColor: active ? '#B9DDF7' : 'transparent',
+                border: active ? '1px solid #B9DDF7' : '1px solid transparent',
               }}
             >
               <Icon size={19} strokeWidth={1.8} />
@@ -194,7 +194,7 @@ const newClientStyle: React.CSSProperties = {
   marginBottom: 10,
   background: 'var(--abd-accent)',
   color: '#fff',
-  borderColor: 'var(--abd-accent)',
+  border: '1px solid var(--abd-accent)',
   fontFamily: 'var(--font-main)',
   cursor: 'pointer',
 }
@@ -209,7 +209,7 @@ const settingsStyle: React.CSSProperties = {
   ...navItemStyle,
   color: 'var(--abd-primary)',
   background: '#F8FBFF',
-  borderColor: '#D7EAFB',
+  border: '1px solid #D7EAFB',
 }
 
 const logoutStyle: React.CSSProperties = {

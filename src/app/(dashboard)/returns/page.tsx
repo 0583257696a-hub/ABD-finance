@@ -150,6 +150,7 @@ export default function ReturnsPage() {
   return (
     <main dir="rtl" style={{ fontFamily: 'var(--font-main)' }}>
       <section style={cardStyle}>
+        <div style={scrollWrapStyle}>
         <table style={tableStyle}>
           <thead>
             <tr>
@@ -200,6 +201,7 @@ export default function ReturnsPage() {
             )}
           </tbody>
         </table>
+        </div>
       </section>
     </main>
   )
@@ -207,7 +209,14 @@ export default function ReturnsPage() {
 
 function SortableTh({ label, sortKey, active, dir, onClick, width }: { label: string; sortKey: SortKey; active: boolean; dir: SortDir; onClick: (key: SortKey) => void; width: number }) {
   return (
-    <th onClick={() => onClick(sortKey)} style={{ ...thStyle, width, cursor: 'pointer' }}>
+    <th
+      onClick={() => onClick(sortKey)}
+      role="button"
+      tabIndex={0}
+      onKeyDown={event => (event.key === 'Enter' || event.key === ' ') && (event.preventDefault(), onClick(sortKey))}
+      aria-sort={active ? (dir === 'desc' ? 'descending' : 'ascending') : 'none'}
+      style={{ ...thStyle, width, cursor: 'pointer' }}
+    >
       {label}{active ? (dir === 'desc' ? ' ▼' : ' ▲') : ''}
     </th>
   )
@@ -218,6 +227,9 @@ function ReturnCell({ value }: { value: number | null }) {
 }
 
 const cardStyle: React.CSSProperties = { background: '#fff', border: '1px solid #D7EAFB', borderRadius: 18, boxShadow: 'var(--shadow-card)', overflow: 'hidden' }
+// The table below is wider than most viewports by design (13 data columns) — scroll
+// it horizontally instead of clipping columns, so every column stays reachable.
+const scrollWrapStyle: React.CSSProperties = { overflowX: 'auto', WebkitOverflowScrolling: 'touch' }
 const tableStyle: React.CSSProperties = { width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', color: 'var(--abd-primary)' }
 const thStyle: React.CSSProperties = { padding: '13px 10px', background: '#E7F4FF', color: 'var(--abd-primary)', fontWeight: 900, borderBottom: '1px solid #B9DDF7', textAlign: 'center', whiteSpace: 'normal', lineHeight: 1.15 }
 const tdStyle: React.CSSProperties = { padding: '12px 10px', borderBottom: '1px solid #DCEFFC', color: 'var(--abd-primary)', verticalAlign: 'middle', fontSize: 13, lineHeight: 1.35, textAlign: 'center' }
