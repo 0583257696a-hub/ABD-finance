@@ -44,7 +44,14 @@ export async function sendSystemEmail(input: MailInput) {
     // object is not a valid message and produces malformed/unsigned mail, which is
     // a common cause of spam placement. Build a proper multipart/alternative
     // message (text + HTML, UTF-8, explicit Reply-To) here instead.
-    const { EmailMessage } = await import('cloudflare:email')
+    //
+    // The specifier is built at runtime (not a string literal) so esbuild/webpack
+    // never try to statically resolve "cloudflare:email" at bundle time — it's a
+    // workerd-only builtin that only exists once deployed. A literal import()
+    // string here breaks OpenNext's esbuild bundling step with
+    // "Could not resolve cloudflare:email".
+    const cloudflareEmailModule = ['cloudflare', 'email'].join(':')
+    const { EmailMessage } = await import(cloudflareEmailModule)
     const mime = createMimeMessage()
     mime.setSender(from)
     mime.setRecipient(to)
