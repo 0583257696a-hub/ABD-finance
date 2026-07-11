@@ -80,8 +80,18 @@ function inferSpecialization(trackName: string): string {
 function resolveProductType(source: Source, fundClassification: string): string {
   if (source === 'pension') return 'קרן פנסיה'
   if (source === 'insurance') return 'פוליסה פיננסית'
-  // gemel-net mixes קופות גמל and קרנות השתלמות in one dataset
-  return fundClassification.includes('השתלמות') ? 'קרן השתלמות' : 'קופת גמל'
+  // gemel-net's FUND_CLASSIFICATION mixes 6 distinct sub-types in one dataset
+  // (verified against the full 20,819-row resource, not a partial sample):
+  //   תגמולים ואישית לפיצויים / מרכזית לפיצויים / מטרה אחרת -> קופת גמל
+  //   קרנות השתלמות                                        -> קרן השתלמות
+  //   קופת גמל להשקעה - חסכון לילד                          -> חיסכון לכל ילד
+  //   קופת גמל להשקעה                                       -> קופת גמל להשקעה
+  // Order matters: check the child-savings variant before the generic
+  // "להשקעה" check, since its classification text contains both words.
+  if (fundClassification.includes('חסכון לילד') || fundClassification.includes('חיסכון לילד')) return 'חיסכון לכל ילד'
+  if (fundClassification.includes('להשקעה')) return 'קופת גמל להשקעה'
+  if (fundClassification.includes('השתלמות')) return 'קרן השתלמות'
+  return 'קופת גמל'
 }
 
 function dedupeLatestPerFund(rows: RawRow[]): RawRow[] {
