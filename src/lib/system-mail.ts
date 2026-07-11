@@ -1,3 +1,4 @@
+import { createMimeMessage } from 'mimetext'
 import { getCloudflareEnv } from './system-db'
 import { writeEmailOutbox } from './system-db'
 
@@ -6,6 +7,12 @@ type MailInput = {
   subject: string
   html: string
   text: string
+  replyTo?: string
+}
+
+function extractAddr(mailbox: string): string {
+  const match = mailbox.match(/<([^>]+)>/)
+  return (match ? match[1] : mailbox).trim()
 }
 
 export async function sendSystemEmail(input: MailInput) {
@@ -19,6 +26,11 @@ export async function sendSystemEmail(input: MailInput) {
     process.env.SYSTEM_EMAIL_FROM ||
     process.env.EMAIL_FROM ||
     'Smart Meeting <noreply@abd-finance.co.il>'
+  const replyTo =
+    input.replyTo ||
+    env?.SYSTEM_EMAIL_REPLY_TO ||
+    process.env.SYSTEM_EMAIL_REPLY_TO ||
+    'support@abd-finance.co.il'
 
   try {
     const binding = env?.EMAIL || env?.SEND_EMAIL || env?.MAIL || env?.SMART_MEETING_MAIL
@@ -27,15 +39,24 @@ export async function sendSystemEmail(input: MailInput) {
       return { ok: false, queued: true, reason: 'missing-cloudflare-email-binding' }
     }
 
-    const response = await binding.send({
-      from,
-      to,
-      subject: input.subject,
-      html: input.html,
-      text: input.text,
-    })
+    // The Cloudflare Workers Send Email binding requires a real EmailMessage built
+    // from a raw MIME source (RFC 5322) — a plain {from,to,subject,html,text}
+    // object is not a valid message and produces malformed/unsigned mail, which is
+    // a common cause of spam placement. Build a proper multipart/alternative
+    // message (text + HTML, UTF-8, explicit Reply-To) here instead.
+    const { EmailMessage } = await import('cloudflare:email')
+    const mime = createMimeMessage()
+    mime.setSender(from)
+    mime.setRecipient(to)
+    mime.setSubject(input.subject)
+    mime.setHeader('Reply-To', replyTo)
+    mime.addMessage({ contentType: 'text/plain', data: input.text, charset: 'UTF-8' })
+    mime.addMessage({ contentType: 'text/html', data: input.html, charset: 'UTF-8' })
+
+    const message = new EmailMessage(extractAddr(from), to, mime.asRaw())
+    await binding.send(message)
     await writeEmailOutbox({ ...input, to, status: 'sent' })
-    return { ok: true, messageId: response?.messageId }
+    return { ok: true }
   } catch (error) {
     await writeEmailOutbox({ ...input, to, status: 'error', error: error instanceof Error ? error.message : String(error) })
     return { ok: false, error }
@@ -52,14 +73,18 @@ export function adminNotificationEmail() {
 
 export function registrationThanksEmail(input: { fullName: string; loginUrl?: string }) {
   const name = input.fullName || 'יועץ יקר'
-  const subject = 'תודה שנרשמת ל-SMART MEETING BY ABD FINANCE'
+  const subject = 'ברוכים הבאים ל-Smart Meeting — בקשתך התקבלה'
   const text = [
     `שלום ${name},`,
-    'תודה שנרשמת ל-SMART MEETING BY ABD FINANCE.',
+    '',
+    'תודה שנרשמת ל-Smart Meeting by ABD Finance.',
+    'קיבלת מייל זה כי נרשמת למערכת בכתובת הדוא"ל הזו.',
     'בקשת ההצטרפות שלך התקבלה בהצלחה ונשלחה לאישור מנהל המערכת.',
     'אישור החשבון מתבצע במהירות. לאחר האישור תישלח אליך הודעת דוא"ל נוספת ותוכל להתחיל להשתמש במערכת.',
     input.loginUrl ? `מעבר למערכת: ${input.loginUrl}` : '',
-  ].filter(Boolean).join('\n')
+    '',
+    'שאלות? כתבו לנו: support@abd-finance.co.il',
+  ].filter(line => line !== undefined).join('\n')
 
   const html = registrationThanksEmailHtml({ name, loginUrl: input.loginUrl || '#' })
 
@@ -83,7 +108,7 @@ function registrationThanksEmailHtml(input: { name: string; loginUrl: string }) 
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-<title>${subjectEscaped()}</title>
+<title>ברוכים הבאים ל-Smart Meeting</title>
 <!--[if mso]>
 <style type="text/css">
   table { border-collapse: collapse; }
@@ -159,7 +184,8 @@ function registrationThanksEmailHtml(input: { name: string; loginUrl: string }) 
           <td class="fluid-padding" style="padding:32px 40px 8px;">
             <div style="font-size:19px;font-weight:800;color:#1E3A5F;margin:0 0 12px;">שלום ${name},</div>
             <div style="font-size:15px;line-height:1.9;color:#334155;margin:0 0 8px;">בקשת ההצטרפות שלך התקבלה בהצלחה ונשלחה לאישור מנהל המערכת.</div>
-            <div style="font-size:15px;line-height:1.9;color:#334155;">אישור החשבון מתבצע במהירות. לאחר האישור תישלח אליך הודעת דוא&quot;ל נוספת ותוכל להתחיל להשתמש במערכת.</div>
+            <div style="font-size:15px;line-height:1.9;color:#334155;margin:0 0 8px;">אישור החשבון מתבצע במהירות. לאחר האישור תישלח אליך הודעת דוא&quot;ל נוספת ותוכל להתחיל להשתמש במערכת.</div>
+            <div style="font-size:13px;line-height:1.8;color:#94A3B8;">קיבלת מייל זה כי נרשמת ל-Smart Meeting בכתובת דוא&quot;ל זו.</div>
           </td>
         </tr>
 
@@ -267,9 +293,6 @@ function registrationThanksEmailHtml(input: { name: string; loginUrl: string }) 
 </html>`
 }
 
-function subjectEscaped() {
-  return 'תודה שנרשמת ל-Smart Meeting'
-}
 
 export function adminNewRegistrationEmail(input: {
   fullName: string
@@ -311,7 +334,7 @@ export function adminNewRegistrationEmail(input: {
 
 export function passwordResetEmail(input: { fullName?: string | null; resetUrl: string }) {
   const name = input.fullName || 'שלום'
-  const subject = 'איפוס סיסמה ל-SMART MEETING'
+  const subject = 'איפוס סיסמה ל-Smart Meeting'
   const text = [
     `שלום ${name},`,
     'התקבלה בקשה לאיפוס הסיסמה שלך.',

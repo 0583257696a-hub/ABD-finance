@@ -6,6 +6,16 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: process.cwd(),
   },
+  webpack: (config, { isServer }) => {
+    // "cloudflare:email" is a Workers runtime built-in (used to send transactional
+    // email via the Send Email binding). It only exists inside workerd, so it must
+    // never be bundled/resolved by webpack — the OpenNext/Wrangler build step
+    // supplies it at deploy time.
+    if (isServer) {
+      config.externals = [...(Array.isArray(config.externals) ? config.externals : []), 'cloudflare:email']
+    }
+    return config
+  },
   async headers() {
     const securityHeaders = [
       {
