@@ -1580,23 +1580,23 @@ function FundActivityTabs({ fund, activeView, onChange }: { fund: FundRecord; ac
           <table style={activityTableStyle}>
             <thead>
               <tr>
-                <th>חודש שכר</th>
-                <th>מעסיק</th>
-                <th>תגמולי עובד</th>
-                <th>תגמולי מעסיק</th>
-                <th>פיצויים</th>
-                <th>סה"כ</th>
+                <th style={activityThStyle}>חודש שכר</th>
+                <th style={activityThStyle}>מעסיק</th>
+                <th style={activityThStyle}>תגמולי עובד</th>
+                <th style={activityThStyle}>תגמולי מעסיק</th>
+                <th style={activityThStyle}>פיצויים</th>
+                <th style={activityThStyle}>סה"כ</th>
               </tr>
             </thead>
             <tbody>
               {depositRows.map((row, index) => (
-                <tr key={`${row.month}-${index}`}>
-                  <td>{row.month || 'אין נתון'}</td>
-                  <td>{row.employerName || 'אין נתון'}</td>
-                  <td>{money(row.employeeContribution)}</td>
-                  <td>{money(row.employerContribution)}</td>
-                  <td>{money(row.compensation)}</td>
-                  <td><strong>{money(row.total)}</strong></td>
+                <tr key={`${row.month}-${index}`} style={{ background: index % 2 ? '#F8FBFF' : '#FFFFFF' }}>
+                  <td style={activityTdStyle}>{row.month || 'אין נתון'}</td>
+                  <td style={activityTdStyle}>{row.employerName || 'אין נתון'}</td>
+                  <td style={activityTdStyle}>{money(row.employeeContribution)}</td>
+                  <td style={activityTdStyle}>{money(row.employerContribution)}</td>
+                  <td style={activityTdStyle}>{money(row.compensation)}</td>
+                  <td style={activityTdStyle}><strong>{money(row.total)}</strong></td>
                 </tr>
               ))}
             </tbody>
@@ -1609,19 +1609,19 @@ function FundActivityTabs({ fund, activeView, onChange }: { fund: FundRecord; ac
           <table style={activityTableStyle}>
             <thead>
               <tr>
-                <th>שם מוטב</th>
-                <th>קרבה</th>
-                <th>שיעור</th>
-                <th>סוג מוטב</th>
+                <th style={activityThStyle}>שם מוטב</th>
+                <th style={activityThStyle}>קרבה</th>
+                <th style={activityThStyle}>שיעור</th>
+                <th style={activityThStyle}>סוג מוטב</th>
               </tr>
             </thead>
             <tbody>
               {beneficiaries.map((beneficiary, index) => (
-                <tr key={beneficiary.id || `${beneficiary.name}-${index}`}>
-                  <td>{beneficiary.name || 'אין נתון'}</td>
-                  <td>{beneficiary.relationship || 'אין נתון'}</td>
-                  <td>{beneficiary.share ? `${beneficiary.share}%` : 'אין נתון'}</td>
-                  <td>{beneficiary.type || 'אין נתון'}</td>
+                <tr key={beneficiary.id || `${beneficiary.name}-${index}`} style={{ background: index % 2 ? '#F8FBFF' : '#FFFFFF' }}>
+                  <td style={activityTdStyle}>{beneficiary.name || 'אין נתון'}</td>
+                  <td style={activityTdStyle}>{beneficiary.relationship || 'אין נתון'}</td>
+                  <td style={activityTdStyle}>{beneficiary.share ? `${beneficiary.share}%` : 'אין נתון'}</td>
+                  <td style={activityTdStyle}>{beneficiary.type || 'אין נתון'}</td>
                 </tr>
               ))}
             </tbody>
@@ -1723,33 +1723,35 @@ const pillStyle: React.CSSProperties = { display: 'inline-flex', justifyContent:
 const targetButtonStyle = (value?: string): React.CSSProperties => ({ ...pillStyle, cursor: 'pointer', background: value === 'משוך קצבה' ? '#E5F8EE' : '#F8FBFF', borderColor: value === 'משוך קצבה' ? '#93E0B3' : '#B9DDF7', color: value === 'משוך קצבה' ? '#047857' : 'var(--abd-primary)' })
 const emptyCellStyle: React.CSSProperties = { padding: 34, textAlign: 'center', color: 'var(--text-muted)' }
 const statusStyle: React.CSSProperties = { display: 'inline-flex', alignItems: 'center', borderRadius: 999, padding: '5px 11px', fontSize: 13, fontWeight: 900 }
-const modalOverlayStyle: React.CSSProperties = { position: 'fixed', inset: 0, zIndex: 100, display: 'grid', placeItems: 'start center', overflowY: 'auto', background: 'rgba(191,219,254,0.55)', backdropFilter: 'blur(2px)', padding: '72px 24px 24px' }
-const fundModalOverlayStyle: React.CSSProperties = { position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', background: 'rgba(191,219,254,0.55)', backdropFilter: 'blur(2px)', padding: 28, boxSizing: 'border-box' }
-const modalStyle: React.CSSProperties = { position: 'relative', width: 'min(860px, 96vw)', maxHeight: 'calc(100dvh - 96px)', overflow: 'auto', background: '#fff', border: '1px solid #D7EAFB', borderRadius: 24, padding: 24, boxShadow: '0 24px 70px rgba(15,25,41,0.18)' }
-const fundModalStyle: React.CSSProperties = { ...modalStyle, width: 'min(1320px, calc(100vw - 56px))', maxHeight: 'calc(100dvh - 56px)', padding: 30, boxSizing: 'border-box' }
+const modalOverlayStyle: React.CSSProperties = { position: 'fixed', inset: 0, zIndex: 100, display: 'grid', placeItems: 'start center', overflowY: 'auto', background: 'rgba(15, 23, 42, 0.45)', padding: '48px 24px 24px' }
+const fundModalOverlayStyle: React.CSSProperties = { position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', background: 'rgba(15, 23, 42, 0.45)', padding: 16, boxSizing: 'border-box' }
+const modalStyle: React.CSSProperties = { position: 'relative', width: 'min(860px, 96vw)', maxHeight: 'calc(100dvh - 48px)', overflow: 'auto', background: '#fff', borderRadius: 28, padding: 24, boxShadow: '0 32px 80px rgba(15,25,41,0.28)' }
+const fundModalStyle: React.CSSProperties = { ...modalStyle, width: 'min(1320px, calc(100vw - 32px))', maxHeight: 'calc(100dvh - 32px)', padding: 30, boxSizing: 'border-box' }
 const modalCloseStyle: React.CSSProperties = { position: 'absolute', top: 16, left: 16, width: 38, height: 38, borderRadius: 14, border: '1px solid #CFE6FA', background: '#fff', color: 'var(--abd-primary)', fontSize: 24, cursor: 'pointer' }
 const modalHeaderStyle: React.CSSProperties = { textAlign: 'center', marginBottom: 18 }
 const modalTitleStyle: React.CSSProperties = { color: 'var(--abd-primary)', fontSize: 26, fontWeight: 900 }
-const modalGridStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', border: '1px solid #D7EAFB', borderRadius: 16, overflow: 'hidden' }
-const modalCellStyle: React.CSSProperties = { minHeight: 82, display: 'grid', gap: 6, alignContent: 'center', justifyItems: 'center', padding: 12, borderLeft: '1px solid #E6EEF7', borderBottom: '1px solid #E6EEF7', textAlign: 'center', color: 'var(--abd-primary)' }
-const trackBoxStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: '150px 1fr auto', gap: 14, alignItems: 'center', border: '1px solid #D7EAFB', borderRadius: 14, padding: 14, marginTop: 14, color: 'var(--abd-primary)' }
+const modalGridStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', borderRadius: 18, overflow: 'hidden', background: '#F8FBFF', boxShadow: 'var(--shadow-card)' }
+const modalCellStyle: React.CSSProperties = { minHeight: 82, display: 'grid', gap: 6, alignContent: 'center', justifyItems: 'center', padding: 12, borderLeft: '1px solid #EDF4FC', borderBottom: '1px solid #EDF4FC', textAlign: 'center', color: 'var(--abd-primary)' }
+const trackBoxStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: '150px 1fr auto', gap: 14, alignItems: 'center', borderRadius: 16, padding: 16, marginTop: 16, color: 'var(--abd-primary)', background: '#F8FBFF', boxShadow: 'var(--shadow-card)' }
 const trackActionsStyle: React.CSSProperties = { display: 'flex', gap: 8, justifyContent: 'flex-end', flexWrap: 'wrap' }
-const editPanelStyle: React.CSSProperties = { display: 'grid', gap: 12, border: '1px solid #D7EAFB', borderRadius: 16, padding: 16, marginTop: 14, background: '#FBFDFF' }
+const editPanelStyle: React.CSSProperties = { display: 'grid', gap: 12, borderRadius: 18, padding: 18, marginTop: 16, background: '#F8FBFF', boxShadow: 'var(--shadow-card)' }
 const editGridStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 12 }
 const smallButtonStyle: React.CSSProperties = { ...ghostButtonStyle, minHeight: 36, padding: '0 12px' }
 const miniDangerStyle: React.CSSProperties = { border: '1px solid #F5B5B5', borderRadius: 10, background: '#FFF5F5', color: '#B42318', width: 34, minHeight: 34, fontWeight: 900, cursor: 'pointer' }
-const insuranceCoveragePanelStyle: React.CSSProperties = { display: 'grid', gap: 12, border: '1px solid #D7EAFB', borderRadius: 16, padding: 16, marginTop: 14, background: '#FFFFFF', color: 'var(--abd-primary)' }
+const insuranceCoveragePanelStyle: React.CSSProperties = { display: 'grid', gap: 12, borderRadius: 18, padding: 18, marginTop: 16, background: '#FFFFFF', color: 'var(--abd-primary)', boxShadow: 'var(--shadow-card)' }
 const insuranceCoverageGridStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10 }
-const insuranceCoverageGroupStyle: React.CSSProperties = { display: 'grid', gap: 8, border: '1px solid #E3F0FB', borderRadius: 14, padding: 12, background: '#F8FBFF' }
-const insuranceCoverageRowStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: '1fr auto', gap: 10, alignItems: 'center', borderBottom: '1px solid #E6EEF7', paddingBottom: 7, fontWeight: 800 }
-const activityPanelStyle: React.CSSProperties = { display: 'grid', gap: 12, border: '1px solid #D7EAFB', borderRadius: 16, padding: 16, marginTop: 14, background: '#FFFFFF' }
+const insuranceCoverageGroupStyle: React.CSSProperties = { display: 'grid', gap: 8, borderRadius: 14, padding: 12, background: '#F8FBFF' }
+const insuranceCoverageRowStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: '1fr auto', gap: 10, alignItems: 'center', borderBottom: '1px solid #EDF4FC', paddingBottom: 7, fontWeight: 800 }
+const activityPanelStyle: React.CSSProperties = { display: 'grid', gap: 12, borderRadius: 18, padding: 18, marginTop: 16, background: '#FFFFFF', boxShadow: 'var(--shadow-card)' }
 const activityHeaderStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }
 const activityTabsStyle: React.CSSProperties = { display: 'flex', gap: 8, flexWrap: 'wrap' }
-const activityTabStyle = (active: boolean): React.CSSProperties => ({ border: '1px solid #CFE6FA', borderRadius: 999, background: active ? 'var(--abd-accent)' : '#FFFFFF', color: active ? '#FFFFFF' : 'var(--abd-primary)', padding: '7px 12px', fontFamily: 'var(--font-main)', fontWeight: 900, cursor: 'pointer' })
+const activityTabStyle = (active: boolean): React.CSSProperties => ({ border: active ? '1px solid var(--abd-accent)' : '1px solid transparent', borderRadius: 999, background: active ? 'var(--abd-accent)' : '#F1F6FC', color: active ? '#FFFFFF' : 'var(--abd-primary)', padding: '7px 12px', fontFamily: 'var(--font-main)', fontWeight: 900, cursor: 'pointer' })
 const activityGridStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10 }
-const activityCardStyle: React.CSSProperties = { display: 'grid', gap: 4, border: '1px solid #D7EAFB', borderRadius: 12, padding: 12, color: 'var(--abd-primary)', background: '#F8FBFF' }
+const activityCardStyle: React.CSSProperties = { display: 'grid', gap: 4, borderRadius: 12, padding: 12, color: 'var(--abd-primary)', background: '#F8FBFF' }
 const activityTableStyle: React.CSSProperties = { width: '100%', borderCollapse: 'collapse', color: 'var(--abd-primary)', fontSize: 13 }
-const recommendationPanelStyle: React.CSSProperties = { display: 'grid', gap: 12, border: '1px solid #D7EAFB', borderRadius: 16, padding: 16, marginTop: 14, background: '#F8FBFF' }
+const activityThStyle: React.CSSProperties = { padding: '10px 12px', textAlign: 'center', background: '#EEF6FF', color: 'var(--abd-primary)', fontWeight: 900, fontSize: 12.5, borderBottom: '2px solid #E3EEFA', whiteSpace: 'nowrap' }
+const activityTdStyle: React.CSSProperties = { padding: '10px 12px', textAlign: 'center', borderBottom: '1px solid #F0F5FA' }
+const recommendationPanelStyle: React.CSSProperties = { display: 'grid', gap: 12, borderRadius: 18, padding: 18, marginTop: 16, background: '#F8FBFF', boxShadow: 'var(--shadow-card)' }
 const sectionTitleStyle: React.CSSProperties = { color: 'var(--abd-primary)', fontSize: 21, fontWeight: 900 }
 const recommendationButtonsStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10 }
 const recommendationActionButtonStyle = (active: boolean): React.CSSProperties => ({
