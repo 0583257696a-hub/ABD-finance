@@ -225,58 +225,72 @@ export default function AbdReturnsPage() {
         {groups.map(group => (
           <article key={group.id} style={tableCardStyle}>
             <h2 style={tableTitleStyle}>{group.title}</h2>
-            <table style={miniTableStyle}>
-              <thead>
-                <tr>
-                  <th style={{ ...periodThStyle, width: '39%' }}>שם</th>
-                  {periodColumns.map(column => (
-                    <PeriodHeader
-                      key={column.key}
-                      label={column.label}
-                      active={group.state.key === column.key}
-                      dir={group.state.dir}
-                      onClick={() => updateCardSort(group.id, column.key)}
-                    />
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {group.tracks.map((track, index) => {
-                  const color = highlights[track.trackName]
-                  const highlightStyle = getHighlightCellStyle(color)
-                  return (
-                    <tr
-                      key={track.id}
-                      onClick={event => openPalette(event, track.trackName)}
-                      onMouseDown={event => openPalette(event, track.trackName)}
-                      title="Ctrl + Click לצביעת שורה"
-                      style={{
-                        background: color ? `${color}22` : index % 2 ? '#EEF7FF' : '#FFFFFF',
-                        cursor: color ? 'pointer' : 'default',
-                      }}
-                    >
-                      <td style={{ ...nameTdStyle, ...highlightStyle, borderRight: color ? `2px solid ${color}` : undefined }}>
-                        <span style={nameTextStyle}>{track.trackName}</span>
-                      </td>
-                      {periodColumns.map((column, columnIndex) => (
-                        <ReturnTd
-                          key={column.key}
-                          value={returnValue(track, column.key, mode)}
-                          highlightStyle={{
-                            ...highlightStyle,
-                            borderLeft: color && columnIndex === periodColumns.length - 1 ? `2px solid ${color}` : undefined,
-                          }}
-                        />
-                      ))}
-                    </tr>
-                  )
-                })}
-                {!group.tracks.length && (
+            <div style={tableScrollAreaStyle}>
+              <table style={miniTableStyle}>
+                <colgroup>
+                  <col style={{ width: '39%' }} />
+                  {periodColumns.map(column => <col key={column.key} style={{ width: `${61 / periodColumns.length}%` }} />)}
+                </colgroup>
+                <thead>
                   <tr>
-                    <td colSpan={5} style={emptyStyle}>אין מסלולים להצגה</td>
+                    <th style={periodThStyle}>שם</th>
+                    {periodColumns.map(column => (
+                      <PeriodHeader
+                        key={column.key}
+                        label={column.label}
+                        active={group.state.key === column.key}
+                        dir={group.state.dir}
+                        onClick={() => updateCardSort(group.id, column.key)}
+                      />
+                    ))}
                   </tr>
-                )}
-                {!!group.sourceRows.length && (
+                </thead>
+                <tbody>
+                  {group.tracks.map((track, index) => {
+                    const color = highlights[track.trackName]
+                    const highlightStyle = getHighlightCellStyle(color)
+                    return (
+                      <tr
+                        key={track.id}
+                        onClick={event => openPalette(event, track.trackName)}
+                        onMouseDown={event => openPalette(event, track.trackName)}
+                        title="Ctrl + Click לצביעת שורה"
+                        style={{
+                          background: color ? `${color}22` : index % 2 ? '#EEF7FF' : '#FFFFFF',
+                          cursor: color ? 'pointer' : 'default',
+                        }}
+                      >
+                        <td style={{ ...nameTdStyle, ...highlightStyle, borderRight: color ? `2px solid ${color}` : undefined }}>
+                          <span style={nameTextStyle}>{track.trackName}</span>
+                        </td>
+                        {periodColumns.map((column, columnIndex) => (
+                          <ReturnTd
+                            key={column.key}
+                            value={returnValue(track, column.key, mode)}
+                            highlightStyle={{
+                              ...highlightStyle,
+                              borderLeft: color && columnIndex === periodColumns.length - 1 ? `2px solid ${color}` : undefined,
+                            }}
+                          />
+                        ))}
+                      </tr>
+                    )
+                  })}
+                  {!group.tracks.length && (
+                    <tr>
+                      <td colSpan={5} style={emptyStyle}>אין מסלולים להצגה</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+            {!!group.sourceRows.length && (
+              <table style={{ ...miniTableStyle, flexShrink: 0 }}>
+                <colgroup>
+                  <col style={{ width: '39%' }} />
+                  {periodColumns.map(column => <col key={column.key} style={{ width: `${61 / periodColumns.length}%` }} />)}
+                </colgroup>
+                <tbody>
                   <tr style={{ background: '#FFF4BF' }}>
                     <td style={averageNameTdStyle}>
                       <span style={nameTextStyle}>תשואה ממוצעת לקבוצה</span>
@@ -285,9 +299,9 @@ export default function AbdReturnsPage() {
                       <ReturnTd key={column.key} value={average(group.sourceRows, column.key, mode)} />
                     ))}
                   </tr>
-                )}
-              </tbody>
-            </table>
+                </tbody>
+              </table>
+            )}
           </article>
         ))}
       </section>
@@ -362,7 +376,8 @@ const activeModeStyle: React.CSSProperties = { ...modeButtonStyle, background: '
 const productTabsStyle: React.CSSProperties = { display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 20, background: '#fff', border: '1px solid #D7EAFB', borderRadius: 14, padding: 10, boxShadow: 'var(--shadow-card)' }
 const productTabStyle: React.CSSProperties = { border: '1px solid #CFE6FA', borderRadius: 999, background: '#F8FBFF', color: 'var(--abd-primary)', padding: '9px 14px', fontFamily: 'var(--font-main)', fontWeight: 900, cursor: 'pointer' }
 const activeProductTabStyle: React.CSSProperties = { ...productTabStyle, background: 'var(--abd-accent)', border: '1px solid var(--abd-accent)', color: '#fff', boxShadow: '0 8px 18px rgba(37,99,235,0.18)' }
-const tableCardStyle: React.CSSProperties = { minWidth: 0, height: 432, background: '#fff', border: '0', borderRadius: 0, boxShadow: 'none', overflow: 'hidden' }
+const tableCardStyle: React.CSSProperties = { minWidth: 0, height: 432, display: 'flex', flexDirection: 'column', background: '#fff', border: '0', borderRadius: 0, boxShadow: 'none', overflow: 'hidden' }
+const tableScrollAreaStyle: React.CSSProperties = { flex: '1 1 auto', minHeight: 0, overflow: 'hidden' }
 const tableTitleStyle: React.CSSProperties = { color: 'var(--abd-primary)', fontSize: 22, fontWeight: 900, textAlign: 'center', marginBottom: 8, lineHeight: 1.1 }
 const miniTableStyle: React.CSSProperties = { width: '100%', tableLayout: 'fixed', borderCollapse: 'separate', borderSpacing: 0, fontSize: 12.5 }
 const periodThStyle: React.CSSProperties = { padding: '7px 5px', background: '#E3F3FF', color: 'var(--abd-primary)', textAlign: 'center', whiteSpace: 'nowrap', fontWeight: 900, border: 0 }
