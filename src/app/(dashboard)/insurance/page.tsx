@@ -129,9 +129,11 @@ export default function InsurancePage() {
   const hydrated = useWorkspaceStore(state => state.hydrated)
   const hydrate = useWorkspaceStore(state => state.hydrate)
   const storeClient = useWorkspaceStore(state => state.client)
+  const storeFunds = useWorkspaceStore(state => state.funds)
   const storePolicies = useWorkspaceStore(state => state.insurancePolicies)
   const selectedInsurancePolicyIds = useWorkspaceStore(state => state.selectedInsurancePolicyIds)
   const setStorePolicies = useWorkspaceStore(state => state.setInsurancePolicies)
+  const applyImportedDataset = useWorkspaceStore(state => state.applyImportedDataset)
   const setSelectedInsurancePolicyIds = useWorkspaceStore(state => state.setSelectedInsurancePolicyIds)
   const trackingRisks = useWorkspaceStore(state => state.trackingRisks)
   const setTrackingRisks = useWorkspaceStore(state => state.setTrackingRisks)
@@ -180,11 +182,10 @@ export default function InsurancePage() {
       const imported = await importWorkspaceFiles(files, currentClient)
       const nextPolicies = mergePolicies(policies, imported.insurancePolicies)
       persist(nextPolicies)
-      if (imported.funds.length) {
-        const existingFunds = JSON.parse(localStorage.getItem(FUNDS_KEY) || '[]')
-        localStorage.setItem(FUNDS_KEY, JSON.stringify(mergeFunds(existingFunds, imported.funds)))
-      }
+      const nextFunds = imported.funds.length ? mergeFunds(storeFunds, imported.funds) : undefined
+      if (nextFunds) localStorage.setItem(FUNDS_KEY, JSON.stringify(nextFunds))
       if (imported.client) localStorage.setItem(CLIENT_KEY, JSON.stringify(imported.client))
+      applyImportedDataset({ client: imported.client, funds: nextFunds, insurancePolicies: imported.insurancePolicies })
       setStatus(imported.messages.join(' | ') || 'הייבוא הסתיים')
     } catch (error) {
       setStatus(error instanceof Error ? error.message : 'ייבוא הר הביטוח נכשל')

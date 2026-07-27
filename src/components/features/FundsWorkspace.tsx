@@ -401,6 +401,10 @@ export default function FundsWorkspace() {
   const [status, setStatus] = useState('מוכן לייבוא קבצים')
   const [selectedFund, setSelectedFund] = useState<FundRecord | null>(null)
   const [needsOpen, setNeedsOpen] = useState(false)
+  const [consolidationPickerOpen, setConsolidationPickerOpen] = useState(false)
+  const [consolidationProductType, setConsolidationProductType] = useState('')
+  const [consolidationManufacturer, setConsolidationManufacturer] = useState('')
+  const [consolidationTrackId, setConsolidationTrackId] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
   const hydrated = useWorkspaceStore(state => state.hydrated)
   const storeFunds = useWorkspaceStore(state => state.funds)
@@ -452,6 +456,43 @@ export default function FundsWorkspace() {
     const byKey = new Map(columns.map(column => [String(column.key), column]))
     return columnOrder.map(key => byKey.get(key)).filter(Boolean) as typeof columns
   }, [columnOrder])
+  const consolidationLeadingFund = selectedFunds[0]
+  const consolidationSourceProduct = useMemo(
+    () => consolidationLeadingFund
+      ? normalizeMigrationProductType([consolidationLeadingFund.productType, consolidationLeadingFund.planName, consolidationLeadingFund.productName].filter(Boolean).join(' '))
+      : '',
+    [consolidationLeadingFund],
+  )
+  const consolidationAllowedProducts = useMemo(
+    () => getAllowedDestinationProducts(consolidationSourceProduct),
+    [consolidationSourceProduct],
+  )
+  const consolidationManufacturers = useMemo(() => {
+    const fromReturns = getManufacturersByProductType(consolidationProductType)
+    const fromRules = migrationTargetCompanies[consolidationProductType] || []
+    return Array.from(new Set([...fromReturns, ...fromRules]))
+      .map(normalizeManufacturerName)
+      .filter(isAllowedAbdReturnManufacturer)
+  }, [consolidationProductType])
+  const consolidationTracks = useMemo(
+    () => getTracksByProductAndManufacturer(consolidationProductType, consolidationManufacturer),
+    [consolidationManufacturer, consolidationProductType],
+  )
+  const consolidationSelectedTrack = consolidationTrackId ? getTrackDetails(consolidationTrackId) : consolidationTracks[0]
+
+  useEffect(() => {
+    if (!consolidationPickerOpen) return
+    if (!consolidationManufacturers.includes(consolidationManufacturer) && consolidationManufacturers[0]) {
+      setConsolidationManufacturer(consolidationManufacturers[0])
+    }
+  }, [consolidationManufacturer, consolidationManufacturers, consolidationPickerOpen])
+
+  useEffect(() => {
+    if (!consolidationPickerOpen) return
+    if (!consolidationTracks.some(track => track.id === consolidationTrackId)) {
+      setConsolidationTrackId(consolidationTracks[0]?.id || '')
+    }
+  }, [consolidationPickerOpen, consolidationTrackId, consolidationTracks])
 
   function persistFunds(nextFunds: FundRecord[]) {
     setFunds(nextFunds)
@@ -487,14 +528,39 @@ export default function FundsWorkspace() {
     })
   }
 
-  function createConsolidationRecommendation() {
+  function openConsolidationPicker() {
     if (selectedIds.length < 2) return
     const selected = funds.filter(fund => selectedIds.includes(fund.id))
     if (selected.length < 2) return
     const leadingFund = selected[0]
-    const targetProductType = normalizeProductType(leadingFund.productType || 'קופת גמל')
-    const targetManufacturer = normalizeManufacturerName(leadingFund.manufacturer || '')
-    const matchedTrack = findAbdTrackForFund(targetProductType, targetManufacturer, leadingFund.investmentTrack || leadingFund.productName)
+    const sourceProduct = normalizeMigrationProductType([leadingFund.productType, leadingFund.planName, leadingFund.productName].filter(Boolean).join(' '))
+    const allowedProducts = getAllowedDestinationProducts(sourceProduct)
+    const nextProduct = allowedProducts[0] || normalizeProductType(leadingFund.productType || 'קופת גמל')
+    const fromReturns = getManufacturersByProductType(nextProduct)
+    const fromRules = migrationTargetCompanies[nextProduct] || []
+    const manufacturersList = Array.from(new Set([...fromReturns, ...fromRules]))
+      .map(normalizeManufacturerName)
+      .filter(isAllowedAbdReturnManufacturer)
+    const leadingManufacturer = normalizeManufacturerName(leadingFund.manufacturer || '')
+    const nextManufacturer = manufacturersList.includes(leadingManufacturer) ? leadingManufacturer : (manufacturersList[0] || '')
+    const tracksList = getTracksByProductAndManufacturer(nextProduct, nextManufacturer)
+    setConsolidationProductType(nextProduct)
+    setConsolidationManufacturer(nextManufacturer)
+    setConsolidationTrackId(tracksList[0]?.id || '')
+    setConsolidationPickerOpen(true)
+  }
+
+  function cancelConsolidationPicker() {
+    setConsolidationPickerOpen(false)
+  }
+
+  function confirmConsolidationRecommendation() {
+    if (selectedIds.length < 2) return
+    const selected = funds.filter(fund => selectedIds.includes(fund.id))
+    if (selected.length < 2) return
+    const targetProductType = consolidationProductType
+    const targetManufacturer = consolidationManufacturer
+    const matchedTrack = consolidationSelectedTrack
     const selectedNames = selected
       .map(fund => [fund.manufacturer, fund.accountNumber].filter(Boolean).join(' '))
       .filter(Boolean)
@@ -504,16 +570,17 @@ export default function FundsWorkspace() {
       sourceFundIds: selected.map(fund => fund.id),
       actionType: 'איחוד צבירות',
       productType: targetProductType,
-      manufacturer: targetManufacturer || leadingFund.manufacturer || '',
-      track: matchedTrack?.trackName || leadingFund.investmentTrack || '',
+      manufacturer: targetManufacturer,
+      track: matchedTrack?.trackName || '',
       trackId: matchedTrack?.trackId,
-      reason: `איחוד צבירות: מומלץ לבחון איחוד של ${selectedNames || 'הקופות שסומנו'} לצורך ריכוז כספים, מעקב יעיל והמשך התאמת מסלול ההשקעה לצורכי הלקוח.`,
+      reason: `איחוד צבירות: מומלץ לבחון איחוד של ${selectedNames || 'הקופות שסומנו'} אל ${targetProductType}${targetManufacturer ? ` ב${targetManufacturer}` : ''} לצורך ריכוז כספים, מעקב יעיל והמשך התאמת מסלול ההשקעה לצורכי הלקוח.`,
       notes: selectedNames,
       amount: selectedBalance,
       returns: matchedTrack?.returns,
     }
     persistRecommendations([next, ...recommendations])
     setSelectedIds([])
+    setConsolidationPickerOpen(false)
     setStatus(`נוצרה פעולת איחוד צבירות עבור ${selected.length} קופות בסך ${money(selectedBalance)}`)
   }
 
@@ -700,7 +767,7 @@ export default function FundsWorkspace() {
           <span style={mutedStyle}>{selectedIds.length > 1 ? `איחוד צבירות: ${money(selectedBalance)} מתוך ${selectedIds.length} קופות` : selectedForPension ? `${selectedForPension} קופות מיועדות לקצבה` : ''}</span>
           <div style={actionsStyle}>
             {selectedIds.length > 1 && (
-              <button type="button" onClick={createConsolidationRecommendation} style={primaryButtonStyle}>
+              <button type="button" onClick={openConsolidationPicker} style={primaryButtonStyle}>
                 איחוד צבירות
               </button>
             )}
@@ -709,6 +776,48 @@ export default function FundsWorkspace() {
             </button>
           </div>
         </div>
+
+        {consolidationPickerOpen && (
+          <div style={toolbarStyle}>
+            <div style={recommendationGridStyle}>
+              <Field label="סוג מוצר יעד">
+                {consolidationAllowedProducts.length === 1 ? (
+                  <div style={lockedProductStyle}>{consolidationAllowedProducts[0]}</div>
+                ) : (
+                  <select
+                    value={consolidationProductType}
+                    onChange={event => { setConsolidationProductType(event.target.value); setConsolidationManufacturer(''); setConsolidationTrackId('') }}
+                    style={inputStyle}
+                  >
+                    {consolidationAllowedProducts.map(type => <option key={type} value={type}>{type}</option>)}
+                  </select>
+                )}
+              </Field>
+              <Field label="יצרן יעד">
+                <select
+                  value={consolidationManufacturer}
+                  onChange={event => { setConsolidationManufacturer(event.target.value); setConsolidationTrackId('') }}
+                  style={inputStyle}
+                >
+                  {consolidationManufacturers.map(item => <option key={item} value={item}>{item}</option>)}
+                </select>
+              </Field>
+              <Field label="מסלול השקעה יעד">
+                <select value={consolidationTrackId} onChange={event => setConsolidationTrackId(event.target.value)} style={inputStyle}>
+                  {consolidationTracks.map(item => <option key={item.id} value={item.id}>{item.trackName}</option>)}
+                </select>
+              </Field>
+            </div>
+            <div style={actionsStyle}>
+              <button type="button" onClick={confirmConsolidationRecommendation} style={primaryButtonStyle}>
+                אישור איחוד
+              </button>
+              <button type="button" onClick={cancelConsolidationPicker} style={ghostButtonStyle}>
+                ביטול
+              </button>
+            </div>
+          </div>
+        )}
 
         <div style={tableScrollStyle}>
           <table style={tableStyle}>
@@ -1259,11 +1368,12 @@ function NeedsModal({ funds, onClose }: { funds: FundRecord[]; onClose: () => vo
   const [needs, setNeeds] = useState<NeedsState>(emptyNeeds)
   const [step, setStep] = useState<'personal' | 'needs'>('personal')
   const [folding, setFolding] = useState(false)
+  const [savedAt, setSavedAt] = useState<number | null>(null)
 
   useEffect(() => {
     try {
       const stored = Object.keys(storeNeeds || {}).length ? storeNeeds : JSON.parse(localStorage.getItem(NEEDS_KEY) || 'null')
-      const client = storeClient || JSON.parse(localStorage.getItem(CLIENT_KEY) || '{}')
+      const client = storeClient || JSON.parse(localStorage.getItem(CLIENT_KEY) || '{}') || {}
       const provident = funds
         .filter(fund => String(fund.productType || '').includes('גמל'))
         .reduce((sum, fund) => sum + Number(fund.currentBalance || 0), 0)
@@ -1294,8 +1404,14 @@ function NeedsModal({ funds, onClose }: { funds: FundRecord[]; onClose: () => vo
     setStoreNeedsAssessment(next)
   }
 
+  function saveNeeds() {
+    localStorage.setItem(NEEDS_KEY, JSON.stringify(needs))
+    setStoreNeedsAssessment(needs)
+    setSavedAt(Date.now())
+  }
+
   function continueToNeeds() {
-    const existingClient = storeClient || JSON.parse(localStorage.getItem(CLIENT_KEY) || '{}')
+    const existingClient = storeClient || JSON.parse(localStorage.getItem(CLIENT_KEY) || '{}') || {}
     const nextClient = {
       ...existingClient,
       idNumber: needs.clientIdNumber || existingClient.idNumber,
@@ -1443,6 +1559,11 @@ function NeedsModal({ funds, onClose }: { funds: FundRecord[]; onClose: () => vo
                 <NeedsInput label="אחר" value={needs.assetOther} onChange={value => update('assetOther', value)} />
                 <div style={needsTotalStyle}><span>סה״כ</span><strong>{money(totalAssets)}</strong></div>
               </section>
+            </div>
+
+            <div style={needsFooterStyle}>
+              {savedAt && <span style={mutedStyle}>נשמר בהצלחה ({new Date(savedAt).toLocaleTimeString('he-IL')})</span>}
+              <button type="button" onClick={saveNeeds} style={primaryButtonStyle}>שמירה</button>
             </div>
           </div>
         )}
@@ -1792,6 +1913,7 @@ const needsTableStyle: React.CSSProperties = { width: '100%', borderCollapse: 's
 const smallInputStyle: React.CSSProperties = { width: '100%', minHeight: 40, border: '1px solid #CFE6FA', borderRadius: 12, padding: '7px 11px', color: 'var(--abd-primary)', background: '#FBFDFF', fontFamily: 'var(--font-main)', fontWeight: 800 }
 const needsInputRowStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: '1fr 1.15fr', gap: 10, alignItems: 'center', marginTop: 10, padding: 10, border: '1px solid #E3F0FB', borderRadius: 14, background: '#FBFDFF', color: 'var(--abd-primary)', fontWeight: 800 }
 const needsTotalStyle: React.CSSProperties = { marginTop: 14, padding: 14, borderRadius: 16, background: 'linear-gradient(180deg, #F8EBCB, #EEDAAE)', display: 'flex', justifyContent: 'space-between', color: '#835A11', fontWeight: 900, boxShadow: 'inset 0 1px 0 rgba(255,255,255,.6)' }
+const needsFooterStyle: React.CSSProperties = { display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 14, marginTop: 20 }
 const personalLayoutStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18, marginTop: 18 }
 const personalCardStyle: React.CSSProperties = { display: 'grid', gap: 12, background: 'linear-gradient(180deg, #FFFFFF 0%, #F8FBFF 100%)', border: '1px solid #D7EAFB', borderRadius: 20, padding: 20, boxShadow: 'var(--shadow-card)' }
 const personalCardHeadStyle: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', paddingBottom: 10, borderBottom: '1px solid #E6EEF7', color: 'var(--abd-primary)' }

@@ -352,7 +352,7 @@ export default function MeetingSummaryPage() {
         facts: mergeFacts(current, facts),
         recommendations: mergeRecommendations(current, recommendations),
       }
-      setMeetingSummary(next)
+      queueMicrotask(() => setMeetingSummary(next))
       return next
     })
   }, [activeTrack, client, funds, hydrated, infrastructureSelectedIds, insurancePolicies, needsAssessment, selectedInsurancePolicyIds, setMeetingSummary, trackingDeals, trackingRisks])

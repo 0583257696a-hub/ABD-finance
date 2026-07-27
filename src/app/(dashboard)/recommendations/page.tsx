@@ -9,16 +9,7 @@ import {
   normalizeProductType,
   type AbdTrack,
 } from '@/lib/returns-catalog'
-
-type FundRow = {
-  id?: string
-  manufacturer?: string
-  productType?: string
-  productName?: string
-  investmentTrack?: string
-  accountNumber?: string
-  currentBalance?: number
-}
+import { useWorkspaceStore } from '@/lib/store/workspaceStore'
 
 type Recommendation = {
   id: string
@@ -32,8 +23,6 @@ type Recommendation = {
   returns?: AbdTrack['returns']
 }
 
-const FUNDS_KEY = 'abd_next_funds'
-const RECOMMENDATIONS_KEY = 'abd_next_recommendations'
 const recommendationTargetCompanies: Record<string, string[]> = {
   'קרן פנסיה': ['הפניקס', 'הראל', 'מגדל', 'כלל', 'מנורה מבטחים', 'מיטב', 'אלטשולר שחם', 'מור'],
   'קופת גמל': ['הפניקס', 'הראל', 'מגדל', 'כלל', 'מנורה מבטחים', 'מיטב', 'אלטשולר שחם', 'מור', 'אנליסט', 'ילין לפידות'],
@@ -52,8 +41,11 @@ function money(value: unknown) {
 const productTypes = ['קופת גמל', 'קרן השתלמות', 'קרן פנסיה', 'קופת גמל להשקעה', 'פוליסה פיננסית']
 
 export default function RecommendationsPage() {
-  const [funds, setFunds] = useState<FundRow[]>([])
-  const [recommendations, setRecommendations] = useState<Recommendation[]>([])
+  const hydrated = useWorkspaceStore(state => state.hydrated)
+  const hydrate = useWorkspaceStore(state => state.hydrate)
+  const funds = useWorkspaceStore(state => state.funds)
+  const recommendations = useWorkspaceStore(state => state.trackingDeals) as Recommendation[]
+  const setTrackingDeals = useWorkspaceStore(state => state.setTrackingDeals)
   const [selectedFundId, setSelectedFundId] = useState('')
   const [productType, setProductType] = useState('קופת גמל')
   const [manufacturer, setManufacturer] = useState('')
@@ -61,23 +53,15 @@ export default function RecommendationsPage() {
   const [reason, setReason] = useState('המלצה לביצוע ניוד בהתאם לצורכי הלקוח, דמי הניהול, רמת הסיכון, תשואות המסלול והתאמתו לפרופיל הלקוח.')
 
   useEffect(() => {
-    try {
-      const storedFunds = JSON.parse(localStorage.getItem(FUNDS_KEY) || '[]')
-      const storedRecommendations = JSON.parse(localStorage.getItem(RECOMMENDATIONS_KEY) || '[]')
-      setFunds(Array.isArray(storedFunds) ? storedFunds : [])
-      setRecommendations(Array.isArray(storedRecommendations) ? storedRecommendations : [])
-      if (Array.isArray(storedFunds) && storedFunds[0]) {
-        setSelectedFundId(storedFunds[0].id || '')
-        const type = normalizeProductType(storedFunds[0].productType || 'קופת גמל')
-        const maker = normalizeManufacturerName(storedFunds[0].manufacturer || '')
-        setProductType(type)
-        setManufacturer(maker)
-      }
-    } catch {
-      setFunds([])
-      setRecommendations([])
-    }
-  }, [])
+    if (!hydrated) hydrate()
+  }, [hydrate, hydrated])
+
+  useEffect(() => {
+    if (selectedFundId || !funds[0]) return
+    setSelectedFundId(funds[0].id || '')
+    setProductType(normalizeProductType(funds[0].productType || 'קופת גמל'))
+    setManufacturer(normalizeManufacturerName(funds[0].manufacturer || ''))
+  }, [funds, selectedFundId])
 
   const selectedFund = funds.find(fund => fund.id === selectedFundId)
   const manufacturers = useMemo(() => {
@@ -99,8 +83,7 @@ export default function RecommendationsPage() {
   }, [trackId, tracks])
 
   function persist(next: Recommendation[]) {
-    setRecommendations(next)
-    localStorage.setItem(RECOMMENDATIONS_KEY, JSON.stringify(next))
+    setTrackingDeals(next)
   }
 
   function addRecommendation() {
