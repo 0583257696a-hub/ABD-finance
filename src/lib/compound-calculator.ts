@@ -76,14 +76,6 @@ export function scenarioAnnualReturn(inputs: CompoundInputs) {
   return base
 }
 
-function calculateMonthlyRate(annualRatePercent: number) {
-  return Math.pow(1 + annualRatePercent / 100, 1 / 12) - 1
-}
-
-function calculateManagementFeeRate(annualFeePercent: number) {
-  return Math.pow(1 + annualFeePercent / 100, 1 / 12) - 1
-}
-
 function calculateTax(taxType: TaxType, nominalProfit: number, realProfit: number) {
   if (taxType === 'exempt') return 0
   if (taxType === 'nominal') return Math.max(0, nominalProfit * 0.25)
@@ -152,14 +144,24 @@ function runCompoundSimulation(params: {
   linked?: boolean
 }) {
   const totalMonths = Math.round(params.years * 12)
-  const monthlyRate = calculateMonthlyRate(params.annualReturn)
-  const monthlyFeeRate = calculateManagementFeeRate(params.annualAccumulationFee)
-  const monthlyInflation = calculateMonthlyRate(params.inflation)
+  // Nominal-rate convention: annual/12, matching the standard Israeli
+  // calculator convention (and the reference implementation this engine was
+  // validated against) — NOT geometric (1+r)^(1/12)-1. Same for the
+  // accumulation fee. Inflation indexation stays geometric because CPI
+  // linkage compounds monthly by definition.
+  const monthlyRate = params.annualReturn / 100 / 12
+  const monthlyFeeRate = params.annualAccumulationFee / 100 / 12
+  const monthlyInflationFactor = Math.pow(1 + params.inflation / 100, 1 / 12)
   let balance = params.initialAmount
   let grossDeposit = params.monthlyDeposit
   let grossDeposits = params.initialAmount
   let totalDepositFees = 0
   let totalAccumulationFees = 0
+  // CPI-indexed original cost (עלות מקורית צמודה) — the exempt basis for
+  // real capital-gains tax: every shekel put in is indexed from ITS deposit
+  // month to the current month, deposit-by-deposit. Recurrence:
+  // basis_t = (basis_{t-1} + deposit_t) × monthlyInflationFactor.
+  let indexedCostBasis = params.initialAmount
   const monthlyRows: MonthlyRow[] = []
   const annualRows: AnnualRow[] = []
 
@@ -168,7 +170,7 @@ function runCompoundSimulation(params: {
     const depositFeeAmount = grossDeposit * (params.depositFee / 100)
     const netDeposit = grossDeposit - depositFeeAmount
     const balanceAfterDeposit = openingBalance + netDeposit
-    // סדר החישוב נשמר ללא עיגול: הפקדה נטו נכנסת קודם, לאחר מכן תשואה חודשית אפקטיבית, ואז דמי ניהול מצבירה על היתרה לאחר תשואה.
+    // סדר החישוב: הפקדה נטו נכנסת בתחילת החודש, לאחר מכן תשואה חודשית (שנתי/12), ואז דמי ניהול מצבירה (שנתי/12) על היתרה לאחר תשואה.
     const balanceAfterReturn = balanceAfterDeposit * (1 + monthlyRate)
     const monthlyReturnAmount = balanceAfterReturn - balanceAfterDeposit
     const accumulationFeeAmount = balanceAfterReturn * monthlyFeeRate
@@ -178,6 +180,7 @@ function runCompoundSimulation(params: {
     totalDepositFees += depositFeeAmount
     totalAccumulationFees += accumulationFeeAmount
     balance = closingBalance
+    indexedCostBasis = (indexedCostBasis + grossDeposit) * monthlyInflationFactor
 
     monthlyRows.push({
       month,
@@ -190,15 +193,15 @@ function runCompoundSimulation(params: {
       closingBalance,
     })
 
-    if (params.linked) grossDeposit *= 1 + monthlyInflation
+    if (params.linked) grossDeposit *= monthlyInflationFactor
 
     if (month % 12 === 0 || month === totalMonths) {
       const elapsedYears = month / 12
       const realBalance = balance / Math.pow(1 + params.inflation / 100, elapsedYears)
       const nominalGain = balance - grossDeposits
-      // חישוב רווח ריאלי מקורב בלבד: הוא מתעלם מכך שההפקדות בוצעו במועדים שונים ונשחקו מאינפלציה בשיעורים שונים.
-      // בעתיד ניתן לשדרג לחישוב מדויק שמנכה אינפלציה לכל הפקדה בנפרד לפי מועד ההפקדה שלה.
-      const realGain = realBalance - grossDeposits
+      // רווח ריאלי חייב במס = שווי נוכחי פחות העלות המקורית הצמודה (הצמדה
+      // פר-הפקדה ממועד ההפקדה שלה) — שיטת המס הישראלית בפועל.
+      const realGain = Math.max(0, balance - indexedCostBasis)
       const taxAmount = calculateTax(params.taxType, nominalGain, realGain)
       annualRows.push({
         year: elapsedYears,
@@ -219,7 +222,7 @@ function runCompoundSimulation(params: {
   const elapsedYears = totalMonths / 12
   const realFinal = balance / Math.pow(1 + params.inflation / 100, elapsedYears)
   const nominalProfit = balance - grossDeposits
-  const realProfit = realFinal - grossDeposits
+  const realProfit = Math.max(0, balance - indexedCostBasis)
   const taxFinal = calculateTax(params.taxType, nominalProfit, realProfit)
 
   return {
