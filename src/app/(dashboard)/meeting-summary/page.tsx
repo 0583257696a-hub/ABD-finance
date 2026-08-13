@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { buildInfrastructureRows, getInfrastructureTotals } from '@/lib/infrastructure'
 import { useWorkspaceStore } from '@/lib/store/workspaceStore'
+import { Toolbar } from '@/components/ui/Toolbar'
+import { Button } from '@/components/ui/Button'
 import type { Fund } from '@/types/fund'
 import type { InsurancePolicy } from '@/types/insurance'
 import type {
@@ -557,17 +559,19 @@ export default function MeetingSummaryPage() {
   return (
     <main dir="rtl" style={pageStyle}>
       <style>{printCss}</style>
-      <header style={headerStyle} className="no-print">
-        <div>
-          <h1 style={titleStyle}>סיכום פגישה</h1>
-          <p style={mutedStyle}>מסמך חי שמסתנכרן מהקופות, בירור הצרכים, התשתיות, הפוליסות וההמלצות.</p>
-        </div>
-        <div style={exportBarStyle}>
-          <button type="button" onClick={printSummary} style={primaryButtonStyle}>הדפסה / PDF</button>
-          <button type="button" onClick={sendEmail} style={secondaryButtonStyle}>שליחה למייל</button>
-          <button type="button" onClick={copySummary} style={secondaryButtonStyle}>העתק</button>
-        </div>
-      </header>
+      <div className="no-print">
+        <Toolbar
+          title="סיכום פגישה"
+          subtitle="מסמך חי שמסתנכרן מהקופות, בירור הצרכים, התשתיות, הפוליסות וההמלצות"
+          actions={(
+            <>
+              <Button variant="primary" size="sm" onClick={printSummary}>הדפסה / PDF</Button>
+              <Button variant="secondary" size="sm" onClick={sendEmail}>שליחה למייל</Button>
+              <Button variant="secondary" size="sm" onClick={copySummary}>העתק</Button>
+            </>
+          )}
+        />
+      </div>
 
       <section style={layoutStyle}>
         <aside style={editorPanelStyle} className="no-print">
@@ -905,19 +909,13 @@ function NeedsLine({ label, value, note, total }: { label: string; value: string
 }
 
 const pageStyle: React.CSSProperties = { fontFamily: 'var(--font-main)', color: 'var(--text-body)' }
-const headerStyle: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'flex-start', marginBottom: 22 }
-const titleStyle: React.CSSProperties = { color: 'var(--abd-primary)', fontSize: 32, fontWeight: 900 }
-const mutedStyle: React.CSSProperties = { color: 'var(--text-muted)', marginTop: 6, lineHeight: 1.6 }
-const exportBarStyle: React.CSSProperties = { display: 'flex', gap: 10, flexWrap: 'wrap' }
-const primaryButtonStyle: React.CSSProperties = { border: 0, borderRadius: 12, padding: '11px 16px', background: 'var(--abd-accent)', color: '#fff', fontFamily: 'var(--font-main)', fontWeight: 900, cursor: 'pointer' }
-const secondaryButtonStyle: React.CSSProperties = { ...primaryButtonStyle, background: '#fff', color: 'var(--abd-primary)', border: '1px solid #CFE6FA' }
 const layoutStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: '320px minmax(0, 1fr)', gap: 20, alignItems: 'start' }
-const editorPanelStyle: React.CSSProperties = { position: 'sticky', top: 20, display: 'grid', gap: 10, background: '#fff', border: '1px solid #D7EAFB', borderRadius: 18, padding: 18, boxShadow: 'var(--shadow-card)' }
-const panelTitleStyle: React.CSSProperties = { color: 'var(--abd-primary)', fontSize: 18, fontWeight: 900, margin: '6px 0' }
+const editorPanelStyle: React.CSSProperties = { position: 'sticky', top: 84, display: 'grid', gap: 10, background: 'var(--bg-surface)', border: '1px solid var(--separator)', borderRadius: 'var(--radius-lg)', padding: 18, boxShadow: 'var(--shadow-1)' }
+const panelTitleStyle: React.CSSProperties = { color: 'var(--text-heading)', fontSize: 15, fontWeight: 700, margin: '6px 0' }
 const fieldStyle: React.CSSProperties = { display: 'grid', gap: 6, color: 'var(--abd-primary)', fontWeight: 800 }
-const inputStyle: React.CSSProperties = { minHeight: 38, border: '1px solid #CFE6FA', borderRadius: 10, padding: '8px 10px', fontFamily: 'var(--font-main)', color: 'var(--abd-primary)', background: '#FBFDFF' }
+const inputStyle: React.CSSProperties = { minHeight: 38, border: '1px solid var(--separator-strong)', borderRadius: 'var(--radius-sm)', padding: '8px 10px', fontFamily: 'var(--font-main)', color: 'var(--text-heading)', background: 'var(--bg-surface-sunken)' }
 const toggleStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 8, minHeight: 34, color: 'var(--abd-primary)', fontWeight: 800 }
-const inlineEditNoticeStyle: React.CSSProperties = { color: '#6F8DB5', background: '#F8FBFF', border: '1px solid #D7EAFB', borderRadius: 12, padding: 12, lineHeight: 1.55, fontSize: 13 }
+const inlineEditNoticeStyle: React.CSSProperties = { color: 'var(--text-muted)', background: 'var(--bg-surface-sunken)', border: '1px solid var(--separator)', borderRadius: 'var(--radius-md)', padding: 12, lineHeight: 1.55, fontSize: 13 }
 const editorBlockStyle: React.CSSProperties = { borderTop: '1px solid #E6EEF7', paddingTop: 10 }
 const editorBlockHeaderStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }
 const smallButtonStyle: React.CSSProperties = { border: '1px solid #CFE6FA', borderRadius: 999, background: '#F8FBFF', color: 'var(--abd-primary)', padding: '7px 10px', fontFamily: 'var(--font-main)', fontWeight: 900, cursor: 'pointer' }
@@ -926,13 +924,13 @@ const hintStyle: React.CSSProperties = { color: 'var(--text-muted)', fontSize: 1
 const screenshotEditorStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: '56px auto', gap: 8, alignItems: 'center', marginTop: 8 }
 const screenshotThumbStyle: React.CSSProperties = { width: 56, height: 44, objectFit: 'cover', borderRadius: 8, border: '1px solid #D7EAFB' }
 const previewWrapStyle: React.CSSProperties = { overflow: 'auto' }
-const paperStyle: React.CSSProperties = { width: 'min(100%, 920px)', margin: '0 auto 32px', padding: '28px 30px 34px', borderRadius: 22, background: '#fff', color: '#22314A', boxShadow: '0 30px 70px rgba(37,32,24,0.12)', border: '1px solid rgba(186,143,56,0.18)' }
-const paperTopStyle: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', gap: 12, fontSize: 13, color: '#5F6A7C', marginBottom: 12 }
-const brandStyle: React.CSSProperties = { textAlign: 'center', marginBottom: 12, color: '#1E3F6F' }
-const paperH1Style: React.CSSProperties = { color: '#1E3F6F', textAlign: 'center', fontSize: 27, fontWeight: 900, textDecoration: 'underline', marginBottom: 6 }
-const paperH2Style: React.CSSProperties = { color: '#1E3F6F', textAlign: 'center', fontSize: 21, fontWeight: 800, marginBottom: 10 }
+const paperStyle: React.CSSProperties = { width: 'min(100%, 920px)', margin: '0 auto 32px', padding: '36px 40px 44px', borderRadius: 'var(--radius-xl)', background: 'var(--bg-surface)', color: 'var(--text-body)', boxShadow: 'var(--shadow-floating)', border: '1px solid var(--separator)' }
+const paperTopStyle: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', gap: 12, fontSize: 12.5, color: 'var(--text-tertiary)', marginBottom: 16 }
+const brandStyle: React.CSSProperties = { textAlign: 'center', marginBottom: 16, color: 'var(--text-muted)', fontSize: 13, fontWeight: 600, letterSpacing: '.02em' }
+const paperH1Style: React.CSSProperties = { color: 'var(--text-heading)', textAlign: 'center', fontSize: 32, fontWeight: 800, marginBottom: 8 }
+const paperH2Style: React.CSSProperties = { color: 'var(--text-muted)', textAlign: 'center', fontSize: 17, fontWeight: 600, marginBottom: 14 }
 const paperParagraphStyle: React.CSSProperties = { color: '#2F3A4C', lineHeight: 1.7, whiteSpace: 'pre-line', marginBottom: 8 }
-const legalDisclaimerStyle: React.CSSProperties = { margin: '12px 0', padding: 12, borderRadius: 12, background: '#FFF7E6', border: '1px solid #F4D28C', color: '#6B4A00', lineHeight: 1.65, fontWeight: 700, fontSize: 13 }
+const legalDisclaimerStyle: React.CSSProperties = { margin: '16px 0', padding: 14, borderRadius: 'var(--radius-md)', background: 'var(--warning-bg)', border: '1px solid color-mix(in srgb, var(--warning) 35%, transparent)', color: 'var(--warning-text)', lineHeight: 1.65, fontWeight: 500, fontSize: 12.5 }
 const inlineHintStyle: React.CSSProperties = { color: '#7EA0C9', fontSize: 12, textAlign: 'center' }
 const paperSectionStyle: React.CSSProperties = { marginTop: 16 }
 const paperSectionTitleStyle: React.CSSProperties = { marginBottom: 8, borderBottom: '2px solid rgba(30,63,111,0.14)', paddingBottom: 5, color: '#1E3F6F' }
