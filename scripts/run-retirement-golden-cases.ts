@@ -17,6 +17,7 @@ import { money } from '../src/lib/retirement/core/money'
 import { indexAmount, loadCpiSeries } from '../src/lib/retirement/core/indexation'
 import { calculateGrantRevaluation } from '../src/lib/retirement/core/grant-revaluation'
 import { calculateRightsFixation } from '../src/lib/retirement/core/rights-fixation'
+import { calculateTaxSpread } from '../src/lib/retirement/core/tax-spread'
 
 let failures = 0
 
@@ -235,6 +236,44 @@ const fixationBase = {
   const fixation = calculateRightsFixation(params, { ...fixationBase, indexedExemptGrants: revaluation.value.totalIndexedExemptGrants, previousCapitalizations: 0 })
   const expectedOffset = revaluation.value.totalIndexedExemptGrants * 1.35
   propertyTest('end-to-end: revaluated grant × 1.35 flows into fixation offset', Math.abs(fixation.value.grantsOffset - expectedOffset) < 0.01, { expectedOffset, actual: fixation.value.grantsOffset })
+}
+
+// --- Phase 2: tax spread (spec §6.6 worked example) ---
+
+{
+  const incomes: Record<number, number> = {}
+  const credits: Record<number, number> = {}
+  for (let year = 2026; year <= 2032; year++) {
+    incomes[year] = 120000
+    credits[year] = 2.25
+  }
+  const result = calculateTaxSpread(params, {
+    taxableGrant: 400000,
+    workYears: 28,
+    retirementDate: new Date(2026, 5, 30),
+    direction: 'forward',
+    annualIncomeByYear: incomes,
+    creditPointsByYear: credits,
+    age: 67,
+    discountRate: 0.03,
+    taxYear: 2026,
+  })
+
+  propertyTest('spread: 28 work years -> max 6 spread years (spec §6.6)', result.value.maxSpreadYears === 6, { max: result.value.maxSpreadYears })
+
+  const spread6 = result.value.scenarios.find(scenario => scenario.spreadYears === 6)
+  // §6.6: 120,000+66,667=186,667/year lands in the 20% bracket; 520,000 in one year reaches the 35% bracket.
+  propertyTest('spread: 6-year scenario marginal rate is 20% (spec §6.6)', spread6?.yearlyBreakdown.every(row => row.marginalRate === 0.20) === true, spread6?.yearlyBreakdown.map(row => row.marginalRate))
+  propertyTest('spread: spreading 400k over 6 years saves tax vs one year', (spread6?.savings ?? 0) > 0, { savings: spread6?.savings })
+
+  // Time value: forward spread defers tax, so NPV of savings >= nominal savings.
+  propertyTest('spread: forward NPV of savings >= nominal savings (deferral has value)', result.value.scenarios.every(scenario => scenario.npvOfSavings >= scenario.savings), result.value.scenarios.map(scenario => ({ n: scenario.spreadYears, savings: scenario.savings, npv: scenario.npvOfSavings })))
+
+  // PROJECTED_PARAMS must fire — only 2026 params exist, spread reaches 2027+.
+  propertyTest('spread: PROJECTED_PARAMS raised for future years', result.warnings.some(warning => warning.code === 'PROJECTED_PARAMS'), result.warnings.map(warning => warning.code))
+
+  // Recommended scenario should be the longest spread here (monotone improvement in this flat-income setup).
+  propertyTest('spread: recommends the 6-year scenario in the §6.6 setup', result.value.scenarios[result.value.recommendedScenario]?.spreadYears === 6, { recommended: result.value.scenarios[result.value.recommendedScenario]?.spreadYears })
 }
 
 console.info(`\n${failures === 0 ? 'ALL GREEN' : `${failures} FAILURE(S)`}`)
