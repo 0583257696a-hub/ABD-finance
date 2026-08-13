@@ -21,9 +21,10 @@ export default async function DashboardLayout({
       <main
         style={{
           minHeight: '100vh',
-          marginRight: 104,
-          width: 'calc(100% - 104px)',
+          marginRight: 'var(--sidebar-width, 212px)',
+          width: 'calc(100% - var(--sidebar-width, 212px))',
           padding: 24,
+          transition: 'margin-right var(--duration-base) var(--easing-standard), width var(--duration-base) var(--easing-standard)',
         }}
       >
         <Suspense fallback={null}>

@@ -21,7 +21,7 @@ input:focus-visible,
 select:focus-visible,
 textarea:focus-visible,
 [tabindex]:focus-visible {
-  outline: 3px solid #2563EB;
+  outline: 3px solid var(--abd-accent);
   outline-offset: 3px;
 }
 .skip-link {

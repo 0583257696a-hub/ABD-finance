@@ -97,7 +97,7 @@ function defaultSummary(client: ReturnType<typeof useWorkspaceStore.getState>['c
     facts: [],
     hiddenAutoFacts: [],
     recommendations: [],
-    recommendationsAuto: true,
+    hiddenAutoRecommendations: [],
     manualFollowUps: [],
     hiddenAutoFollowUps: [],
     screenshots: [],
@@ -295,9 +295,9 @@ function mergeFacts(summary: MeetingSummaryData, autoFacts: MeetingFact[]) {
 }
 
 function mergeRecommendations(summary: MeetingSummaryData, auto: MeetingRecommendation[]) {
+  const hidden = new Set(summary.hiddenAutoRecommendations || [])
   const manual = (summary.recommendations || []).filter(item => !item.isAuto)
-  if (summary.recommendationsAuto === false) return summary.recommendations || []
-  return [...auto, ...manual]
+  return [...auto.filter(item => !hidden.has(item.id)), ...manual]
 }
 
 function loadUserSettings() {
@@ -425,20 +425,29 @@ export default function MeetingSummaryPage() {
 
   function addRecommendation() {
     updateSummary({
-      recommendationsAuto: false,
       recommendations: [...(summary.recommendations || []), { id: `rec-${Date.now()}`, text: '', isAuto: false }],
     })
   }
 
   function updateRecommendation(id: string, text: string) {
+    const current = (summary.recommendations || []).find(item => item.id === id)
+    if (current && !current.isAuto) {
+      updateSummary({ recommendations: (summary.recommendations || []).map(item => item.id === id ? { ...item, text } : item) })
+      return
+    }
     updateSummary({
-      recommendationsAuto: false,
-      recommendations: (summary.recommendations || []).map(item => item.id === id ? { ...item, text, isAuto: false } : item),
+      hiddenAutoRecommendations: Array.from(new Set([...(summary.hiddenAutoRecommendations || []), id])),
+      recommendations: [...(summary.recommendations || []).filter(item => item.id !== id), { id: `rec-edit-${Date.now()}`, text, isAuto: false }],
     })
   }
 
   function removeRecommendation(id: string) {
-    updateSummary({ recommendations: (summary.recommendations || []).filter(item => item.id !== id) })
+    const item = (summary.recommendations || []).find(entry => entry.id === id)
+    if (item?.isAuto) {
+      updateSummary({ hiddenAutoRecommendations: Array.from(new Set([...(summary.hiddenAutoRecommendations || []), id])) })
+    } else {
+      updateSummary({ recommendations: (summary.recommendations || []).filter(entry => entry.id !== id) })
+    }
   }
 
   function addFollowUp() {

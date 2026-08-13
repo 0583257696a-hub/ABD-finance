@@ -42,7 +42,7 @@ export type MeetingSummaryData = {
   facts?: MeetingFact[]
   hiddenAutoFacts?: string[]
   recommendations?: MeetingRecommendation[]
-  recommendationsAuto?: boolean
+  hiddenAutoRecommendations?: string[]
   manualFollowUps?: MeetingFollowUp[]
   hiddenAutoFollowUps?: string[]
   screenshots?: MeetingScreenshot[]

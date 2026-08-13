@@ -1,19 +1,23 @@
 @import url('https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800&display=swap');
 
 :root {
-  --abd-primary:       #1B3A6B;
-  --abd-accent:        #2563EB;
-  --abd-accent-light:  #EFF6FF;
-  --abd-accent-mid:    #BFDBFE;
-  --bg-shell:          #EEF2F7;
+  /* --- Legacy/brand tokens: also set at runtime by applyBrandingSettings()
+     (src/lib/branding.ts) via inline style on :root, which always wins over
+     any stylesheet rule incl. @media — these do NOT get a dark-mode variant
+     here, that requires branding.ts itself to pick dark defaults (follow-up). */
+  --abd-primary:       #1F2937;
+  --abd-accent:        #64748B;
+  --abd-accent-light:  #F1F2F4;
+  --abd-accent-mid:    #D6D9DE;
+  --bg-shell:          #F3F4F6;
   --bg-card:           #FFFFFF;
-  --bg-sidebar:        #0F1929;
-  --bg-sidebar-hover:  #1A2942;
-  --bg-sidebar-active: #1E3A5F;
-  --text-heading:      #0F1929;
-  --text-body:         #334155;
-  --text-muted:        #64748B;
-  --text-sidebar:      #CBD5E1;
+  --bg-sidebar:        #FAFAFA;
+  --bg-sidebar-hover:  #EEEFF1;
+  --bg-sidebar-active: #E9EAED;
+  --text-heading:      #111827;
+  --text-body:         #374151;
+  --text-muted:        #6B7280;
+  --text-sidebar:      #6B7280;
   --status-active:     #10B981;
   --status-active-bg:  #ECFDF5;
   --status-active-text:#065F46;
@@ -28,4 +32,71 @@
   --radius-card:       16px;
   --radius-btn:        10px;
   --font-main:         'Heebo', 'Arial Hebrew', sans-serif;
+
+  /* --- New semantic layer for the redesign. Not touched by branding.ts,
+     so these DO get real light/dark variants below. --- */
+  --bg-canvas:          var(--bg-shell);
+  --bg-surface:         var(--bg-card);
+  --bg-surface-elevated:#FFFFFF;
+  --bg-surface-sunken:  #F8FAFC;
+  --text-tertiary:      #94A3B8;
+  --separator:          rgba(15, 25, 41, 0.08);
+  --separator-strong:   #E5E5EA;
+  --success:            var(--status-active);
+  --success-bg:         var(--status-active-bg);
+  --success-text:       var(--status-active-text);
+  --warning:            var(--status-warning);
+  --warning-bg:         var(--status-warning-bg);
+  --warning-text:       var(--status-warning-text);
+  --destructive:        var(--status-danger);
+  --destructive-bg:     var(--status-danger-bg);
+  --destructive-text:   var(--status-danger-text);
+
+  /* Liquid Glass — used only on sidebar/toolbar/popover/sheet, never on cards */
+  --glass-bg:           rgba(255, 255, 255, 0.72);
+  --glass-border:       rgba(255, 255, 255, 0.4);
+  --glass-blur:         20px;
+  --glass-bg-dark:      rgba(15, 25, 41, 0.72);
+  --glass-border-dark:  rgba(255, 255, 255, 0.08);
+
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-xl: 28px;
+
+  --shadow-1:        0 1px 3px rgba(15,25,41,0.06);
+  --shadow-2:        0 4px 16px rgba(15,25,41,0.08);
+  --shadow-3:        0 12px 32px rgba(15,25,41,0.12);
+  --shadow-floating: 0 20px 50px rgba(15,25,41,0.16);
+
+  --duration-fast: 150ms;
+  --duration-base: 240ms;
+  --duration-slow: 400ms;
+  --easing-standard: cubic-bezier(.2,.8,.2,1);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg-canvas:           #0B0B0C;
+    --bg-surface:          #1C1C1E;
+    --bg-surface-elevated: #2C2C2E;
+    --bg-surface-sunken:   #131314;
+    --text-tertiary:       #8E8E93;
+    --separator:           rgba(255,255,255,0.08);
+    --separator-strong:    #3A3A3C;
+    --glass-bg:            var(--glass-bg-dark);
+    --glass-border:        var(--glass-border-dark);
+  }
+}
+
+:root[data-theme="dark"] {
+  --bg-canvas:           #0B0F17;
+  --bg-surface:          #151B27;
+  --bg-surface-elevated: #1C2432;
+  --bg-surface-sunken:   #10151F;
+  --text-tertiary:       #64748B;
+  --separator:           rgba(255,255,255,0.08);
+  --separator-strong:    #2A3547;
+  --glass-bg:            var(--glass-bg-dark);
+  --glass-border:        var(--glass-border-dark);
 }
