@@ -1303,8 +1303,7 @@ function NeedsModal({ funds, onClose }: { funds: FundRecord[]; onClose: () => vo
   const totalAssets = toNumber(needs.assetBank) + toNumber(needs.assetPortfolio) + toNumber(needs.assetPolicies) + toNumber(needs.assetProvident) + toNumber(needs.assetStudyFunds) + toNumber(needs.assetInheritance) + toNumber(needs.assetRealEstate) + toNumber(needs.assetOther)
 
   return (
-    <div style={modalOverlayStyle} onClick={onClose}>
-      <section style={{ ...modalStyle, width: 'min(1180px, 96vw)' }} onClick={event => event.stopPropagation()}>
+    <Sheet open onClose={onClose} placement="center" width="min(1180px, 96vw)" title={step === 'personal' ? 'פרטים אישיים' : 'בירור צרכים'}>
         <style>{`
           .personal-fold-card {
             transform-origin: top center;
@@ -1331,12 +1330,8 @@ function NeedsModal({ funds, onClose }: { funds: FundRecord[]; onClose: () => vo
             to { opacity: 1; transform: translateY(0); }
           }
         `}</style>
-        <button type="button" aria-label="סגירה" onClick={onClose} style={modalCloseStyle}>×</button>
         {step === 'personal' ? (
           <div className={`personal-fold-card${folding ? ' is-folding' : ''}`}>
-            <header style={screenHeaderStyle}>
-              <h2 style={modalTitleStyle}>פרטים אישיים</h2>
-            </header>
 
             <div style={personalLayoutStyle}>
               <section style={personalCardStyle}>
@@ -1373,10 +1368,6 @@ function NeedsModal({ funds, onClose }: { funds: FundRecord[]; onClose: () => vo
           </div>
         ) : (
           <div className="needs-reveal">
-            <header style={screenHeaderStyle}>
-              <h2 style={modalTitleStyle}>בירור צרכים</h2>
-            </header>
-
             <button type="button" onClick={() => setStep('personal')} style={{ ...ghostButtonStyle, marginBottom: 14 }}>
               חזרה לפרטים אישיים
             </button>
@@ -1432,8 +1423,7 @@ function NeedsModal({ funds, onClose }: { funds: FundRecord[]; onClose: () => vo
             </div>
           </div>
         )}
-      </section>
-    </div>
+    </Sheet>
   )
 }
 
@@ -1701,10 +1691,6 @@ const checkboxStyle: React.CSSProperties = { width: 16, height: 16, accentColor:
 const pillStyle: React.CSSProperties = { display: 'inline-flex', justifyContent: 'center', minWidth: 86, border: '1px solid #B9DDF7', borderRadius: 999, padding: '6px 12px', color: 'var(--abd-primary)', fontWeight: 900, background: '#F8FBFF' }
 const targetButtonStyle = (value?: string): React.CSSProperties => ({ ...pillStyle, cursor: 'pointer', background: value === 'משוך קצבה' ? '#E5F8EE' : '#F8FBFF', borderColor: value === 'משוך קצבה' ? '#93E0B3' : '#B9DDF7', color: value === 'משוך קצבה' ? '#047857' : 'var(--abd-primary)' })
 const statusStyle: React.CSSProperties = { display: 'inline-flex', alignItems: 'center', borderRadius: 999, padding: '5px 11px', fontSize: 13, fontWeight: 900 }
-const modalOverlayStyle: React.CSSProperties = { position: 'fixed', inset: 0, zIndex: 100, display: 'grid', placeItems: 'start center', overflowY: 'auto', background: 'rgba(15, 23, 42, 0.45)', padding: '48px 24px 24px' }
-const modalStyle: React.CSSProperties = { position: 'relative', width: 'min(860px, 96vw)', maxHeight: 'calc(100dvh - 48px)', overflow: 'auto', background: '#fff', borderRadius: 28, padding: 24, boxShadow: '0 32px 80px rgba(15,25,41,0.28)' }
-const modalCloseStyle: React.CSSProperties = { position: 'absolute', top: 16, left: 16, width: 38, height: 38, borderRadius: 14, border: '1px solid #CFE6FA', background: '#fff', color: 'var(--abd-primary)', fontSize: 24, cursor: 'pointer' }
-const modalTitleStyle: React.CSSProperties = { color: 'var(--abd-primary)', fontSize: 26, fontWeight: 900 }
 const modalGridStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', borderRadius: 18, overflow: 'hidden', background: '#F8FBFF', boxShadow: 'var(--shadow-card)' }
 const modalCellStyle: React.CSSProperties = { minHeight: 82, display: 'grid', gap: 6, alignContent: 'center', justifyItems: 'center', padding: 12, borderLeft: '1px solid #EDF4FC', borderBottom: '1px solid #EDF4FC', textAlign: 'center', color: 'var(--abd-primary)' }
 const trackBoxStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: '150px 1fr auto', gap: 14, alignItems: 'center', borderRadius: 16, padding: 16, marginTop: 16, color: 'var(--abd-primary)', background: '#F8FBFF', boxShadow: 'var(--shadow-card)' }
@@ -1758,7 +1744,6 @@ const returnsGridStyle: React.CSSProperties = { display: 'grid', gridTemplateCol
 const savedRecommendationStyle: React.CSSProperties = { display: 'grid', gap: 5, border: '1px solid #D7EAFB', borderRadius: 12, padding: 12, background: '#fff', color: 'var(--abd-primary)' }
 const savedRecommendationHeaderStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }
 const copyNumberStyle: React.CSSProperties = { border: 0, background: 'transparent', color: 'var(--abd-primary)', fontWeight: 900, cursor: 'pointer', fontFamily: 'var(--font-main)', padding: 0 }
-const screenHeaderStyle: React.CSSProperties = { borderBottom: '1px solid #D7EAFB', marginBottom: 18, paddingBottom: 14 }
 const needsSummaryStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 14, marginBottom: 18 }
 const cashflowBarStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: '1fr minmax(260px, 360px) 1.2fr', gap: 14, alignItems: 'center', marginBottom: 18, padding: 18, border: '1px solid #CFE6FA', borderRadius: 22, background: 'linear-gradient(135deg, #FFFFFF 0%, #F4FAFF 58%, #EAF4FF 100%)', color: 'var(--abd-primary)', boxShadow: '0 14px 36px rgba(27,58,107,.08)' }
 const needsLayoutStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(3, minmax(260px, 1fr))', gap: 18, alignItems: 'start' }
