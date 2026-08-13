@@ -1,0 +1,10 @@
+{
+  "source": "CBS (הלשכה המרכזית לסטטיסטיקה) public API, series 120010 — מדד המחירים לצרכן, כללי",
+  "sourceUrl": "https://api.cbs.gov.il/index/data/price?id=120010&format=json",
+  "method": "Chain-linked via month-over-month percent change across CBS base-rebases; latest base segment (anchorBase) values used verbatim, taken directly from CBS.",
+  "anchorBase": "2024 ממוצע",
+  "monthCount": 898,
+  "firstMonth": "1951-09",
+  "lastMonth": "2026-06",
+  "lastFetched": "2026-08-13T15:55:48.871Z"
+}

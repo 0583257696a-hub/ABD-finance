@@ -1,13 +1,38 @@
 import { divide, money, multiply, type Money } from './money'
+import cpiMonthly from '../params/cpi-monthly.json'
+import cpiMeta from '../params/cpi-monthly.meta.json'
 
 /**
  * Monthly CPI series, key "YYYY-MM" -> index value.
- * See RETIREMENT_CALCULATORS_SPEC.md §1.4 cpi.json — needs a full monthly
- * series from ~1975 (old grants can be that far back). NOT populated yet:
- * this is Phase 2 work (grant-revaluation.ts depends on it), tracked
- * separately — do not fabricate historical CPI values here.
+ * See RETIREMENT_CALCULATORS_SPEC.md §1.4 cpi.json. Populated from the real
+ * CBS (הלמ"ס) series 120010 via `scripts/update-cpi-series.ts`, chain-linked
+ * across CBS's ~22 base-rebases since 1951 — see that script's header
+ * comment for the method. Re-run it monthly to extend the series (CBS
+ * publishes on the 15th of each month); do not hand-edit cpi-monthly.json.
  */
 export type CpiSeries = Record<string, number>
+
+export type CpiLoadResult = {
+  series: CpiSeries
+  warnings: string[]
+}
+
+const CPI_STALE_MONTHS = 2
+
+/**
+ * Loads the CPI series and flags CPI_STALE if it hasn't been refreshed
+ * since shortly after the last month it should plausibly cover (CBS
+ * publishes monthly) — mirrors params/loader.ts's PARAMS_STALE pattern.
+ */
+export function loadCpiSeries(now: Date = new Date()): CpiLoadResult {
+  const warnings: string[] = []
+  const lastFetched = new Date(cpiMeta.lastFetched)
+  const monthsSinceFetch = (now.getFullYear() - lastFetched.getFullYear()) * 12 + (now.getMonth() - lastFetched.getMonth())
+  if (monthsSinceFetch > CPI_STALE_MONTHS) {
+    warnings.push(`CPI_STALE: series last fetched ${cpiMeta.lastFetched} (source: ${cpiMeta.sourceUrl}), covers through ${cpiMeta.lastMonth}. Re-run scripts/update-cpi-series.ts.`)
+  }
+  return { series: cpiMonthly as CpiSeries, warnings }
+}
 
 export type IndexationResult = {
   indexedAmount: Money

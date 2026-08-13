@@ -14,6 +14,7 @@ import goldenCases from '../src/lib/retirement/validation/golden-cases/basic-tax
 import { loadRetirementParams } from '../src/lib/retirement/params/loader'
 import { calculateCombinedIncomeTax, calculateIncomeTax, type IncomeTaxInput } from '../src/lib/retirement/core/tax-brackets'
 import { money } from '../src/lib/retirement/core/money'
+import { indexAmount, loadCpiSeries } from '../src/lib/retirement/core/indexation'
 
 let failures = 0
 
@@ -111,6 +112,30 @@ function propertyTest(label: string, ok: boolean, detail?: unknown) {
     && Math.abs(result.value.marginalRate - expected.marginalRate) < 0.0001
   if (ok) pass('COMBINED-001 — stacking rule, annualized spec §2.2 worked example')
   else fail('COMBINED-001 — stacking rule', { expected, actual: result.value })
+}
+
+// --- CPI series (Phase 2 blocker, populated 2026-08-13 via CBS API) ---
+
+{
+  const { series: cpiSeries, warnings: cpiWarnings } = loadCpiSeries()
+  if (cpiWarnings.length) console.warn('CPI warnings:', cpiWarnings)
+
+  propertyTest('CPI series covers 1975+ (spec §1.4 minimum)', Object.keys(cpiSeries).some(key => key <= '1975-01'), { earliestPresent: Object.keys(cpiSeries).sort()[0] })
+  propertyTest('CPI series reaches recent months', Object.keys(cpiSeries).sort().slice(-1)[0] >= '2026-01', { latest: Object.keys(cpiSeries).sort().slice(-1)[0] })
+
+  // Real-world sanity check, not a fabricated golden case: Israeli CPI rose
+  // roughly 10-13% cumulatively from Jan-2020 to Jan-2024 (published,
+  // widely-reported figure for that period) — a wildly different result
+  // here would mean the chain-linking logic in update-cpi-series.ts is broken.
+  const result = indexAmount({
+    amount: money(100),
+    fromDate: new Date(2020, 0, 1),
+    toDate: new Date(2024, 1, 1), // +1 month so 'known' basis resolves to 2024-01
+    cpiSeries,
+    indexBasis: 'known',
+  })
+  const pctChange = result.factor.minus(1).times(100).toDecimalPlaces(1).toNumber()
+  propertyTest('CPI 2020-01 -> 2024-01 cumulative change is in the real-world 8-15% range', pctChange >= 8 && pctChange <= 15, { pctChange })
 }
 
 console.info(`\n${failures === 0 ? 'ALL GREEN' : `${failures} FAILURE(S)`}`)
