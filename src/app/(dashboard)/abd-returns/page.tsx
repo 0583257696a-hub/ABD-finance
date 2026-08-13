@@ -6,6 +6,8 @@ import {
   normalizeProductType,
   type AbdTrack,
 } from '@/lib/returns-catalog'
+import { Toolbar } from '@/components/ui/Toolbar'
+import { SegmentedControl } from '@/components/ui/SegmentedControl'
 
 type PeriodMode = 'average' | 'accumulated'
 type SortKey = 'month' | 'year' | 'three' | 'five'
@@ -47,10 +49,10 @@ function returnValue(track: AbdTrack, key: SortKey, mode: PeriodMode) {
 }
 
 function returnColor(value: number | null | undefined) {
-  if (value == null) return '#64748B'
-  if (value > 0) return '#00A63E'
-  if (value < 0) return '#DC2626'
-  return '#0F1929'
+  if (value == null) return 'var(--text-muted)'
+  if (value > 0) return 'var(--success)'
+  if (value < 0) return 'var(--destructive)'
+  return 'var(--text-heading)'
 }
 
 function formatReturn(value: number | null | undefined) {
@@ -198,15 +200,19 @@ export default function AbdReturnsPage() {
           .abd-returns-grid { grid-template-columns: 1fr; }
         }
       `}</style>
-      <header style={headerStyle}>
-        <div>
-          <h1 style={titleStyle}>תשואות ABD Finance</h1>
-        </div>
-        <div style={modeToggleStyle}>
-          <button type="button" onClick={() => setMode('average')} style={mode === 'average' ? activeModeStyle : modeButtonStyle}>תשואה ממוצעת</button>
-          <button type="button" onClick={() => setMode('accumulated')} style={mode === 'accumulated' ? activeModeStyle : modeButtonStyle}>תשואה מצטברת</button>
-        </div>
-      </header>
+      <Toolbar
+        title="תשואות ABD Finance"
+        actions={
+          <SegmentedControl
+            options={[
+              { value: 'average', label: 'תשואה ממוצעת' },
+              { value: 'accumulated', label: 'תשואה מצטברת' },
+            ]}
+            value={mode}
+            onChange={setMode}
+          />
+        }
+      />
 
       <section style={productTabsStyle}>
         {productTypes.map(type => (
@@ -256,7 +262,7 @@ export default function AbdReturnsPage() {
                         onMouseDown={event => openPalette(event, track.trackName)}
                         title="Ctrl + Click לצביעת שורה"
                         style={{
-                          background: color ? `${color}22` : index % 2 ? '#EEF7FF' : '#FFFFFF',
+                          background: color ? `${color}22` : index % 2 ? 'var(--bg-surface-sunken)' : 'var(--bg-surface)',
                           cursor: color ? 'pointer' : 'default',
                         }}
                       >
@@ -291,7 +297,7 @@ export default function AbdReturnsPage() {
                   {periodColumns.map(column => <col key={column.key} style={{ width: `${61 / periodColumns.length}%` }} />)}
                 </colgroup>
                 <tbody>
-                  <tr style={{ background: '#FFF4BF' }}>
+                  <tr style={{ background: 'var(--warning-bg)' }}>
                     <td style={averageNameTdStyle}>
                       <span style={nameTextStyle}>תשואה ממוצעת לקבוצה</span>
                     </td>
@@ -342,7 +348,7 @@ function PeriodHeader({ label, active, dir, onClick }: { label: string; active: 
       tabIndex={0}
       onKeyDown={event => (event.key === 'Enter' || event.key === ' ') && (event.preventDefault(), onClick())}
       aria-sort={active ? (dir === 'desc' ? 'descending' : 'ascending') : 'none'}
-      style={{ ...periodThStyle, cursor: 'pointer', color: active ? '#0B5CAD' : 'var(--abd-primary)' }}
+      style={{ ...periodThStyle, cursor: 'pointer', color: active ? 'var(--abd-accent)' : 'var(--text-heading)' }}
     >
       {label}{active ? (dir === 'desc' ? ' ▼' : ' ▲') : ''}
     </th>
@@ -367,28 +373,22 @@ function ReturnTd({ value, highlightStyle }: { value: number | null | undefined;
   )
 }
 
-const headerStyle: React.CSSProperties = { display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 18, marginBottom: 16 }
-const titleStyle: React.CSSProperties = { color: 'var(--abd-primary)', fontSize: 30, fontWeight: 900 }
-const mutedStyle: React.CSSProperties = { color: 'var(--text-muted)', marginTop: 5, lineHeight: 1.6, fontSize: 14 }
-const modeToggleStyle: React.CSSProperties = { display: 'flex', gap: 6, padding: 5, border: '1px solid #CFE6FA', borderRadius: 14, background: '#fff' }
-const modeButtonStyle: React.CSSProperties = { border: 0, borderRadius: 10, background: 'transparent', color: 'var(--abd-primary)', padding: '10px 14px', fontFamily: 'var(--font-main)', fontWeight: 900, cursor: 'pointer' }
-const activeModeStyle: React.CSSProperties = { ...modeButtonStyle, background: 'var(--abd-accent)', color: '#fff' }
-const productTabsStyle: React.CSSProperties = { display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 20, background: '#fff', border: '1px solid #D7EAFB', borderRadius: 14, padding: 10, boxShadow: 'var(--shadow-card)' }
-const productTabStyle: React.CSSProperties = { border: '1px solid #CFE6FA', borderRadius: 999, background: '#F8FBFF', color: 'var(--abd-primary)', padding: '9px 14px', fontFamily: 'var(--font-main)', fontWeight: 900, cursor: 'pointer' }
-const activeProductTabStyle: React.CSSProperties = { ...productTabStyle, background: 'var(--abd-accent)', border: '1px solid var(--abd-accent)', color: '#fff', boxShadow: '0 8px 18px rgba(37,99,235,0.18)' }
-const tableCardStyle: React.CSSProperties = { minWidth: 0, height: 432, display: 'flex', flexDirection: 'column', background: '#fff', border: '0', borderRadius: 0, boxShadow: 'none', overflow: 'hidden' }
+const productTabsStyle: React.CSSProperties = { display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 20, background: 'var(--bg-surface)', border: '1px solid var(--separator)', borderRadius: 'var(--radius-lg)', padding: 10, boxShadow: 'var(--shadow-1)' }
+const productTabStyle: React.CSSProperties = { border: '1px solid var(--separator)', borderRadius: 999, background: 'var(--bg-canvas)', color: 'var(--text-heading)', padding: '9px 14px', fontFamily: 'var(--font-main)', fontWeight: 700, cursor: 'pointer' }
+const activeProductTabStyle: React.CSSProperties = { ...productTabStyle, background: 'var(--abd-accent)', border: '1px solid var(--abd-accent)', color: '#fff' }
+const tableCardStyle: React.CSSProperties = { minWidth: 0, height: 432, display: 'flex', flexDirection: 'column', background: 'var(--bg-surface)', border: '0', borderRadius: 0, boxShadow: 'none', overflow: 'hidden' }
 const tableScrollAreaStyle: React.CSSProperties = { flex: '1 1 auto', minHeight: 0, overflow: 'hidden' }
-const tableTitleStyle: React.CSSProperties = { color: 'var(--abd-primary)', fontSize: 22, fontWeight: 900, textAlign: 'center', marginBottom: 8, lineHeight: 1.1 }
+const tableTitleStyle: React.CSSProperties = { color: 'var(--text-heading)', fontSize: 20, fontWeight: 700, textAlign: 'center', marginBottom: 8, lineHeight: 1.1 }
 const miniTableStyle: React.CSSProperties = { width: '100%', tableLayout: 'fixed', borderCollapse: 'separate', borderSpacing: 0, fontSize: 12.5 }
-const periodThStyle: React.CSSProperties = { padding: '7px 5px', background: '#E3F3FF', color: 'var(--abd-primary)', textAlign: 'center', whiteSpace: 'nowrap', fontWeight: 900, border: 0 }
-const nameTdStyle: React.CSSProperties = { padding: '6px 8px', color: 'var(--abd-primary)', fontWeight: 900, lineHeight: 1.15, height: 30, overflow: 'hidden', verticalAlign: 'middle', borderBottom: '1px solid #E1EEF8' }
+const periodThStyle: React.CSSProperties = { padding: '7px 5px', background: 'var(--bg-surface-sunken)', color: 'var(--text-heading)', textAlign: 'center', whiteSpace: 'nowrap', fontWeight: 700, border: 0 }
+const nameTdStyle: React.CSSProperties = { padding: '6px 8px', color: 'var(--text-heading)', fontWeight: 700, lineHeight: 1.15, height: 30, overflow: 'hidden', verticalAlign: 'middle', borderBottom: '1px solid var(--separator)' }
 const nameTextStyle: React.CSSProperties = { display: '-webkit-box', overflow: 'hidden', textOverflow: 'ellipsis', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }
 const averageNameTdStyle: React.CSSProperties = { ...nameTdStyle }
-const returnTdStyle: React.CSSProperties = { padding: '6px 4px', height: 30, textAlign: 'center', fontWeight: 900, whiteSpace: 'nowrap', borderBottom: '1px solid #E1EEF8', verticalAlign: 'middle' }
+const returnTdStyle: React.CSSProperties = { padding: '6px 4px', height: 30, textAlign: 'center', fontWeight: 700, whiteSpace: 'nowrap', borderBottom: '1px solid var(--separator)', verticalAlign: 'middle' }
 const emptyStyle: React.CSSProperties = { padding: 18, textAlign: 'center', color: 'var(--text-muted)' }
-const emptyPanelStyle: React.CSSProperties = { background: '#fff', border: '1px solid #D7EAFB', borderRadius: 16, padding: 28, textAlign: 'center', color: 'var(--text-muted)' }
-const paletteStyle: React.CSSProperties = { position: 'fixed', zIndex: 1000, width: 132, padding: 10, background: '#FFFFFF', border: '1px solid #D7EAFB', borderRadius: 12, boxShadow: '0 12px 30px rgba(15,25,41,0.16)' }
+const emptyPanelStyle: React.CSSProperties = { background: 'var(--bg-surface)', border: '1px solid var(--separator)', borderRadius: 'var(--radius-lg)', padding: 28, textAlign: 'center', color: 'var(--text-muted)' }
+const paletteStyle: React.CSSProperties = { position: 'fixed', zIndex: 1000, width: 132, padding: 10, background: 'var(--bg-surface)', border: '1px solid var(--separator)', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-floating)' }
 const swatchesStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6, marginBottom: 8 }
 const swatchStyle: React.CSSProperties = { width: 22, height: 22, border: 0, borderRadius: 6, cursor: 'pointer' }
-const clearButtonStyle: React.CSSProperties = { width: '100%', border: '1px solid #CFE6FA', borderRadius: 8, background: '#F8FBFF', color: 'var(--abd-primary)', fontFamily: 'var(--font-main)', fontSize: 12, fontWeight: 900, padding: '5px 6px', cursor: 'pointer' }
+const clearButtonStyle: React.CSSProperties = { width: '100%', border: '1px solid var(--separator)', borderRadius: 'var(--radius-sm)', background: 'var(--bg-canvas)', color: 'var(--text-heading)', fontFamily: 'var(--font-main)', fontSize: 12, fontWeight: 700, padding: '5px 6px', cursor: 'pointer' }
 
