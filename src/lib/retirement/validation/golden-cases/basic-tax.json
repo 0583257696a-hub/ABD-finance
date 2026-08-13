@@ -1,0 +1,20 @@
+[
+  {
+    "id": "TAX-001",
+    "description": "הכנסה מיגיעה אישית 100,000 ₪, גיל 30, 2.25 נק' זיכוי — חישוב ידני ישיר ממדרגות פרק 1.4",
+    "source": "internal — mechanical application of the published 2026 bracket table, NOT yet cross-checked against gov.il/he/service/income-tax-calculator (spec §2.2 requires this before production)",
+    "taxYear": 2026,
+    "input": { "annualIncome": 100000, "incomeType": "personal_exertion", "age": 30, "creditPoints": 2.25, "taxYear": 2026 },
+    "expected": { "grossTax": 10635.2, "netTax": 4101.2, "marginalRate": 0.14 },
+    "tolerance": { "absolute": 0.01 }
+  },
+  {
+    "id": "TAX-002",
+    "description": "הכנסה 0 — זהות: אין הכנסה, אין מס",
+    "source": "internal — degenerate case",
+    "taxYear": 2026,
+    "input": { "annualIncome": 0, "incomeType": "personal_exertion", "age": 30, "creditPoints": 0, "taxYear": 2026 },
+    "expected": { "grossTax": 0, "netTax": 0, "marginalRate": 0.10 },
+    "tolerance": { "absolute": 0.01 }
+  }
+]

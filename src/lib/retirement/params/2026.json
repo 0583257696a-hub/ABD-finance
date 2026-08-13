@@ -1,0 +1,360 @@
+{
+  "meta": { "taxYear": 2026, "version": "2026.1", "lastFullReview": "2026-01-15" },
+  "incomeTax": {
+    "eligiblePensionCeiling": {
+      "value": 9430,
+      "unit": "ILS/month",
+      "label": "תקרת קצבה מזכה",
+      "source": "רשות המסים - מדריך טופס 161ד 2026",
+      "sourceUrl": "https://www.gov.il/he/pages/2026-filling-out-form-161d",
+      "lastVerified": "2026-01-15",
+      "reviewCadence": "annual-january"
+    },
+    "maxExemptionRate": {
+      "value": 0.575,
+      "label": "שיעור פטור מרבי (35% משיכה + 22.5% עולה)",
+      "source": "רשות המסים",
+      "lastVerified": "2026-01-15",
+      "reviewCadence": "annual-january",
+      "caveat": "הרכיב 22.5% ממשיך לעלות עד 2028 — לאמת מדי שנה"
+    },
+    "maxMonthlyExemption": {
+      "value": 5422.25,
+      "unit": "ILS/month",
+      "label": "פטור חודשי מרבי (9,430 × 57.5%)",
+      "source": "נגזר",
+      "lastVerified": "2026-01-15",
+      "reviewCadence": "annual-january",
+      "derived": true
+    },
+    "exemptCapitalCap": {
+      "value": 976005,
+      "unit": "ILS",
+      "label": "תקרת הון פטורה / סל הפטור (9,430 × 180 × 57.5%)",
+      "source": "נגזר",
+      "lastVerified": "2026-01-15",
+      "reviewCadence": "annual-january",
+      "derived": true
+    },
+    "capitalizationMonths": {
+      "value": 180,
+      "label": "מספר חודשי היוון (סעיף 9א)",
+      "source": "סעיף 9א לפקודת מס הכנסה",
+      "lastVerified": "2026-01-15",
+      "reviewCadence": "as-needed"
+    },
+    "offsetCoefficient": {
+      "value": 1.35,
+      "label": "מקדם נוסחת הקיזוז",
+      "source": "נגזר מהנוסחה בחוק",
+      "lastVerified": "2026-01-15",
+      "reviewCadence": "annual-january",
+      "derived": true,
+      "caveat": "משתנה קלות בין שנים — לחשב, לא לקבע. אם ההפרש מהערך המחושב עולה על 0.02, יש להעלות דגל."
+    },
+    "grantLookbackYears": {
+      "value": 32,
+      "unit": "years",
+      "label": "טווח הבחינה לאחור למענקים פטורים",
+      "source": "סעיף 9א לפקודת מס הכנסה",
+      "lastVerified": "2026-01-15",
+      "reviewCadence": "as-needed"
+    },
+    "exemptSeveranceCeilingPerYear": {
+      "value": 13750,
+      "unit": "ILS/work-year",
+      "label": "תקרת פיצויים פטורה לשנת עבודה",
+      "source": "רשות המסים",
+      "lastVerified": "2026-01-15",
+      "reviewCadence": "annual-january",
+      "caveat": "לאמת לפני production"
+    },
+    "spreadMaxYearsForward": {
+      "value": 6,
+      "label": "מקסימום שנות פריסה קדימה",
+      "source": "סעיף 8(ג)(3) לפקודת מס הכנסה",
+      "lastVerified": "2026-01-15",
+      "reviewCadence": "as-needed"
+    },
+    "spreadYearsPerFourWorkYears": {
+      "value": 0.25,
+      "label": "יחס שנות פריסה מותרות לשנות עבודה (1 לכל 4)",
+      "source": "סעיף 8(ג)(3) לפקודת מס הכנסה",
+      "lastVerified": "2026-01-15",
+      "reviewCadence": "as-needed"
+    },
+    "creditPointValue": {
+      "value": 242,
+      "unit": "ILS/month",
+      "label": "שווי נקודת זיכוי (2,904 ₪/שנה)",
+      "source": "רשות המסים",
+      "lastVerified": "2026-01-15",
+      "reviewCadence": "annual-january"
+    },
+    "residentCreditPoints": {
+      "value": 2.25,
+      "unit": "points",
+      "label": "נקודות זיכוי תושב ישראל",
+      "source": "רשות המסים",
+      "lastVerified": "2026-01-15",
+      "reviewCadence": "as-needed"
+    },
+    "femaleAdditionalCreditPoints": {
+      "value": 0.5,
+      "unit": "points",
+      "label": "נקודות זיכוי נוספות לאישה",
+      "source": "רשות המסים",
+      "lastVerified": "2026-01-15",
+      "reviewCadence": "as-needed"
+    },
+    "amendment190MinPension": {
+      "value": 5306,
+      "unit": "ILS/month",
+      "label": "קצבה מזערית מוכחת לתיקון 190",
+      "source": "תיקון 190 לפקודת מס הכנסה",
+      "lastVerified": "2026-01-15",
+      "reviewCadence": "annual-january"
+    },
+    "amendment190TaxRate": {
+      "value": 0.15,
+      "label": "שיעור מס נומינלי, תיקון 190 (משיכה הונית)",
+      "source": "תיקון 190 לפקודת מס הכנסה",
+      "lastVerified": "2026-01-15",
+      "reviewCadence": "as-needed"
+    },
+    "capitalGainsRateReal": {
+      "value": 0.25,
+      "label": "שיעור מס רווח הון ריאלי",
+      "source": "פקודת מס הכנסה",
+      "lastVerified": "2026-01-15",
+      "reviewCadence": "as-needed"
+    },
+    "illegalWithdrawalRate": {
+      "value": 0.35,
+      "label": "שיעור מס על משיכה שלא כדין",
+      "source": "פקודת מס הכנסה",
+      "lastVerified": "2026-01-15",
+      "reviewCadence": "as-needed"
+    },
+    "surtaxThreshold": {
+      "value": 721560,
+      "unit": "ILS/year",
+      "label": "סף הכנסה שנתית למס יסף",
+      "source": "רשות המסים - מדרגות מס 2026",
+      "lastVerified": "2026-01-15",
+      "reviewCadence": "annual-january",
+      "derived": true,
+      "caveat": "נגזר מהמדרגה העליונה בטבלת מדרגות המס — לוודא שהוא זהה בכל עדכון שנתי"
+    },
+    "surtaxRatePersonalExertion": {
+      "value": 0.03,
+      "label": "מס יסף על הכנסה מיגיעה אישית מעל הסף",
+      "source": "רשות המסים",
+      "lastVerified": "2026-01-15",
+      "reviewCadence": "annual-january"
+    },
+    "surtaxRateOther": {
+      "value": 0.05,
+      "label": "מס יסף על הכנסה שלא מיגיעה אישית מעל הסף (3%+2%)",
+      "source": "רשות המסים",
+      "lastVerified": "2026-01-15",
+      "reviewCadence": "annual-january"
+    }
+  },
+  "taxBrackets": {
+    "personalExertion": {
+      "value": [
+        { "upTo": 84120, "rate": 0.10 },
+        { "upTo": 120720, "rate": 0.14 },
+        { "upTo": 228000, "rate": 0.20 },
+        { "upTo": 301200, "rate": 0.31 },
+        { "upTo": 560280, "rate": 0.35 },
+        { "upTo": 721560, "rate": 0.47 },
+        { "upTo": null, "rate": 0.47 }
+      ],
+      "label": "מדרגות מס 2026 — הכנסה מיגיעה אישית (שנתי). מס יסף (surtax) מחושב בנפרד, ר' incomeTax.surtax*",
+      "source": "רשות המסים - לוח עזר לניכויים 2026",
+      "sourceUrl": "https://www.gov.il/he/departments/general/income-tax-monthly-deductions-booklet",
+      "lastVerified": "2026-01-15",
+      "reviewCadence": "annual-january"
+    },
+    "otherIncomeUnder60": {
+      "value": [
+        { "upTo": 301200, "rate": 0.31 },
+        { "upTo": 560280, "rate": 0.35 },
+        { "upTo": 721560, "rate": 0.47 },
+        { "upTo": null, "rate": 0.47 }
+      ],
+      "label": "מדרגות מס 2026 — הכנסה שאינה מיגיעה אישית, מתחת גיל 60 (שנתי). מגיל 60 ומעלה: זהות למדרגות מיגיעה אישית.",
+      "source": "רשות המסים",
+      "lastVerified": "2026-01-15",
+      "reviewCadence": "annual-january"
+    }
+  },
+  "nationalInsurance": {
+    "oldAgeBaseSingle": {
+      "value": 1838,
+      "unit": "ILS/month",
+      "label": "קצבת זקנה בסיסית ליחיד",
+      "source": "ביטוח לאומי",
+      "sourceUrl": "https://www.btl.gov.il/benefits/old_age/Pages/BdikatZacautZikna.aspx",
+      "lastVerified": "2026-01-15",
+      "reviewCadence": "annual-january"
+    },
+    "oldAgeSingleWithSpouse": {
+      "value": 2762,
+      "unit": "ILS/month",
+      "label": "קצבת זקנה בסיסית עם תוספת בת/בן זוג",
+      "source": "ביטוח לאומי",
+      "lastVerified": "2026-01-15",
+      "reviewCadence": "annual-january"
+    },
+    "age80Supplement": {
+      "value": 103,
+      "unit": "ILS/month",
+      "label": "תוספת גיל 80+",
+      "source": "ביטוח לאומי",
+      "lastVerified": "2026-01-15",
+      "reviewCadence": "annual-january"
+    },
+    "childSupplement": {
+      "value": 581,
+      "unit": "ILS/month/child",
+      "label": "תוספת ילד (עד 2 ילדים)",
+      "source": "ביטוח לאומי",
+      "lastVerified": "2026-01-15",
+      "reviewCadence": "annual-january"
+    },
+    "seniorityRatePerYear": {
+      "value": 0.02,
+      "label": "תוספת ותק לשנת ביטוח (מעבר ל-10 הראשונות)",
+      "source": "ביטוח לאומי",
+      "lastVerified": "2026-01-15",
+      "reviewCadence": "as-needed"
+    },
+    "seniorityMaxRate": {
+      "value": 0.50,
+      "label": "תקרת תוספת ותק",
+      "source": "ביטוח לאומי",
+      "lastVerified": "2026-01-15",
+      "reviewCadence": "as-needed"
+    },
+    "deferralRatePerYear": {
+      "value": 0.05,
+      "label": "תוספת דחייה לשנה",
+      "source": "ביטוח לאומי",
+      "lastVerified": "2026-01-15",
+      "reviewCadence": "as-needed"
+    },
+    "deferralMaxRate": {
+      "value": 0.25,
+      "label": "תקרת תוספת דחייה",
+      "source": "ביטוח לאומי",
+      "lastVerified": "2026-01-15",
+      "reviewCadence": "as-needed"
+    },
+    "healthInsuranceDeduction": {
+      "value": 123,
+      "unit": "ILS/month",
+      "label": "ניכוי דמי ביטוח בריאות מקצבת זקנה",
+      "source": "ביטוח לאומי",
+      "lastVerified": "2026-01-15",
+      "reviewCadence": "annual-january"
+    },
+    "unconditionalAge": {
+      "value": 70,
+      "unit": "years",
+      "label": "גיל זכאות ללא מבחן הכנסות",
+      "source": "ביטוח לאומי",
+      "lastVerified": "2026-01-15",
+      "reviewCadence": "as-needed"
+    },
+    "incomeTestSingleFullPension": {
+      "value": 10113,
+      "unit": "ILS/month",
+      "label": "מבחן הכנסות — תקרת קצבה מלאה, יחיד",
+      "source": "ביטוח לאומי",
+      "sourceUrl": "https://www.btl.gov.il/benefits/old_age/Conditions_of_eligibility/Pages/hachnasotMewavoda.aspx",
+      "lastVerified": "2026-01-15",
+      "reviewCadence": "annual-january"
+    },
+    "incomeTestSingleZeroPension": {
+      "value": 14402,
+      "unit": "ILS/month",
+      "label": "מבחן הכנסות — סף איפוס קצבה, יחיד",
+      "source": "ביטוח לאומי",
+      "lastVerified": "2026-01-15",
+      "reviewCadence": "annual-january",
+      "caveat": "תוצאה של הנוסחה בהינתן קצבה סטנדרטית, לא כלל עצמאי — לחשב לפי תקופות הביטוח בפועל, לא לקבע. לאמת."
+    },
+    "incomeTestWithSpouseFullPension": {
+      "value": 13484,
+      "unit": "ILS/month",
+      "label": "מבחן הכנסות — תקרת קצבה מלאה, עם בן/בת זוג",
+      "source": "ביטוח לאומי",
+      "lastVerified": "2026-01-15",
+      "reviewCadence": "annual-january"
+    },
+    "incomeTestWithSpouseZeroPension": {
+      "value": 20082,
+      "unit": "ILS/month",
+      "label": "מבחן הכנסות — סף איפוס קצבה, עם בן/בת זוג",
+      "source": "ביטוח לאומי",
+      "lastVerified": "2026-01-15",
+      "reviewCadence": "annual-january",
+      "caveat": "תוצאה של הנוסחה, לא כלל עצמאי — לאמת."
+    },
+    "incomeTestReductionRate": {
+      "value": 0.60,
+      "label": "שיעור הפחתה מהעודף במבחן ההכנסות",
+      "source": "ביטוח לאומי",
+      "lastVerified": "2026-01-15",
+      "reviewCadence": "as-needed"
+    }
+  },
+  "retirementAgeFemale": {
+    "value": [
+      { "bornBefore": "1959-12", "ageYears": 62, "ageMonths": 0 },
+      { "bornYear": 1960, "ageYears": 62, "ageMonths": 4 },
+      { "bornYear": 1961, "ageYears": 62, "ageMonths": 8 },
+      { "bornYear": 1962, "ageYears": 63, "ageMonths": 0 },
+      { "bornYear": 1963, "ageYears": 63, "ageMonths": 3 },
+      { "bornYear": 1964, "ageYears": 63, "ageMonths": 6 },
+      { "bornYear": 1965, "ageYears": 63, "ageMonths": 9 },
+      { "bornYear": 1966, "ageYears": 64, "ageMonths": 0 },
+      { "bornYear": 1967, "ageYears": 64, "ageMonths": 3 },
+      { "bornYear": 1968, "ageYears": 64, "ageMonths": 6 },
+      { "bornYear": 1969, "ageYears": 64, "ageMonths": 9 },
+      { "bornYear": 1970, "ageYears": 65, "ageMonths": 0 }
+    ],
+    "label": "טבלת גיל פרישה לנשים לפי שנת לידה (1970 ואילך: 65, קבוע נכון להיום)",
+    "source": "חוק גיל פרישה, התשס\"ד-2004",
+    "lastVerified": "2026-01-15",
+    "reviewCadence": "as-needed",
+    "caveat": "כפוף לתיקוני חקיקה עתידיים — לבדוק כל שנה"
+  },
+  "retirementAgeMale": {
+    "value": 67,
+    "unit": "years",
+    "label": "גיל פרישה לגברים (קבוע)",
+    "source": "חוק גיל פרישה, התשס\"ד-2004",
+    "lastVerified": "2026-01-15",
+    "reviewCadence": "as-needed"
+  },
+  "mandatoryRetirementAge": {
+    "value": 67,
+    "unit": "years",
+    "label": "גיל פרישת חובה (שני המינים)",
+    "source": "חוק גיל פרישה, התשס\"ד-2004",
+    "lastVerified": "2026-01-15",
+    "reviewCadence": "as-needed"
+  },
+  "earlyRetirementMinAge": {
+    "value": 60,
+    "unit": "years",
+    "label": "גיל מינימלי לפרישה מוקדמת",
+    "source": "חוק גיל פרישה, התשס\"ד-2004",
+    "lastVerified": "2026-01-15",
+    "reviewCadence": "as-needed"
+  }
+}
