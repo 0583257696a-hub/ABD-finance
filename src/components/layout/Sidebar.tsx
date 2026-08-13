@@ -7,6 +7,7 @@ import {
   BarChart2,
   Calculator,
   CalendarClock,
+  Radar,
   ChevronsLeft,
   ChevronsRight,
   FileText,
@@ -36,6 +37,7 @@ const NAV_GROUPS: Array<{ title: string; items: NavItem[] }> = [
       { tab: 'recommendations', icon: Lightbulb, label: 'המלצות' },
       { tab: 'summary', icon: FileText, label: 'סיכום פגישה' },
       { tab: 'meetings', icon: CalendarClock, label: 'פגישות' },
+      { tab: 'smart-agent', icon: Radar, label: 'Smart Agent' },
     ],
   },
   {

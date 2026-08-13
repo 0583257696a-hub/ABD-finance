@@ -13,6 +13,7 @@
     "check:infrastructure": "tsx scripts/check-infrastructure-classification.ts",
     "check:retirement": "tsx scripts/run-retirement-golden-cases.ts",
     "update:cpi": "tsx scripts/update-cpi-series.ts",
+    "check:smart-agent": "tsx scripts/check-smart-agent-rules.ts",
     "d1:migrate:local": "wrangler d1 migrations apply abd-finance-db --local",
     "d1:migrate:remote": "wrangler d1 migrations apply abd-finance-db --remote",
     "d1:seed:admin": "tsx scripts/seed-d1-admin.ts",

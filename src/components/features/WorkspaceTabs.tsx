@@ -11,6 +11,7 @@ import CalculatorsPage from '@/app/(dashboard)/calculators/page'
 import RecommendationsPage from '@/app/(dashboard)/recommendations/page'
 import MeetingSummaryPage from '@/app/(dashboard)/meeting-summary/page'
 import MeetingsPage from '@/app/(dashboard)/meetings/page'
+import SmartAgentPage from '@/app/(dashboard)/smart-agent/page'
 import SettingsPage from '@/app/(dashboard)/settings/page'
 
 type WorkspaceTab = {
@@ -30,6 +31,7 @@ const TABS: WorkspaceTab[] = [
   { id: 'recommendations', label: 'המלצות ניוד', description: 'מודול המלצות וסנכרון מסלולי השקעה', render: () => <RecommendationsPage /> },
   { id: 'summary', label: 'סיכום פגישה', description: 'מסמך סיכום, המלצות ותהליכים להמשך', render: () => <MeetingSummaryPage /> },
   { id: 'meetings', label: 'פגישות', description: 'זימון פגישות ושליחת שאלוני הכנה ללקוח', render: () => <MeetingsPage /> },
+  { id: 'smart-agent', label: 'Smart Agent', description: 'מנוע זיהוי חריגות בתיק הלקוח — ממצאים, לא המלצות', render: () => <SmartAgentPage /> },
   { id: 'settings', label: 'הגדרות', description: 'הגדרות משתמש, תצוגה, מיתוג ותבניות', render: () => <SettingsPage /> },
 ]
 
