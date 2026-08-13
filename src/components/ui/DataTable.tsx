@@ -45,6 +45,8 @@ export function DataTable<T>({
   initialSort,
   storageKey,
   emptyMessage = 'אין נתונים להצגה',
+  leadingColumnWidth,
+  renderLeadingCell,
 }: {
   columns: DataTableColumn<T>[]
   rows: T[]
@@ -54,6 +56,9 @@ export function DataTable<T>({
   /** When provided, column order + widths persist to localStorage under this key. */
   storageKey?: string
   emptyMessage?: string
+  /** Width of a pinned, non-sortable, non-reorderable leading cell (e.g. a row-selection checkbox). Omit both to skip it. */
+  leadingColumnWidth?: number
+  renderLeadingCell?: (row: T) => ReactNode
 }) {
   const [columnOrder, setColumnOrder] = useState<string[]>(() =>
     storageKey ? loadJson(`${storageKey}_order`, columns.map(c => c.key)) : columns.map(c => c.key),
@@ -132,16 +137,20 @@ export function DataTable<T>({
     window.addEventListener('pointerup', onUp)
   }
 
+  const hasLeadingColumn = renderLeadingCell != null
+
   return (
     <div style={wrapStyle}>
       <table style={tableStyle}>
         <colgroup>
+          {hasLeadingColumn && <col style={{ width: leadingColumnWidth ?? 44 }} />}
           {orderedColumns.map(column => (
             <col key={column.key} style={{ width: columnWidths[column.key] ?? column.width }} />
           ))}
         </colgroup>
         <thead>
           <tr>
+            {hasLeadingColumn && <th style={{ ...thStyle, width: leadingColumnWidth ?? 44 }} />}
             {orderedColumns.map(column => {
               const active = sortKey === column.key
               return (
@@ -185,6 +194,11 @@ export function DataTable<T>({
                 background: index % 2 ? 'var(--bg-surface-sunken)' : 'var(--bg-surface)',
               }}
             >
+              {hasLeadingColumn && (
+                <td style={tdStyle} onClick={event => event.stopPropagation()}>
+                  {renderLeadingCell!(row)}
+                </td>
+              )}
               {orderedColumns.map(column => (
                 <td key={column.key} style={{ ...tdStyle, textAlign: column.numeric ? 'left' : 'right' }}>
                   {column.render ? column.render(row) : String((row as Record<string, unknown>)[column.key] ?? '-')}
@@ -194,7 +208,7 @@ export function DataTable<T>({
           ))}
           {!sortedRows.length && (
             <tr>
-              <td colSpan={orderedColumns.length} style={emptyStyle}>{emptyMessage}</td>
+              <td colSpan={orderedColumns.length + (hasLeadingColumn ? 1 : 0)} style={emptyStyle}>{emptyMessage}</td>
             </tr>
           )}
         </tbody>

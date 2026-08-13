@@ -16,8 +16,8 @@ import {
 } from '@/lib/returns-catalog'
 import { ManufacturerLogo as SharedManufacturerLogo } from '@/components/shared/ManufacturerLogo'
 import { buildInfrastructureRows } from '@/lib/infrastructure'
+import { DataTable, type DataTableColumn } from '@/components/ui/DataTable'
 
-type SortDirection = 'asc' | 'desc'
 type FundActivityView = 'employers' | 'deposits' | 'beneficiaries'
 
 type Recommendation = {
@@ -85,8 +85,7 @@ const CLIENT_KEY = 'abd_next_client'
 const NEEDS_KEY = 'abd_next_needs'
 const RECOMMENDATIONS_KEY = 'abd_next_recommendations'
 const INFRASTRUCTURE_IDS_KEY = 'abd_next_infrastructure_ids'
-const FUNDS_COLUMN_ORDER_KEY = 'abd_next_funds_column_order'
-const FUNDS_COLUMN_WIDTHS_KEY = 'abd_next_funds_column_widths'
+const FUNDS_TABLE_STORAGE_KEY = 'abd_next_funds_table'
 
 const columns: Array<{ key: keyof FundRecord; label: string; numeric?: boolean; width: number; minWidth: number }> = [
   { key: 'genderScore', label: 'יעד / מיועד לקצבה', width: 138, minWidth: 116 },
@@ -333,28 +332,6 @@ function readStoredClient(): ClientRecord | null {
   }
 }
 
-function loadColumnOrder() {
-  try {
-    const parsed = JSON.parse(localStorage.getItem(FUNDS_COLUMN_ORDER_KEY) || '[]')
-    if (!Array.isArray(parsed)) return defaultColumnOrder
-    const allowed = new Set(defaultColumnOrder)
-    const saved = parsed.filter(item => allowed.has(String(item))).map(String)
-    const missing = defaultColumnOrder.filter(key => !saved.includes(key))
-    return [...saved, ...missing]
-  } catch {
-    return defaultColumnOrder
-  }
-}
-
-function loadColumnWidths() {
-  try {
-    const parsed = JSON.parse(localStorage.getItem(FUNDS_COLUMN_WIDTHS_KEY) || '{}')
-    return { ...Object.fromEntries(columns.map(column => [column.key, column.width])), ...(parsed || {}) }
-  } catch {
-    return Object.fromEntries(columns.map(column => [column.key, column.width]))
-  }
-}
-
 function getAllowedDestinationProducts(sourceProductType?: string) {
   return migrationRules[normalizeMigrationProductType(sourceProductType)] || []
 }
@@ -393,11 +370,7 @@ export default function FundsWorkspace() {
   const [recommendations, setRecommendations] = useState<Recommendation[]>([])
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [infrastructureIds, setInfrastructureIds] = useState<string[]>([])
-  const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => Object.fromEntries(columns.map(column => [column.key, column.width])))
-  const [columnOrder, setColumnOrder] = useState<string[]>(defaultColumnOrder)
-  const [draggedColumn, setDraggedColumn] = useState<string | null>(null)
-  const [sortKey, setSortKey] = useState<keyof FundRecord>('currentBalance')
-  const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
+  const [tableResetSignal, setTableResetSignal] = useState(0)
   const [status, setStatus] = useState('מוכן לייבוא קבצים')
   const [selectedFund, setSelectedFund] = useState<FundRecord | null>(null)
   const [needsOpen, setNeedsOpen] = useState(false)
@@ -422,8 +395,6 @@ export default function FundsWorkspace() {
   useEffect(() => {
     setMounted(true)
     hydrateWorkspace()
-    setColumnOrder(loadColumnOrder())
-    setColumnWidths(loadColumnWidths())
   }, [])
 
   useEffect(() => {
@@ -436,26 +407,11 @@ export default function FundsWorkspace() {
     setInfrastructureIds(nextInfrastructureIds)
   }, [hydrated, storeFunds, storeInfrastructureIds, storeRecommendations])
 
-  const sortedFunds = useMemo(() => {
-    return [...funds].sort((a, b) => {
-      const av = sortKey === 'currentBalance' ? Number(a.currentBalance || 0) : String(a[sortKey] || '')
-      const bv = sortKey === 'currentBalance' ? Number(b.currentBalance || 0) : String(b[sortKey] || '')
-      const result = typeof av === 'number' && typeof bv === 'number'
-        ? av - bv
-        : String(av).localeCompare(String(bv), 'he')
-      return sortDirection === 'asc' ? result : -result
-    })
-  }, [funds, sortDirection, sortKey])
-
   const totalBalance = funds.reduce((sum, fund) => sum + Number(fund.currentBalance || 0), 0)
   const activeFunds = funds.filter(fund => isActiveStatus(fund.status)).length
   const selectedForPension = funds.filter(fund => infrastructureIds.includes(fund.id) || fund.genderScore === 'משוך קצבה').length
   const selectedFunds = funds.filter(fund => selectedIds.includes(fund.id))
   const selectedBalance = selectedFunds.reduce((sum, fund) => sum + Number(fund.currentBalance || 0), 0)
-  const orderedColumns = useMemo(() => {
-    const byKey = new Map(columns.map(column => [String(column.key), column]))
-    return columnOrder.map(key => byKey.get(key)).filter(Boolean) as typeof columns
-  }, [columnOrder])
   const consolidationLeadingFund = selectedFunds[0]
   const consolidationSourceProduct = useMemo(
     () => consolidationLeadingFund
@@ -584,88 +540,38 @@ export default function FundsWorkspace() {
     setStatus(`נוצרה פעולת איחוד צבירות עבור ${selected.length} קופות בסך ${money(selectedBalance)}`)
   }
 
-  function startColumnResize(event: React.MouseEvent, column: (typeof columns)[number]) {
-    event.preventDefault()
-    event.stopPropagation()
-    const startX = event.clientX
-    const startWidth = columnWidths[String(column.key)] || column.width
-    const onMove = (moveEvent: MouseEvent) => {
-      const nextWidth = Math.max(column.minWidth, startWidth - (moveEvent.clientX - startX))
-      setColumnWidths(current => {
-        const next = { ...current, [column.key]: nextWidth }
-        localStorage.setItem(FUNDS_COLUMN_WIDTHS_KEY, JSON.stringify(next))
-        return next
-      })
-    }
-    const onUp = () => {
-      window.removeEventListener('mousemove', onMove)
-      window.removeEventListener('mouseup', onUp)
-    }
-    window.addEventListener('mousemove', onMove)
-    window.addEventListener('mouseup', onUp)
+  function resetTableLayout() {
+    localStorage.removeItem(`${FUNDS_TABLE_STORAGE_KEY}_order`)
+    localStorage.removeItem(`${FUNDS_TABLE_STORAGE_KEY}_widths`)
+    setTableResetSignal(current => current + 1)
   }
 
-  function applySort(key: keyof FundRecord) {
-    if (sortKey === key) {
-      setSortDirection(current => current === 'asc' ? 'desc' : 'asc')
-      return
-    }
-    setSortKey(key)
-    setSortDirection(key === 'currentBalance' ? 'desc' : 'asc')
-  }
-
-  function moveColumn(sourceKey: string, targetKey: string) {
-    if (!sourceKey || !targetKey || sourceKey === targetKey) return
-    setColumnOrder(current => {
-      const next = [...current]
-      const from = next.indexOf(sourceKey)
-      const to = next.indexOf(targetKey)
-      if (from < 0 || to < 0) return current
-      next.splice(from, 1)
-      next.splice(to, 0, sourceKey)
-      localStorage.setItem(FUNDS_COLUMN_ORDER_KEY, JSON.stringify(next))
-      return next
-    })
-  }
-
-  function resetColumnLayout() {
-    setColumnOrder(defaultColumnOrder)
-    const widths = Object.fromEntries(columns.map(column => [column.key, column.width]))
-    setColumnWidths(widths)
-    localStorage.setItem(FUNDS_COLUMN_ORDER_KEY, JSON.stringify(defaultColumnOrder))
-    localStorage.setItem(FUNDS_COLUMN_WIDTHS_KEY, JSON.stringify(widths))
-  }
-
-  function renderFundCell(fund: FundRecord, column: (typeof columns)[number]) {
-    const width = columnWidths[String(column.key)] || column.width
-    const baseStyle = { ...tdStyle, width, minWidth: column.minWidth }
+  const dataTableColumns: DataTableColumn<FundRecord>[] = useMemo(() => columns.map(column => {
+    const base = { key: String(column.key), label: column.label, numeric: column.numeric, width: column.width, minWidth: column.minWidth }
     switch (column.key) {
       case 'genderScore':
-        return (
-          <td key={column.key} style={baseStyle}>
+        return {
+          ...base,
+          render: (fund: FundRecord) => (
             <button type="button" onClick={event => { event.stopPropagation(); togglePensionTarget(fund) }} style={targetButtonStyle(infrastructureIds.includes(fund.id) || fund.genderScore === 'משוך קצבה' ? 'משוך קצבה' : '')}>
               {infrastructureIds.includes(fund.id) || fund.genderScore === 'משוך קצבה' ? 'מיועד לקצבה' : 'יעד'}
             </button>
-          </td>
-        )
+          ),
+        }
       case 'manufacturer':
-        return (
-          <td key={column.key} style={{ ...baseStyle, color: 'var(--abd-primary)', fontWeight: 900 }}>
-            <SharedManufacturerLogo name={fund.manufacturer} />
-          </td>
-        )
+        return { ...base, render: (fund: FundRecord) => <SharedManufacturerLogo name={fund.manufacturer} /> }
       case 'status':
-        return <td key={column.key} style={baseStyle}><StatusBadge status={fund.status} /></td>
+        return { ...base, render: (fund: FundRecord) => <StatusBadge status={fund.status} /> }
       case 'currentBalance':
-        return <td key={column.key} style={{ ...baseStyle, fontWeight: 900 }}>{money(fund.currentBalance)}</td>
+        return { ...base, sortValue: (fund: FundRecord) => Number(fund.currentBalance || 0), render: (fund: FundRecord) => <strong>{money(fund.currentBalance)}</strong> }
       case 'standing':
-        return <td key={column.key} style={baseStyle}>{fund.standing || 'שכיר'}</td>
+        return { ...base, render: (fund: FundRecord) => fund.standing || 'שכיר' }
       case 'investmentTrack':
-        return <td key={column.key} style={baseStyle}>{fund.investmentTrack || fund.productName || 'אין נתון'}</td>
+        return { ...base, render: (fund: FundRecord) => fund.investmentTrack || fund.productName || 'אין נתון' }
       default:
-        return <td key={column.key} style={baseStyle}>{String(fund[column.key] || 'אין נתון')}</td>
+        return { ...base, render: (fund: FundRecord) => String(fund[column.key] || 'אין נתון') }
     }
-  }
+  }), [infrastructureIds])
 
   async function handleFiles(files: FileList | null) {
     if (!files?.length) return
@@ -691,7 +597,7 @@ export default function FundsWorkspace() {
     }
   }
 
-  const visibleFunds = mounted ? sortedFunds : []
+  const visibleFunds = mounted ? funds : []
 
   if (mounted && !funds.length) {
     return (
@@ -771,7 +677,7 @@ export default function FundsWorkspace() {
                 איחוד צבירות
               </button>
             )}
-            <button type="button" onClick={resetColumnLayout} style={ghostButtonStyle}>
+            <button type="button" onClick={resetTableLayout} style={ghostButtonStyle}>
               איפוס עמודות
             </button>
           </div>
@@ -819,68 +725,25 @@ export default function FundsWorkspace() {
           </div>
         )}
 
-        <div style={tableScrollStyle}>
-          <table style={tableStyle}>
-            <thead>
-              <tr>
-                <th style={{ ...thStyle, width: 44 }} />
-                {orderedColumns.map(column => (
-                  <th
-                    key={column.key}
-                    draggable
-                    onClick={() => applySort(column.key)}
-                    onDragStart={event => {
-                      setDraggedColumn(String(column.key))
-                      event.dataTransfer.setData('text/plain', String(column.key))
-                      event.dataTransfer.effectAllowed = 'move'
-                    }}
-                    onDragOver={event => {
-                      event.preventDefault()
-                      event.dataTransfer.dropEffect = 'move'
-                    }}
-                    onDrop={event => {
-                      event.preventDefault()
-                      event.stopPropagation()
-                      moveColumn(event.dataTransfer.getData('text/plain') || draggedColumn || '', String(column.key))
-                      setDraggedColumn(null)
-                    }}
-                    onDragEnd={() => setDraggedColumn(null)}
-                    style={{ ...thStyle, width: columnWidths[String(column.key)], minWidth: column.minWidth }}
-                  >
-                    <span style={headerLabelStyle}>
-                      <span style={dragGripStyle}>⋮⋮</span>
-                      <span>{column.label} {sortKey === column.key ? (sortDirection === 'asc' ? '▲' : '▼') : ''}</span>
-                    </span>
-                    <span aria-hidden="true" title="גרור לשינוי רוחב עמודה" onMouseDown={event => startColumnResize(event, column)} style={resizeHandleStyle} />
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {!visibleFunds.length && (
-                <tr>
-                  <td colSpan={columns.length + 1} style={emptyCellStyle}>
-                    אין קופות להצגה.
-                  </td>
-                </tr>
-              )}
-              {visibleFunds.map((fund, index) => (
-                <tr key={fund.id} onClick={() => setSelectedFund(fund)} style={{ background: index % 2 ? '#EEF7FF' : '#FFFFFF', cursor: 'pointer' }}>
-                  <td style={{ ...tdStyle, width: 44 }}>
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.includes(fund.id)}
-                      onClick={event => event.stopPropagation()}
-                      onChange={event => toggleFundSelection(fund.id, event.target.checked)}
-                      style={checkboxStyle}
-                    />
-                  </td>
-                  {orderedColumns.map(column => renderFundCell(fund, column))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <DataTable
+          key={tableResetSignal}
+          columns={dataTableColumns}
+          rows={visibleFunds}
+          rowKey={fund => fund.id}
+          onRowClick={fund => setSelectedFund(fund)}
+          initialSort={{ key: 'currentBalance', direction: 'desc' }}
+          storageKey={FUNDS_TABLE_STORAGE_KEY}
+          emptyMessage="אין קופות להצגה."
+          leadingColumnWidth={44}
+          renderLeadingCell={fund => (
+            <input
+              type="checkbox"
+              checked={selectedIds.includes(fund.id)}
+              onChange={event => toggleFundSelection(fund.id, event.target.checked)}
+              style={checkboxStyle}
+            />
+          )}
+        />
       </section>
 
       {selectedFund && (
@@ -1832,17 +1695,9 @@ const tabStyle: React.CSSProperties = { textDecoration: 'none', color: 'var(--ab
 const activeTabStyle: React.CSSProperties = { ...tabStyle, color: '#fff', background: 'var(--abd-primary)' }
 const tableCardStyle: React.CSSProperties = { background: '#fff', border: '1px solid #D7EAFB', borderRadius: 20, boxShadow: 'var(--shadow-card)', overflow: 'hidden' }
 const toolbarStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 14, borderBottom: '1px solid #E6EEF7' }
-const tableScrollStyle: React.CSSProperties = { overflowX: 'auto', scrollbarGutter: 'stable' }
-const tableStyle: React.CSSProperties = { width: 'max-content', minWidth: '100%', tableLayout: 'fixed', borderCollapse: 'separate', borderSpacing: '0 8px', padding: '10px 0' }
-const thStyle: React.CSSProperties = { position: 'relative', padding: '14px 15px', textAlign: 'right', fontSize: 15, lineHeight: 1.35, fontWeight: 900, cursor: 'pointer', whiteSpace: 'nowrap', color: 'var(--abd-primary)', background: '#E7F4FF', borderBottom: '1px solid #CFE6FA', userSelect: 'none' }
-const headerLabelStyle: React.CSSProperties = { display: 'inline-flex', alignItems: 'center', gap: 7 }
-const dragGripStyle: React.CSSProperties = { color: '#7EA0C9', fontWeight: 900, letterSpacing: -2, cursor: 'grab' }
-const resizeHandleStyle: React.CSSProperties = { position: 'absolute', top: 8, bottom: 8, left: 0, width: 7, borderLeft: '2px solid #B8DDF6', cursor: 'col-resize', opacity: 0.8 }
-const tdStyle: React.CSSProperties = { padding: '13px 15px', color: 'var(--text-body)', fontSize: 16, lineHeight: 1.45, fontWeight: 700, verticalAlign: 'middle', overflow: 'hidden', textOverflow: 'ellipsis' }
 const checkboxStyle: React.CSSProperties = { width: 16, height: 16, accentColor: 'var(--abd-accent)', cursor: 'pointer' }
 const pillStyle: React.CSSProperties = { display: 'inline-flex', justifyContent: 'center', minWidth: 86, border: '1px solid #B9DDF7', borderRadius: 999, padding: '6px 12px', color: 'var(--abd-primary)', fontWeight: 900, background: '#F8FBFF' }
 const targetButtonStyle = (value?: string): React.CSSProperties => ({ ...pillStyle, cursor: 'pointer', background: value === 'משוך קצבה' ? '#E5F8EE' : '#F8FBFF', borderColor: value === 'משוך קצבה' ? '#93E0B3' : '#B9DDF7', color: value === 'משוך קצבה' ? '#047857' : 'var(--abd-primary)' })
-const emptyCellStyle: React.CSSProperties = { padding: 34, textAlign: 'center', color: 'var(--text-muted)' }
 const statusStyle: React.CSSProperties = { display: 'inline-flex', alignItems: 'center', borderRadius: 999, padding: '5px 11px', fontSize: 13, fontWeight: 900 }
 const modalOverlayStyle: React.CSSProperties = { position: 'fixed', inset: 0, zIndex: 100, display: 'grid', placeItems: 'start center', overflowY: 'auto', background: 'rgba(15, 23, 42, 0.45)', padding: '48px 24px 24px' }
 const fundModalOverlayStyle: React.CSSProperties = { position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', background: 'rgba(15, 23, 42, 0.45)', padding: 16, boxSizing: 'border-box' }
