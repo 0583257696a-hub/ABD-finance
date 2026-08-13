@@ -258,7 +258,15 @@ function buildAutoFacts(params: {
 }
 
 function buildAutoRecommendations(funds: Fund[], trackingDeals: Record<string, unknown>[], trackingRisks: Record<string, unknown>[]) {
+  // A fund whose recommendation was created via FundModal's "add recommendation" flow gets
+  // BOTH a trackingDeals entry (below, fromDeals) AND fund.recommendation mirrored onto the
+  // fund itself (FundsWorkspace.tsx addRecommendation/updateRecommendation) — that fund.recommendation
+  // is only the RAW SOURCE for genuinely imported recommendations (clearing-house "המלצה" column,
+  // never turned into a trackingDeals entry). Skip funds already covered by a deal so the same
+  // recommendation doesn't produce two summary lines.
+  const fundIdsWithDeals = new Set(trackingDeals.map(deal => deal.fromFundId).filter(Boolean))
   const fromFunds = funds
+    .filter(fund => !fundIdsWithDeals.has(fund.id))
     .filter(fund => clean(fund.recommendation) || migrationDetails(fund))
     .map(fund => ({
       id: `auto-fund-${fund.id}`,
