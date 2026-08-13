@@ -15,6 +15,8 @@ import { loadRetirementParams } from '../src/lib/retirement/params/loader'
 import { calculateCombinedIncomeTax, calculateIncomeTax, type IncomeTaxInput } from '../src/lib/retirement/core/tax-brackets'
 import { money } from '../src/lib/retirement/core/money'
 import { indexAmount, loadCpiSeries } from '../src/lib/retirement/core/indexation'
+import { calculateGrantRevaluation } from '../src/lib/retirement/core/grant-revaluation'
+import { calculateRightsFixation } from '../src/lib/retirement/core/rights-fixation'
 
 let failures = 0
 
@@ -136,6 +138,103 @@ function propertyTest(label: string, ok: boolean, detail?: unknown) {
   })
   const pctChange = result.factor.minus(1).times(100).toDecimalPlaces(1).toNumber()
   propertyTest('CPI 2020-01 -> 2024-01 cumulative change is in the real-world 8-15% range', pctChange >= 8 && pctChange <= 15, { pctChange })
+}
+
+// --- Phase 2: rights fixation (spec §5.7 cases A/B/C — exact, deterministic from params) ---
+
+const fixationBase = {
+  gender: 'M' as const,
+  birthDate: new Date(1958, 0, 15),        // age 68 at eligibility — past male age 67
+  eligibilityDate: new Date(2026, 5, 1),
+  hasSubmitted161H: false,
+  monthlyEligiblePension: 9430,
+  monthlyRecognizedPension: 0,
+  isDisability75Plus: false,
+  taxYear: 2026,
+}
+
+// Case A — no past withdrawals: full cap remains.
+{
+  const result = calculateRightsFixation(params, { ...fixationBase, indexedExemptGrants: 0, previousCapitalizations: 0 })
+  const okRemaining = result.value.remainingExemptCapital === 976005
+  const okMonthly = result.value.monthlyPensionExemption === 5422.25
+  const okRate = Math.abs(result.value.effectiveExemptionRate - 0.575) < 0.0001
+  if (okRemaining && okMonthly && okRate) pass('FIXATION-A — ללא משיכות עבר (spec §5.7 A)')
+  else fail('FIXATION-A', result.value)
+}
+
+// Case B — 100,000₪ indexed exempt grant: ×1.35 offset.
+{
+  const result = calculateRightsFixation(params, { ...fixationBase, indexedExemptGrants: 100000, previousCapitalizations: 0 })
+  const okOffset = result.value.grantsOffset === 135000
+  const okRemaining = result.value.remainingExemptCapital === 841005
+  const okMonthly = result.value.monthlyPensionExemption === 4672.25
+  const okRate = Math.abs(result.value.effectiveExemptionRate - 0.4955) < 0.0001
+  if (okOffset && okRemaining && okMonthly && okRate) pass('FIXATION-B — מענק משוערך 100,000₪ (spec §5.7 B)')
+  else fail('FIXATION-B', result.value)
+}
+
+// Case C — 200,000₪ capitalization: 1:1 offset, NOT 1.35.
+{
+  const result = calculateRightsFixation(params, { ...fixationBase, indexedExemptGrants: 0, previousCapitalizations: 200000 })
+  const okOffset = result.value.capitalizationsOffset === 200000
+  const okRemaining = result.value.remainingExemptCapital === 776005
+  const okMonthly = Math.abs(result.value.monthlyPensionExemption - 4311.14) < 0.01
+  if (okOffset && okRemaining && okMonthly) pass('FIXATION-C — היוון 200,000₪ בקיזוז 1:1 (spec §5.7 C)')
+  else fail('FIXATION-C', result.value)
+}
+
+// Eligibility gate: woman born 1964 (required age 63y6m) at age 62 — not eligible, zero exemption.
+{
+  const result = calculateRightsFixation(params, {
+    ...fixationBase,
+    gender: 'F',
+    birthDate: new Date(1964, 3, 10),
+    eligibilityDate: new Date(2026, 5, 1), // age 62y2m < 63y6m
+    indexedExemptGrants: 0,
+    previousCapitalizations: 0,
+  })
+  const flagged = result.warnings.some(warning => warning.code === 'EARLY_RETIREMENT_NO_EXEMPTION')
+  propertyTest('fixation gate: early retirement blocks exemption (spec §5.5)', !result.value.eligible && flagged && result.value.monthlyPensionExemption === 0, { eligible: result.value.eligible, flagged, exemption: result.value.monthlyPensionExemption })
+}
+
+// --- Phase 2: grant revaluation (spec §4) with the real CPI series ---
+
+{
+  const { series: cpiSeries } = loadCpiSeries()
+  const result = calculateGrantRevaluation(params, cpiSeries, {
+    retirementDate: new Date(2026, 5, 1),
+    eligibilityDate: new Date(2026, 5, 1),
+    taxYear: 2026,
+    grants: [
+      { id: 'g1', employerName: 'מעסיק א', grantDate: new Date(2010, 2, 15), totalAmount: 120000, exemptAmount: 100000, workYears: 8, source: 'form_161', taxTreatment: 'exempt' },
+      { id: 'g2', employerName: 'מעסיק ישן', grantDate: new Date(1990, 0, 10), totalAmount: 50000, exemptAmount: 50000, workYears: 5, source: 'form_161', taxTreatment: 'exempt' },
+      { id: 'g3', employerName: 'מעסיק ב', grantDate: new Date(2015, 6, 1), totalAmount: 80000, exemptAmount: 80000, workYears: 6, source: 'client_declaration', taxTreatment: 'taxed_capital_gains' },
+    ],
+  })
+
+  const g1 = result.value.grantDetails.find(grant => grant.id === 'g1')
+  // Real-world check: Israeli CPI Mar-2010 -> Jun-2026 cumulative ≈ +27-35%.
+  propertyTest('grant revaluation: 2010->2026 index factor in real-world 1.25-1.4 range', !!g1?.indexFactor && g1.indexFactor > 1.25 && g1.indexFactor < 1.4, { factor: g1?.indexFactor })
+  propertyTest('grant revaluation: total equals the single included grant', !!g1?.indexedAmount && Math.abs(result.value.totalIndexedExemptGrants - g1.indexedAmount) < 0.01, { total: result.value.totalIndexedExemptGrants, g1: g1?.indexedAmount })
+  propertyTest('grant revaluation: 1990 grant excluded (outside 32y lookback)', result.value.excludedGrants.some(grant => grant.id === 'g2' && grant.exclusionReason === 'OUTSIDE_32_YEAR_LOOKBACK'), result.value.excludedGrants)
+  propertyTest('grant revaluation: capital-gains-taxed grant excluded (spec §4.4.2)', result.value.excludedGrants.some(grant => grant.id === 'g3' && grant.exclusionReason === 'NOT_AN_EXEMPT_WITHDRAWAL'), result.value.excludedGrants)
+  propertyTest('grant revaluation: MISSING_161_FORMS raised for declaration-sourced grant', result.warnings.some(warning => warning.code === 'MISSING_161_FORMS'), result.warnings)
+  propertyTest('grant revaluation: GRANTS_OUTSIDE_LOOKBACK raised', result.warnings.some(warning => warning.code === 'GRANTS_OUTSIDE_LOOKBACK'), result.warnings)
+}
+
+// End-to-end: grant revaluation output feeds the fixation offset (spec §4.5 shape).
+{
+  const { series: cpiSeries } = loadCpiSeries()
+  const revaluation = calculateGrantRevaluation(params, cpiSeries, {
+    retirementDate: new Date(2026, 5, 1),
+    eligibilityDate: new Date(2026, 5, 1),
+    taxYear: 2026,
+    grants: [{ id: 'g1', employerName: 'מעסיק', grantDate: new Date(2010, 2, 15), totalAmount: 100000, exemptAmount: 100000, workYears: 8, source: 'form_161', taxTreatment: 'exempt' }],
+  })
+  const fixation = calculateRightsFixation(params, { ...fixationBase, indexedExemptGrants: revaluation.value.totalIndexedExemptGrants, previousCapitalizations: 0 })
+  const expectedOffset = revaluation.value.totalIndexedExemptGrants * 1.35
+  propertyTest('end-to-end: revaluated grant × 1.35 flows into fixation offset', Math.abs(fixation.value.grantsOffset - expectedOffset) < 0.01, { expectedOffset, actual: fixation.value.grantsOffset })
 }
 
 console.info(`\n${failures === 0 ? 'ALL GREEN' : `${failures} FAILURE(S)`}`)
