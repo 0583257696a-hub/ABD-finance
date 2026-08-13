@@ -2,12 +2,20 @@ import { createMimeMessage } from 'mimetext'
 import { getCloudflareEnv } from './system-db'
 import { writeEmailOutbox } from './system-db'
 
+type MailAttachment = {
+  filename: string
+  contentType: string
+  /** Base64-encoded content. */
+  base64: string
+}
+
 type MailInput = {
   to: string
   subject: string
   html: string
   text: string
   replyTo?: string
+  attachments?: MailAttachment[]
 }
 
 function extractAddr(mailbox: string): string {
@@ -59,6 +67,14 @@ export async function sendSystemEmail(input: MailInput) {
     mime.setHeader('Reply-To', replyTo)
     mime.addMessage({ contentType: 'text/plain', data: input.text, charset: 'UTF-8' })
     mime.addMessage({ contentType: 'text/html', data: input.html, charset: 'UTF-8' })
+    for (const attachment of input.attachments || []) {
+      mime.addAttachment({
+        filename: attachment.filename,
+        contentType: attachment.contentType,
+        data: attachment.base64,
+        encoding: 'base64',
+      })
+    }
 
     const message = new EmailMessage(extractAddr(from), to, mime.asRaw())
     await binding.send(message)

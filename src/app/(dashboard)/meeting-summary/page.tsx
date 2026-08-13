@@ -334,6 +334,8 @@ export default function MeetingSummaryPage() {
   const summaryFromStore = useWorkspaceStore(state => state.meetingSummary)
   const setMeetingSummary = useWorkspaceStore(state => state.setMeetingSummary)
   const [summary, setSummary] = useState<MeetingSummaryData>(() => defaultSummary(null))
+  const [aiBusy, setAiBusy] = useState(false)
+  const [aiStatus, setAiStatus] = useState('')
 
   useEffect(() => {
     if (!hydrated) hydrate()
@@ -538,6 +540,67 @@ export default function MeetingSummaryPage() {
     ])
   }
 
+  /**
+   * AI draft: sends STRUCTURED portfolio-shaped data only — product types,
+   * manufacturers, balances, recommendation texts. No client name, no ID
+   * number, no account/policy numbers (privacy by architecture — the model
+   * never receives identifying data). Output is a draft the advisor edits.
+   */
+  async function generateAiDraft() {
+    setAiBusy(true)
+    setAiStatus('')
+    try {
+      const lines: string[] = []
+      lines.push(`סוג ייעוץ: ${adviceType === 'retirement' ? 'תכנון פרישה' : 'תכנון פנסיוני'}`)
+      if (funds.length) {
+        lines.push(`קופות (${funds.length}):`)
+        for (const fund of funds.slice(0, 20)) {
+          lines.push(`- ${fund.productType || 'מוצר'} ב${fund.manufacturer || 'יצרן'}: צבירה ${fund.currentBalance || 0} ₪${fund.investmentTrack ? `, מסלול ${fund.investmentTrack}` : ''}`)
+        }
+      }
+      if (trackingDeals.length) {
+        lines.push(`פעולות/ניודים שסוכמו (${trackingDeals.length}):`)
+        for (const deal of trackingDeals.slice(0, 15) as Array<Record<string, unknown>>) {
+          lines.push(`- ${deal.actionType || 'פעולה'}: ${deal.productType || ''} ${deal.manufacturer ? `ב${deal.manufacturer}` : ''}${deal.reason ? ` — ${deal.reason}` : ''}`)
+        }
+      }
+      if (trackingRisks.length) {
+        lines.push(`פעולות ברובד הביטוח (${trackingRisks.length}):`)
+        for (const risk of trackingRisks.slice(0, 10) as Array<Record<string, unknown>>) {
+          lines.push(`- ${risk.title || risk.actionType || 'טיפול'}${risk.notes ? `: ${risk.notes}` : ''}`)
+        }
+      }
+
+      const response = await fetch('/api/ai/meeting-summary', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ meetingData: lines.join('\n') }),
+      })
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({})) as { error?: string }
+        setAiStatus(data.error === 'no-provider-available'
+          ? 'אין ספק AI זמין בסביבה זו (בפרודקשן: Workers AI פעיל אוטומטית).'
+          : 'יצירת הטיוטה נכשלה — נסה שוב.')
+        return
+      }
+      const result = await response.json() as { draftSummary?: string; suggestedFollowUps?: string[]; provider?: string }
+      const patch: Partial<MeetingSummaryData> = {}
+      if (result.draftSummary) patch.introText = result.draftSummary
+      if (result.suggestedFollowUps?.length) {
+        patch.manualFollowUps = [
+          ...(summary.manualFollowUps || []),
+          ...result.suggestedFollowUps.map((text, index) => ({ id: `ai-follow-${Date.now()}-${index}`, text, isAuto: false })),
+        ]
+      }
+      updateSummary(patch)
+      setAiStatus(`טיוטת AI נוצרה (${result.provider}) — עברו על הנוסח וערכו לפי הצורך.`)
+    } catch {
+      setAiStatus('יצירת הטיוטה נכשלה — בדוק חיבור ונסה שוב.')
+    } finally {
+      setAiBusy(false)
+    }
+  }
+
   async function copySummary() {
     const html = document.querySelector('.summary-paper')?.outerHTML || ''
     await navigator.clipboard.writeText(html || buildPlainTextSummary())
@@ -576,9 +639,11 @@ export default function MeetingSummaryPage() {
               <Button variant="primary" size="sm" onClick={printSummary}>הדפסה / PDF</Button>
               <Button variant="secondary" size="sm" onClick={sendEmail}>שליחה למייל</Button>
               <Button variant="secondary" size="sm" onClick={copySummary}>העתק</Button>
+              <Button variant="secondary" size="sm" disabled={aiBusy} onClick={() => void generateAiDraft()}>{aiBusy ? 'יוצר טיוטה…' : 'טיוטת AI'}</Button>
             </>
           )}
         />
+        {aiStatus && <div style={aiStatusStyle}>{aiStatus}</div>}
       </div>
 
       <section style={layoutStyle}>
@@ -917,6 +982,7 @@ function NeedsLine({ label, value, note, total }: { label: string; value: string
 }
 
 const pageStyle: React.CSSProperties = { fontFamily: 'var(--font-main)', color: 'var(--text-body)' }
+const aiStatusStyle: React.CSSProperties = { background: 'var(--bg-surface-sunken)', color: 'var(--text-heading)', border: '1px solid var(--separator)', borderRadius: 'var(--radius-md)', padding: '10px 12px', marginBottom: 14, fontWeight: 600, fontSize: 13.5 }
 const layoutStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: '320px minmax(0, 1fr)', gap: 20, alignItems: 'start' }
 const editorPanelStyle: React.CSSProperties = { position: 'sticky', top: 84, display: 'grid', gap: 10, background: 'var(--bg-surface)', border: '1px solid var(--separator)', borderRadius: 'var(--radius-lg)', padding: 18, boxShadow: 'var(--shadow-1)' }
 const panelTitleStyle: React.CSSProperties = { color: 'var(--text-heading)', fontSize: 15, fontWeight: 700, margin: '6px 0' }

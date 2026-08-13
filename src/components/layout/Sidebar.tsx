@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react'
 import {
   BarChart2,
   Calculator,
+  CalendarClock,
   ChevronsLeft,
   ChevronsRight,
   FileText,
@@ -34,6 +35,7 @@ const NAV_GROUPS: Array<{ title: string; items: NavItem[] }> = [
       { tab: 'insurance', icon: Shield, label: 'ביטוח' },
       { tab: 'recommendations', icon: Lightbulb, label: 'המלצות' },
       { tab: 'summary', icon: FileText, label: 'סיכום פגישה' },
+      { tab: 'meetings', icon: CalendarClock, label: 'פגישות' },
     ],
   },
   {
