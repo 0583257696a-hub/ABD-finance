@@ -10,6 +10,11 @@ import {
   type AbdTrack,
 } from '@/lib/returns-catalog'
 import { useWorkspaceStore } from '@/lib/store/workspaceStore'
+import { Toolbar } from '@/components/ui/Toolbar'
+import { Button } from '@/components/ui/Button'
+import { Surface } from '@/components/ui/Surface'
+import { EmptyState } from '@/components/ui/EmptyState'
+import { Lightbulb } from 'lucide-react'
 
 type Recommendation = {
   id: string
@@ -104,13 +109,13 @@ export default function RecommendationsPage() {
 
   return (
     <main dir="rtl" style={{ fontFamily: 'var(--font-main)' }}>
-      <header style={headerStyle}>
-        <h1 style={titleStyle}>המלצות ניוד</h1>
-        <p style={mutedStyle}>המסלולים מגיעים מנתוני רשות שוק ההון. בחירת יצרן מסננת רק מסלולים של אותו יצרן, כולל כלל → רק מסלולים שמתחילים בכלל.</p>
-      </header>
+      <Toolbar
+        title="המלצות ניוד"
+        subtitle="המסלולים מגיעים מנתוני רשות שוק ההון. בחירת יצרן מסננת רק מסלולים של אותו יצרן, כולל כלל → רק מסלולים שמתחילים בכלל."
+      />
 
       <section style={gridStyle}>
-        <div style={cardStyle}>
+        <Surface style={cardStyle}>
           <h2 style={sectionTitleStyle}>יצירת המלצה</h2>
           <Field label="קופה מעבירה">
             <select value={selectedFundId} onChange={event => setSelectedFundId(event.target.value)} style={inputStyle}>
@@ -147,24 +152,29 @@ export default function RecommendationsPage() {
           <Field label="נימוק ההמלצה">
             <textarea value={reason} onChange={event => setReason(event.target.value)} rows={4} style={{ ...inputStyle, resize: 'vertical' }} />
           </Field>
-          <button type="button" onClick={addRecommendation} disabled={!selectedFund || !selectedTrack} style={primaryButtonStyle}>הוסף המלצת ניוד</button>
-        </div>
+          <Button variant="primary" fullWidth onClick={addRecommendation} disabled={!selectedFund || !selectedTrack} style={{ marginTop: 4 }}>
+            הוסף המלצת ניוד
+          </Button>
+        </Surface>
 
-        <div style={cardStyle}>
+        <Surface style={cardStyle}>
           <h2 style={sectionTitleStyle}>המלצות שנשמרו</h2>
-          <div style={{ display: 'grid', gap: 12, marginTop: 16 }}>
-            {recommendations.map(item => (
-              <article key={item.id} style={recommendationStyle}>
-                <strong>{item.productType} | {item.manufacturer}</strong>
-                <span>{item.track}</span>
-                <small>{item.trackId ? `מספר מסלול ${item.trackId} | ` : ''}{money(item.amount)}</small>
-                <p>{item.reason}</p>
-                <button type="button" onClick={() => persist(recommendations.filter(rec => rec.id !== item.id))} style={linkButtonStyle}>הסר המלצה</button>
-              </article>
-            ))}
-            {!recommendations.length && <p style={mutedStyle}>עדיין לא נשמרו המלצות.</p>}
-          </div>
-        </div>
+          {recommendations.length ? (
+            <div style={{ display: 'grid', gap: 12, marginTop: 16 }}>
+              {recommendations.map(item => (
+                <article key={item.id} style={recommendationStyle}>
+                  <strong>{item.productType} | {item.manufacturer}</strong>
+                  <span>{item.track}</span>
+                  <small>{item.trackId ? `מספר מסלול ${item.trackId} | ` : ''}{money(item.amount)}</small>
+                  <p>{item.reason}</p>
+                  <button type="button" onClick={() => persist(recommendations.filter(rec => rec.id !== item.id))} style={linkButtonStyle}>הסר המלצה</button>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <EmptyState icon={<Lightbulb size={28} />} title="עדיין לא נשמרו המלצות" description="בחר קופה מעבירה ומסלול יעד כדי ליצור המלצת ניוד ראשונה." />
+          )}
+        </Surface>
       </section>
     </main>
   )
@@ -174,15 +184,12 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   return <label style={fieldStyle}><span>{label}</span>{children}</label>
 }
 
-const headerStyle: React.CSSProperties = { marginBottom: 24 }
-const titleStyle: React.CSSProperties = { color: 'var(--abd-primary)', fontSize: 32, fontWeight: 900 }
 const mutedStyle: React.CSSProperties = { color: 'var(--text-muted)', marginTop: 6, lineHeight: 1.7 }
-const gridStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: '430px 1fr', gap: 18, alignItems: 'start' }
-const cardStyle: React.CSSProperties = { background: '#fff', border: '1px solid #D7EAFB', borderRadius: 18, padding: 22, boxShadow: 'var(--shadow-card)' }
-const sectionTitleStyle: React.CSSProperties = { color: 'var(--abd-primary)', fontSize: 22, fontWeight: 900, marginBottom: 16 }
-const fieldStyle: React.CSSProperties = { display: 'grid', gap: 8, marginBottom: 14, color: 'var(--abd-primary)', fontWeight: 800 }
-const inputStyle: React.CSSProperties = { width: '100%', minHeight: 44, border: '1px solid #CFE6FA', borderRadius: 12, padding: '9px 12px', background: '#FBFDFF', color: 'var(--abd-primary)', fontFamily: 'var(--font-main)' }
-const primaryButtonStyle: React.CSSProperties = { width: '100%', border: 0, borderRadius: 12, padding: '12px 18px', background: 'var(--abd-accent)', color: '#fff', fontWeight: 900, fontFamily: 'var(--font-main)', cursor: 'pointer' }
-const recommendationStyle: React.CSSProperties = { display: 'grid', gap: 7, border: '1px solid #D7EAFB', borderRadius: 14, padding: 14, background: '#F8FBFF', color: 'var(--abd-primary)' }
+const gridStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: '430px 1fr', gap: 18, alignItems: 'start', padding: '20px 24px' }
+const cardStyle: React.CSSProperties = { padding: 22 }
+const sectionTitleStyle: React.CSSProperties = { color: 'var(--text-heading)', fontSize: 20, fontWeight: 800, marginBottom: 16 }
+const fieldStyle: React.CSSProperties = { display: 'grid', gap: 8, marginBottom: 14, color: 'var(--text-heading)', fontWeight: 700 }
+const inputStyle: React.CSSProperties = { width: '100%', minHeight: 44, border: '1px solid var(--separator)', borderRadius: 'var(--radius-md)', padding: '9px 12px', background: 'var(--bg-canvas)', color: 'var(--text-heading)', fontFamily: 'var(--font-main)' }
+const recommendationStyle: React.CSSProperties = { display: 'grid', gap: 7, border: '1px solid var(--separator)', borderRadius: 'var(--radius-lg)', padding: 14, background: 'var(--bg-canvas)', color: 'var(--text-heading)' }
 const linkButtonStyle: React.CSSProperties = { justifySelf: 'start', border: 0, background: 'transparent', color: 'var(--status-danger)', fontWeight: 800, cursor: 'pointer', fontFamily: 'var(--font-main)' }
-const trackSummaryStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 14, padding: 12, borderRadius: 12, background: '#EFF6FF', color: 'var(--abd-primary)', fontWeight: 800 }
+const trackSummaryStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 14, padding: 12, borderRadius: 'var(--radius-md)', background: 'var(--bg-canvas)', color: 'var(--text-heading)', fontWeight: 800 }
