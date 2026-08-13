@@ -21,6 +21,8 @@ import {
   type InfrastructureRow,
 } from '@/lib/infrastructure'
 import type { Fund } from '@/types/fund'
+import { Toolbar } from '@/components/ui/Toolbar'
+import { Tabs } from '@/components/ui/Tabs'
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Filler, Tooltip, ChartLegend)
 
@@ -757,23 +759,10 @@ export default function SimulationsPage() {
 
   return (
     <main dir="rtl" style={{ fontFamily: 'var(--font-main)' }}>
-      <header style={headerStyle}>
-        <div>
-          <h1 style={titleStyle}>סימולציות</h1>
-        </div>
-      </header>
+      <Toolbar title="סימולציות" />
 
-      <section style={segmentsStyle} aria-label="בחירת סימולציה">
-        {simViews.map(view => (
-          <button
-            key={view.id}
-            type="button"
-            onClick={() => setView(view.id)}
-            style={activeView === view.id ? activeSegmentStyle : segmentStyle}
-          >
-            <strong>{view.label}</strong>
-          </button>
-        ))}
+      <section style={{ marginBottom: 20 }} aria-label="בחירת סימולציה">
+        <Tabs items={simViews.map(view => ({ value: view.id, label: view.label }))} value={activeView} onChange={setView} />
       </section>
 
       {activeView === 'compound' && (
@@ -844,8 +833,8 @@ function CompoundView({
         ? [{
           label: 'שווי נומינלי',
           data: result.annualRows.map(row => row.netBalance),
-          borderColor: '#2563EB',
-          backgroundColor: 'rgba(37, 99, 235, 0.12)',
+          borderColor: '#475569',
+          backgroundColor: 'rgba(71, 85, 105, 0.12)',
           fill: chartMode === 'nominal',
           tension: 0.35,
         }]
@@ -1117,7 +1106,7 @@ function PhoenixView({ funds }: { funds: Fund[] }) {
       ...tdMonoStyle,
       textAlign: 'center',
       cursor: 'pointer',
-      background: activeRow && activeCol ? '#DCEEFF' : activeCol ? '#F0F8FF' : activeRow ? '#F8FBFF' : undefined,
+      background: activeRow && activeCol ? 'var(--bg-surface-sunken)' : activeCol ? 'var(--bg-canvas)' : activeRow ? 'var(--bg-canvas)' : undefined,
       boxShadow: activeRow && activeCol ? 'inset 0 0 0 2px var(--abd-accent)' : undefined,
       color: activeRow && activeCol ? 'var(--abd-accent)' : 'var(--abd-primary)',
       fontWeight: activeRow || activeCol ? 900 : 800,
@@ -1408,7 +1397,7 @@ function InfrastructureView({
               </thead>
               <tbody>
                 {rows.map((row, index) => (
-                  <tr key={row.id} style={{ background: index % 2 ? '#F3FAFF' : '#FFFFFF' }}>
+                  <tr key={row.id} style={{ background: index % 2 ? 'var(--bg-surface-sunken)' : 'var(--bg-surface)' }}>
                     <td style={{ ...tdCenterStyle, ...cellWidthStyle('index') }}>{row.index}</td>
                     <td style={{ ...tdStrongStyle, ...cellWidthStyle('manufacturer') }}>{row.manufacturer || '-'}</td>
                     <td style={{ ...tdMonoStyle, ...cellWidthStyle('accountNumber') }}>{row.accountNumber || '-'}</td>
@@ -1455,7 +1444,7 @@ function InfrastructureView({
 function Kpi({ title, value, note, danger }: { title: string; value: string; note: string; danger?: boolean }) {
   return (
     <article style={kpiStyle}>
-      <span style={{ color: '#7EA0C9', fontWeight: 900 }}>{title}</span>
+      <span style={{ color: 'var(--text-muted)', fontWeight: 900 }}>{title}</span>
       <strong style={{ color: danger ? 'var(--status-danger)' : 'var(--abd-primary)' }}>{value}</strong>
       <small style={{ color: 'var(--text-muted)' }}>{note}</small>
     </article>
@@ -1502,89 +1491,81 @@ function Field({
       <span style={labelStyle}>{label}</span>
       <div style={error ? invalidInputWrapStyle : inputWrapStyle}>
         <input dir="ltr" value={value} onChange={event => onChange(event.target.value)} inputMode="decimal" style={inputStyle} />
-        <span style={{ color: '#7EA0C9', fontWeight: 800 }}>{suffix}</span>
+        <span style={{ color: 'var(--text-muted)', fontWeight: 800 }}>{suffix}</span>
       </div>
       {error && <span style={fieldErrorStyle}>{error}</span>}
     </label>
   )
 }
 
-const headerStyle: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, marginBottom: 24 }
-const titleStyle: React.CSSProperties = { color: 'var(--abd-primary)', fontSize: 32, fontWeight: 900 }
-const mutedStyle: React.CSSProperties = { color: 'var(--text-muted)', marginTop: 6, lineHeight: 1.7 }
-const mutedSmallStyle: React.CSSProperties = { color: 'var(--text-muted)', fontSize: 13, marginTop: 4, lineHeight: 1.6 }
-const primaryButtonStyle: React.CSSProperties = { textDecoration: 'none', borderRadius: 12, padding: '11px 18px', background: 'var(--abd-accent)', color: '#fff', border: '1px solid var(--abd-accent)', fontWeight: 900 }
-const segmentsStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(5, minmax(0, 1fr))', gap: 10, background: '#fff', border: '1px solid #D7EAFB', borderRadius: 18, padding: 12, boxShadow: 'var(--shadow-card)', marginBottom: 18 }
-const segmentStyle: React.CSSProperties = { display: 'grid', gap: 4, textAlign: 'right', border: '1px solid #CFE6FA', background: '#F8FBFF', color: 'var(--abd-primary)', borderRadius: 14, padding: '12px 14px', cursor: 'pointer', fontFamily: 'var(--font-main)' }
-const activeSegmentStyle: React.CSSProperties = { ...segmentStyle, background: 'var(--abd-accent)', color: '#fff', borderColor: 'var(--abd-accent)', boxShadow: '0 10px 24px rgba(37, 99, 235, 0.22)' }
-const embeddedPanelStyle: React.CSSProperties = { background: '#fff', border: '1px solid #D7EAFB', borderRadius: 18, padding: 8, boxShadow: 'var(--shadow-card)' }
+const embeddedPanelStyle: React.CSSProperties = { background: 'var(--bg-surface)', border: '1px solid var(--separator)', borderRadius: 18, padding: 8, boxShadow: 'var(--shadow-card)' }
 const simLayoutStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: '0.9fr 1.1fr', gap: 18, marginBottom: 18 }
 const phoenixCalculatorLayoutStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'minmax(360px, 0.95fr) minmax(420px, 1.05fr)', gap: 18, marginBottom: 18, alignItems: 'start' }
 const compoundGridStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 14, marginTop: 18 }
-const advancedButtonStyle: React.CSSProperties = { marginTop: 16, border: '1px solid #CFE6FA', background: '#F4FAFF', color: 'var(--abd-primary)', borderRadius: 999, padding: '9px 14px', fontWeight: 900, cursor: 'pointer', fontFamily: 'var(--font-main)' }
-const advancedGridStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 14, marginTop: 14, paddingTop: 14, borderTop: '1px solid #E4F2FF' }
-const scenarioBarStyle: React.CSSProperties = { display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 16, paddingTop: 16, borderTop: '1px solid #E4F2FF' }
-const chipStyle: React.CSSProperties = { border: '1px solid #CFE6FA', background: '#fff', color: 'var(--abd-primary)', borderRadius: 999, padding: '8px 13px', fontFamily: 'var(--font-main)', fontWeight: 900, cursor: 'pointer' }
-const activeChipStyle: React.CSSProperties = { ...chipStyle, background: '#EAF6FF', borderColor: 'var(--abd-accent)', color: 'var(--abd-accent)' }
-const selectStyle: React.CSSProperties = { minHeight: 42, border: '1px solid #CFE6FA', borderRadius: 12, background: '#FBFDFF', color: 'var(--abd-primary)', fontFamily: 'var(--font-main)', fontWeight: 800, padding: '0 12px' }
+const advancedButtonStyle: React.CSSProperties = { marginTop: 16, border: '1px solid var(--separator)', background: 'var(--bg-canvas)', color: 'var(--abd-primary)', borderRadius: 999, padding: '9px 14px', fontWeight: 900, cursor: 'pointer', fontFamily: 'var(--font-main)' }
+const advancedGridStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 14, marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--separator)' }
+const scenarioBarStyle: React.CSSProperties = { display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--separator)' }
+const chipStyle: React.CSSProperties = { border: '1px solid var(--separator)', background: 'var(--bg-surface)', color: 'var(--abd-primary)', borderRadius: 999, padding: '8px 13px', fontFamily: 'var(--font-main)', fontWeight: 900, cursor: 'pointer' }
+const activeChipStyle: React.CSSProperties = { ...chipStyle, background: 'var(--bg-surface-sunken)', borderColor: 'var(--abd-accent)', color: 'var(--abd-accent)' }
+const selectStyle: React.CSSProperties = { minHeight: 42, border: '1px solid var(--separator)', borderRadius: 12, background: 'var(--bg-canvas)', color: 'var(--abd-primary)', fontFamily: 'var(--font-main)', fontWeight: 800, padding: '0 12px' }
 const labelStyle: React.CSSProperties = { color: 'var(--abd-primary)', fontWeight: 800 }
 const dateInputStyle: React.CSSProperties = { ...selectStyle, direction: 'ltr', textAlign: 'right' }
-const warningStyle: React.CSSProperties = { marginTop: 14, border: '1px solid #FECACA', background: '#FEF2F2', color: '#991B1B', borderRadius: 14, padding: 12, fontWeight: 800 }
-const phoenixHeroStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, background: '#fff', border: '1px solid #D7EAFB', borderRadius: 18, padding: 20, boxShadow: 'var(--shadow-card)', marginBottom: 18 }
+const warningStyle: React.CSSProperties = { marginTop: 14, border: '1px solid var(--destructive)', background: 'var(--destructive-bg)', color: 'var(--destructive-text)', borderRadius: 14, padding: 12, fontWeight: 800 }
+const phoenixHeroStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, background: 'var(--bg-surface)', border: '1px solid var(--separator)', borderRadius: 18, padding: 20, boxShadow: 'var(--shadow-card)', marginBottom: 18 }
 const phoenixFundToggleStyle: React.CSSProperties = { display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }
 const phoenixFundsListStyle: React.CSSProperties = { display: 'grid', gap: 10, maxHeight: 520, overflowY: 'auto', paddingInlineEnd: 4 }
-const phoenixFundRowStyle: React.CSSProperties = { border: '1px solid #D7EAFB', borderRadius: 16, background: '#FBFDFF', overflow: 'hidden' }
+const phoenixFundRowStyle: React.CSSProperties = { border: '1px solid var(--separator)', borderRadius: 16, background: 'var(--bg-canvas)', overflow: 'hidden' }
 const phoenixFundLineStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto auto', gap: 10, alignItems: 'center', padding: 12 }
 const checkboxLabelStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, color: 'var(--abd-primary)', fontWeight: 900 }
-const softTextStyle: React.CSSProperties = { display: 'block', color: '#6B86AA', fontSize: 12, fontWeight: 700, lineHeight: 1.5 }
-const miniButtonStyle: React.CSSProperties = { border: '1px solid #CFE6FA', background: '#fff', color: 'var(--abd-primary)', borderRadius: 999, padding: '7px 10px', fontFamily: 'var(--font-main)', fontWeight: 900, cursor: 'pointer', whiteSpace: 'nowrap' }
-const moneyBadgeStyle: React.CSSProperties = { color: 'var(--abd-accent)', background: '#EAF6FF', borderRadius: 999, padding: '7px 10px', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }
+const softTextStyle: React.CSSProperties = { display: 'block', color: 'var(--text-muted)', fontSize: 12, fontWeight: 700, lineHeight: 1.5 }
+const miniButtonStyle: React.CSSProperties = { border: '1px solid var(--separator)', background: 'var(--bg-surface)', color: 'var(--abd-primary)', borderRadius: 999, padding: '7px 10px', fontFamily: 'var(--font-main)', fontWeight: 900, cursor: 'pointer', whiteSpace: 'nowrap' }
+const moneyBadgeStyle: React.CSSProperties = { color: 'var(--abd-accent)', background: 'var(--bg-surface-sunken)', borderRadius: 999, padding: '7px 10px', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }
 const phoenixPartsGridStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8, padding: '0 12px 12px' }
-const partCheckStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'auto minmax(0, 1fr) auto', gap: 8, alignItems: 'center', border: '1px solid #E4F2FF', borderRadius: 12, background: '#fff', padding: 9, color: 'var(--abd-primary)', fontSize: 12, fontWeight: 800 }
-const emptyStateStyle: React.CSSProperties = { border: '1px dashed #BFE2FB', borderRadius: 16, padding: 18, color: '#6B86AA', fontWeight: 800, lineHeight: 1.8 }
+const partCheckStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'auto minmax(0, 1fr) auto', gap: 8, alignItems: 'center', border: '1px solid var(--separator)', borderRadius: 12, background: 'var(--bg-surface)', padding: 9, color: 'var(--abd-primary)', fontSize: 12, fontWeight: 800 }
+const emptyStateStyle: React.CSSProperties = { border: '1px dashed var(--separator)', borderRadius: 16, padding: 18, color: 'var(--text-muted)', fontWeight: 800, lineHeight: 1.8 }
 const chartTabsStyle: React.CSSProperties = { display: 'flex', gap: 8, flexWrap: 'wrap' }
 const simKpisStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12, marginTop: 18 }
 const kpiGridStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 16, marginBottom: 22 }
-const kpiStyle: React.CSSProperties = { display: 'grid', gap: 8, background: '#fff', border: '1px solid #D7EAFB', borderRadius: 18, padding: 18, boxShadow: 'var(--shadow-card)', color: 'var(--abd-primary)', fontWeight: 800 }
+const kpiStyle: React.CSSProperties = { display: 'grid', gap: 8, background: 'var(--bg-surface)', border: '1px solid var(--separator)', borderRadius: 18, padding: 18, boxShadow: 'var(--shadow-card)', color: 'var(--abd-primary)', fontWeight: 800 }
 const layoutStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: '1fr', gap: 18, marginTop: 18 }
-const cardStyle: React.CSSProperties = { background: '#fff', border: '1px solid #D7EAFB', borderRadius: 18, padding: 22, boxShadow: 'var(--shadow-card)', marginBottom: 18 }
+const cardStyle: React.CSSProperties = { background: 'var(--bg-surface)', border: '1px solid var(--separator)', borderRadius: 18, padding: 22, boxShadow: 'var(--shadow-card)', marginBottom: 18 }
 const sectionHeaderStyle: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, marginBottom: 16 }
 const sectionTitleStyle: React.CSSProperties = { color: 'var(--abd-primary)', fontSize: 22, fontWeight: 900 }
-const countBadgeStyle: React.CSSProperties = { color: 'var(--abd-primary)', background: '#EAF6FF', border: '1px solid #CFE6FA', borderRadius: 999, padding: '8px 14px', fontWeight: 900, whiteSpace: 'nowrap' }
+const countBadgeStyle: React.CSSProperties = { color: 'var(--abd-primary)', background: 'var(--bg-surface-sunken)', border: '1px solid var(--separator)', borderRadius: 999, padding: '8px 14px', fontWeight: 900, whiteSpace: 'nowrap' }
 const tableActionsStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end' }
-const smallButtonStyle: React.CSSProperties = { border: '1px solid #CFE6FA', background: '#fff', color: 'var(--abd-primary)', borderRadius: 999, padding: '8px 13px', fontFamily: 'var(--font-main)', fontWeight: 900, cursor: 'pointer' }
+const smallButtonStyle: React.CSSProperties = { border: '1px solid var(--separator)', background: 'var(--bg-surface)', color: 'var(--abd-primary)', borderRadius: 999, padding: '8px 13px', fontFamily: 'var(--font-main)', fontWeight: 900, cursor: 'pointer' }
 const pillStripStyle: React.CSSProperties = { display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }
-const pillStyle: React.CSSProperties = { color: 'var(--abd-primary)', background: '#F4FAFF', border: '1px solid #CFE6FA', borderRadius: 999, padding: '8px 12px', fontWeight: 800, fontSize: 13 }
-const tableWrapStyle: React.CSSProperties = { overflowX: 'auto', border: '1px solid #D7EAFB', borderRadius: 16 }
+const pillStyle: React.CSSProperties = { color: 'var(--abd-primary)', background: 'var(--bg-canvas)', border: '1px solid var(--separator)', borderRadius: 999, padding: '8px 12px', fontWeight: 800, fontSize: 13 }
+const tableWrapStyle: React.CSSProperties = { overflowX: 'auto', border: '1px solid var(--separator)', borderRadius: 16 }
 const tableStyle: React.CSSProperties = { width: 'max-content', minWidth: '100%', borderCollapse: 'collapse', fontSize: 13, color: 'var(--abd-primary)' }
-const thStyle: React.CSSProperties = { position: 'relative', background: '#EAF6FF', color: 'var(--abd-primary)', textAlign: 'right', padding: '12px 14px', fontWeight: 900, whiteSpace: 'nowrap', userSelect: 'none', borderBottom: '1px solid #BFE2FB' }
-const resizeHandleStyle: React.CSSProperties = { position: 'absolute', insetBlock: 8, left: 0, width: 9, cursor: 'col-resize', borderLeft: '2px solid rgba(37,99,235,0.45)', opacity: 0.9 }
-const tdStyle: React.CSSProperties = { padding: '11px 10px', borderBottom: '1px solid #DCEFFC', verticalAlign: 'top', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis' }
+const thStyle: React.CSSProperties = { position: 'relative', background: 'var(--bg-surface-sunken)', color: 'var(--abd-primary)', textAlign: 'right', padding: '12px 14px', fontWeight: 900, whiteSpace: 'nowrap', userSelect: 'none', borderBottom: '1px solid var(--separator)' }
+const resizeHandleStyle: React.CSSProperties = { position: 'absolute', insetBlock: 8, left: 0, width: 9, cursor: 'col-resize', borderLeft: '2px solid rgba(100, 116, 139, 0.45)', opacity: 0.9 }
+const tdStyle: React.CSSProperties = { padding: '11px 10px', borderBottom: '1px solid var(--separator)', verticalAlign: 'top', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis' }
 const tdCenterStyle: React.CSSProperties = { ...tdStyle, textAlign: 'center', fontWeight: 900 }
-const tdStrongStyle: React.CSSProperties = { ...tdStyle, color: '#006633', fontWeight: 900 }
+const tdStrongStyle: React.CSSProperties = { ...tdStyle, color: 'var(--text-heading)', fontWeight: 900 }
 const tdMonoStyle: React.CSSProperties = { ...tdStyle, fontVariantNumeric: 'tabular-nums', direction: 'ltr', textAlign: 'right' }
 const tdMoneyStyle: React.CSSProperties = { ...tdStyle, fontWeight: 900, whiteSpace: 'nowrap' }
-const tdTotalMoneyStyle: React.CSSProperties = { ...tdMoneyStyle, background: '#FFF4C2' }
-const activeThStyle: React.CSSProperties = { ...thStyle, background: '#DFF0FF', color: 'var(--abd-accent)' }
-const activeRowStyle: React.CSSProperties = { background: '#F2F8FF' }
+const tdTotalMoneyStyle: React.CSSProperties = { ...tdMoneyStyle, background: 'var(--warning-bg)' }
+const activeThStyle: React.CSSProperties = { ...thStyle, background: 'var(--bg-surface-sunken)', color: 'var(--abd-accent)' }
+const activeRowStyle: React.CSSProperties = { background: 'var(--bg-surface-sunken)' }
 const clickableTdStyle: React.CSSProperties = { ...tdMoneyStyle, padding: 0 }
-const activeCellStyle: React.CSSProperties = { ...clickableTdStyle, background: '#E8F4FF', boxShadow: 'inset 0 0 0 2px var(--abd-accent)' }
+const activeCellStyle: React.CSSProperties = { ...clickableTdStyle, background: 'var(--bg-surface-sunken)', boxShadow: 'inset 0 0 0 2px var(--abd-accent)' }
 const matrixButtonStyle: React.CSSProperties = { width: '100%', minHeight: 42, border: 0, background: 'transparent', color: 'var(--abd-primary)', fontFamily: 'var(--font-main)', fontWeight: 900, cursor: 'pointer' }
-const positiveMoneyStyle: React.CSSProperties = { ...tdMoneyStyle, color: '#00A63E' }
-const negativeMoneyStyle: React.CSSProperties = { ...tdMoneyStyle, color: '#DC2626' }
-const tfStyle: React.CSSProperties = { background: '#F7E7BD', color: 'var(--abd-primary)', padding: '12px 10px', fontWeight: 900 }
+const positiveMoneyStyle: React.CSSProperties = { ...tdMoneyStyle, color: 'var(--success)' }
+const negativeMoneyStyle: React.CSSProperties = { ...tdMoneyStyle, color: 'var(--destructive)' }
+const tfStyle: React.CSSProperties = { background: 'var(--warning-bg)', color: 'var(--abd-primary)', padding: '12px 10px', fontWeight: 900 }
 const tfMoneyStyle: React.CSSProperties = { ...tfStyle, whiteSpace: 'nowrap' }
-const emptyStyle: React.CSSProperties = { display: 'grid', justifyItems: 'center', gap: 12, padding: 34, color: 'var(--abd-primary)', background: '#F8FBFF', borderRadius: 16, textAlign: 'center' }
-const inputWrapStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: '1fr auto', alignItems: 'center', gap: 10, border: '1px solid #CFE6FA', borderRadius: 12, padding: '0 12px', background: '#FBFDFF' }
-const invalidInputWrapStyle: React.CSSProperties = { ...inputWrapStyle, borderColor: '#FCA5A5', background: '#FFF7F7' }
+const emptyStyle: React.CSSProperties = { display: 'grid', justifyItems: 'center', gap: 12, padding: 34, color: 'var(--abd-primary)', background: 'var(--bg-canvas)', borderRadius: 16, textAlign: 'center' }
+const inputWrapStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: '1fr auto', alignItems: 'center', gap: 10, border: '1px solid var(--separator)', borderRadius: 12, padding: '0 12px', background: 'var(--bg-canvas)' }
+const invalidInputWrapStyle: React.CSSProperties = { ...inputWrapStyle, borderColor: 'var(--destructive)', background: 'var(--destructive-bg)' }
 const inputStyle: React.CSSProperties = { minHeight: 42, border: 0, outline: 0, background: 'transparent', fontFamily: 'var(--font-main)', color: 'var(--abd-primary)', fontWeight: 800 }
-const fieldErrorStyle: React.CSSProperties = { color: '#B91C1C', fontSize: 12, fontWeight: 800, lineHeight: 1.5 }
-const validationBoxStyle: React.CSSProperties = { marginTop: 14, border: '1px solid #FCA5A5', background: '#FEF2F2', color: '#991B1B', borderRadius: 14, padding: 12, display: 'grid', gap: 4, fontWeight: 800, lineHeight: 1.6 }
+const fieldErrorStyle: React.CSSProperties = { color: 'var(--destructive-text)', fontSize: 12, fontWeight: 800, lineHeight: 1.5 }
+const validationBoxStyle: React.CSSProperties = { marginTop: 14, border: '1px solid var(--destructive)', background: 'var(--destructive-bg)', color: 'var(--destructive-text)', borderRadius: 14, padding: 12, display: 'grid', gap: 4, fontWeight: 800, lineHeight: 1.6 }
 const monthlyTableWrapStyle: React.CSSProperties = { ...tableWrapStyle, maxHeight: 420, overflow: 'auto' }
 const monthlyTableStyle: React.CSSProperties = { ...tableStyle, minWidth: 980 }
 const projectionStyle: React.CSSProperties = { display: 'block', color: 'var(--abd-primary)', fontSize: 30, fontWeight: 900, marginTop: 16 }
 const miniMetricsStyle: React.CSSProperties = { display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 16, color: 'var(--abd-primary)' }
 const legendGridStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 12, margin: '16px 0' }
-const legendStyle: React.CSSProperties = { display: 'grid', gap: 8, border: '1px solid #D7EAFB', borderRadius: 14, padding: 14, background: '#F8FBFF', color: 'var(--abd-primary)', lineHeight: 1.5 }
-const phoenixFrameStyle: React.CSSProperties = { width: '100%', height: 720, border: '1px solid #CFE6FA', borderRadius: 16, background: '#fff' }
+const legendStyle: React.CSSProperties = { display: 'grid', gap: 8, border: '1px solid var(--separator)', borderRadius: 14, padding: 14, background: 'var(--bg-canvas)', color: 'var(--abd-primary)', lineHeight: 1.5 }
+const phoenixFrameStyle: React.CSSProperties = { width: '100%', height: 720, border: '1px solid var(--separator)', borderRadius: 16, background: 'var(--bg-surface)' }
 
