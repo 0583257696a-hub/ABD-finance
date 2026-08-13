@@ -4,6 +4,10 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { importWorkspaceFiles, type ClientRecord } from '@/lib/client-importers'
 import { useWorkspaceStore } from '@/lib/store/workspaceStore'
 import { ManufacturerLogo } from '@/components/shared/ManufacturerLogo'
+import { Toolbar } from '@/components/ui/Toolbar'
+import { Button } from '@/components/ui/Button'
+import { DataTable, type DataTableColumn } from '@/components/ui/DataTable'
+import { Sheet } from '@/components/ui/Sheet'
 import type { Fund } from '@/types/fund'
 import type { InsurancePolicy } from '@/types/insurance'
 import type { TrackingRisk } from '@/types/recommendations'
@@ -203,6 +207,17 @@ export default function InsurancePage() {
     setSelectedInsurancePolicyIds(next)
   }
 
+  const policyColumns: DataTableColumn<InsurancePolicy>[] = useMemo(() => [
+    { key: 'company', label: 'חברה', width: 160, minWidth: 120, sortValue: policy => company(policy), render: policy => <ManufacturerLogo name={company(policy)} compact /> },
+    { key: 'mainBranch', label: 'ענף ראשי', width: 140, minWidth: 100, sortValue: policy => policy.mainBranch || policyType(policy), render: policy => policy.mainBranch || policyType(policy) },
+    { key: 'secondaryBranch', label: 'ענף משני / מוצר', width: 160, minWidth: 110, render: policy => policy.secondaryBranch || policy.productType || '-' },
+    { key: 'planName', label: 'שם תוכנית', width: 180, minWidth: 120, render: policy => policyName(policy) },
+    { key: 'policyNumber', label: 'מספר פוליסה', width: 140, minWidth: 100, sortValue: policy => policy.policyNumber || '', render: policy => <strong>{policy.policyNumber || 'אין נתון'}</strong> },
+    { key: 'premium', label: 'פרמיה', width: 120, minWidth: 90, numeric: true, sortValue: policy => Number(policy.premium || 0), render: policy => policy.premiumText || money(policy.premium) },
+    { key: 'coverageAmount', label: 'סכום כיסוי', width: 130, minWidth: 100, numeric: true, sortValue: policy => Number(policy.coverageAmount || 0), render: policy => policy.coverageAmountText || money(policy.coverageAmount) },
+    { key: 'status', label: 'סטטוס', width: 110, minWidth: 90, render: policy => policy.status || 'לא ידוע' },
+  ], [])
+
   function savePolicyRecommendation(policy: InsurancePolicy, recommendation: TrackingRisk) {
     const next = [
       recommendation,
@@ -215,16 +230,16 @@ export default function InsurancePage() {
 
   return (
     <main dir="rtl" style={{ fontFamily: 'var(--font-main)' }}>
-      <header style={headerStyle}>
-        <div>
-          <h1 style={titleStyle}>פוליסות ביטוח</h1>
-        </div>
-        <div style={{ display: 'flex', gap: 10 }}>
-          <input ref={inputRef} hidden multiple type="file" accept=".xlsx,.xls,.xlsm,.zip,.xml" onChange={event => void handleImport(event.target.files)} />
-          <button type="button" onClick={() => inputRef.current?.click()} style={primaryButtonStyle}>ייבוא קבצים</button>
-          <button type="button" onClick={() => persist([])} style={secondaryButtonStyle}>ניקוי פוליסות</button>
-        </div>
-      </header>
+      <Toolbar
+        title="פוליסות ביטוח"
+        actions={(
+          <>
+            <input ref={inputRef} hidden multiple type="file" accept=".xlsx,.xls,.xlsm,.zip,.xml" onChange={event => void handleImport(event.target.files)} />
+            <Button variant="primary" size="sm" onClick={() => inputRef.current?.click()}>ייבוא קבצים</Button>
+            <Button variant="secondary" size="sm" onClick={() => persist([])}>ניקוי פוליסות</Button>
+          </>
+        )}
+      />
 
       <section style={kpiGridStyle}>
         <Kpi label="מספר פוליסות" value={mounted ? String(policies.length) : '0'} />
@@ -233,50 +248,23 @@ export default function InsurancePage() {
         <Kpi label="נבחרו לסיכום" value={mounted ? String(selectedInsurancePolicyIds.length) : '0'} />
       </section>
 
-      <section style={cardStyle}>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr>
-              <th style={thStyle}></th>
-              <th style={thStyle}>חברה</th>
-              <th style={thStyle}>ענף ראשי</th>
-              <th style={thStyle}>ענף משני / מוצר</th>
-              <th style={thStyle}>שם תוכנית</th>
-              <th style={thStyle}>מספר פוליסה</th>
-              <th style={thStyle}>פרמיה</th>
-              <th style={thStyle}>סכום כיסוי</th>
-              <th style={thStyle}>סטטוס</th>
-            </tr>
-          </thead>
-          <tbody>
-            {policies.map((policy, index) => (
-              <tr key={policy.id} onClick={() => setActivePolicy(policy)} style={{ background: index % 2 ? '#F8FAFC' : '#fff', cursor: 'pointer' }}>
-                <td style={tdStyle} onClick={event => event.stopPropagation()}>
-                  <input
-                    type="checkbox"
-                    checked={selectedInsurancePolicyIds.includes(policy.id)}
-                    onChange={event => togglePolicySelection(policy.id, event.target.checked)}
-                    style={checkboxStyle}
-                  />
-                </td>
-                <td style={tdStrongStyle}><ManufacturerLogo name={company(policy)} compact /></td>
-                <td style={tdStyle}>{policy.mainBranch || policyType(policy)}</td>
-                <td style={tdStyle}>{policy.secondaryBranch || policy.productType || '-'}</td>
-                <td style={tdStyle}>{policyName(policy)}</td>
-                <td style={{ ...tdStyle, fontWeight: 800, color: 'var(--abd-primary)' }}>{policy.policyNumber || 'אין נתון'}</td>
-                <td style={tdStyle}>{policy.premiumText || money(policy.premium)}</td>
-                <td style={tdStyle}>{policy.coverageAmountText || money(policy.coverageAmount)}</td>
-                <td style={tdStyle}>{policy.status || 'לא ידוע'}</td>
-              </tr>
-            ))}
-            {!policies.length && (
-              <tr>
-                <td colSpan={9} style={{ ...tdStyle, textAlign: 'center', color: 'var(--text-muted)', padding: 28 }}>אין פוליסות להצגה.</td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </section>
+      <DataTable
+        columns={policyColumns}
+        rows={policies}
+        rowKey={policy => policy.id}
+        onRowClick={policy => setActivePolicy(policy)}
+        storageKey="abd_next_insurance_table"
+        emptyMessage="אין פוליסות להצגה."
+        leadingColumnWidth={44}
+        renderLeadingCell={policy => (
+          <input
+            type="checkbox"
+            checked={selectedInsurancePolicyIds.includes(policy.id)}
+            onChange={event => togglePolicySelection(policy.id, event.target.checked)}
+            style={checkboxStyle}
+          />
+        )}
+      />
 
       {activePolicy && (
         <PolicyModal
@@ -331,13 +319,7 @@ function PolicyModal({
   }
 
   return (
-    <div style={modalOverlayStyle} onClick={onClose}>
-      <section style={modalStyle} onClick={event => event.stopPropagation()}>
-        <button type="button" aria-label="סגירה" onClick={onClose} style={modalCloseStyle}>×</button>
-        <header style={modalHeaderStyle}>
-          <h2 style={modalTitleStyle}>{company(policy)}</h2>
-        </header>
-
+    <Sheet open onClose={onClose} placement="center" width="min(820px, calc(100vw - 48px))" title={company(policy)}>
         <div style={modalGridStyle}>
           <ModalCell label="ענף ראשי" value={policy.mainBranch || '-'} />
           <ModalCell label="ענף משני" value={policy.secondaryBranch || '-'} />
@@ -377,10 +359,9 @@ function PolicyModal({
             נוסח המלצה
             <textarea value={notes} onChange={event => setNotes(event.target.value)} rows={4} style={{ ...inputStyle, resize: 'vertical' }} />
           </label>
-          <button type="button" onClick={save} style={primaryButtonStyle}>שמור המלצה וסנכרן לסיכום</button>
+          <Button variant="primary" onClick={save}>שמור המלצה וסנכרן לסיכום</Button>
         </section>
-      </section>
-    </div>
+    </Sheet>
   )
 }
 
@@ -397,23 +378,9 @@ function Kpi({ label, value }: { label: string; value: string }) {
   return <div style={kpiStyle}><span style={{ color: '#7EA0C9', fontWeight: 800 }}>{label}</span><strong style={{ color: 'var(--abd-primary)', fontSize: 26 }}>{value}</strong></div>
 }
 
-const headerStyle: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, marginBottom: 24 }
-const titleStyle: React.CSSProperties = { color: 'var(--abd-primary)', fontSize: 32, fontWeight: 900 }
-const mutedStyle: React.CSSProperties = { color: 'var(--text-muted)', marginTop: 6 }
-const primaryButtonStyle: React.CSSProperties = { border: 0, borderRadius: 12, padding: '11px 18px', background: 'var(--abd-accent)', color: '#fff', fontWeight: 900, fontFamily: 'var(--font-main)', cursor: 'pointer' }
-const secondaryButtonStyle: React.CSSProperties = { ...primaryButtonStyle, background: '#fff', color: 'var(--abd-primary)', border: '1px solid #CFE6FA' }
 const kpiGridStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 16, marginBottom: 22 }
 const kpiStyle: React.CSSProperties = { display: 'grid', gap: 8, background: '#fff', border: '1px solid #D7EAFB', borderRadius: 18, padding: 18, boxShadow: 'var(--shadow-card)' }
-const cardStyle: React.CSSProperties = { background: '#fff', border: '1px solid #D7EAFB', borderRadius: 18, boxShadow: 'var(--shadow-card)', overflow: 'auto' }
-const thStyle: React.CSSProperties = { textAlign: 'right', padding: 13, background: 'var(--abd-primary)', color: '#fff', fontWeight: 900, whiteSpace: 'nowrap' }
-const tdStyle: React.CSSProperties = { padding: 13, borderBottom: '1px solid #E6EEF7', color: 'var(--text-body)', whiteSpace: 'nowrap' }
-const tdStrongStyle: React.CSSProperties = { ...tdStyle, color: 'var(--abd-primary)', fontWeight: 900 }
 const checkboxStyle: React.CSSProperties = { width: 16, height: 16, accentColor: 'var(--abd-accent)', cursor: 'pointer' }
-const modalOverlayStyle: React.CSSProperties = { position: 'fixed', inset: 0, zIndex: 100, display: 'grid', alignItems: 'center', justifyItems: 'center', overflowY: 'auto', background: 'rgba(191,219,254,0.55)', backdropFilter: 'blur(2px)', padding: '32px 24px' }
-const modalStyle: React.CSSProperties = { position: 'relative', width: 'min(820px, calc(100vw - 48px))', maxHeight: 'calc(100dvh - 64px)', overflow: 'auto', margin: 'auto', background: '#fff', border: '1px solid #D7EAFB', borderRadius: 24, padding: 24, boxShadow: '0 24px 70px rgba(15,25,41,0.18)' }
-const modalCloseStyle: React.CSSProperties = { position: 'absolute', top: 16, left: 16, width: 38, height: 38, borderRadius: 14, border: '1px solid #CFE6FA', background: '#fff', color: 'var(--abd-primary)', fontSize: 24, cursor: 'pointer' }
-const modalHeaderStyle: React.CSSProperties = { textAlign: 'center', marginBottom: 18 }
-const modalTitleStyle: React.CSSProperties = { color: 'var(--abd-primary)', fontSize: 26, fontWeight: 900 }
 const modalGridStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', border: '1px solid #D7EAFB', borderRadius: 16, overflow: 'hidden' }
 const modalCellStyle: React.CSSProperties = { minHeight: 82, display: 'grid', gap: 6, alignContent: 'center', justifyItems: 'center', padding: 12, borderLeft: '1px solid #E6EEF7', borderBottom: '1px solid #E6EEF7', textAlign: 'center', color: 'var(--abd-primary)' }
 const recommendationPanelStyle: React.CSSProperties = { display: 'grid', gap: 12, border: '1px solid #D7EAFB', borderRadius: 16, padding: 16, marginTop: 14, background: '#F8FBFF' }
