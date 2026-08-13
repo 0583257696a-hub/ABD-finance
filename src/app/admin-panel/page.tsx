@@ -689,9 +689,9 @@ export default function AdminPanelPage() {
       <aside style={sidebarStyle}>
         <div style={brandStyle}>
           <img src="/assets/abd-finance-logo.png" alt="ABD Finance" style={logoStyle} />
-          <div>
-            <strong>ABD Admin</strong>
-            <span>ניהול מערכת SaaS</span>
+          <div style={{ display: 'grid' }}>
+            <strong style={{ fontSize: 14, fontWeight: 700 }}>ABD Admin</strong>
+            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>ניהול מערכת SaaS</span>
           </div>
         </div>
         <nav style={navStyle}>
@@ -700,9 +700,9 @@ export default function AdminPanelPage() {
             const active = activeTab === tab.id
             return (
               <button key={tab.id} type="button" onClick={() => setActiveTab(tab.id)} style={navButtonStyle(active)}>
-                <Icon size={17} />
-                <span>{tab.label}</span>
-                {tab.stage > 1 && <small>שלב {tab.stage}</small>}
+                <span style={navIconBadgeStyle(tab.id)}><Icon size={15} /></span>
+                <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tab.label}</span>
+                {tab.stage > 1 && <small style={{ color: 'var(--text-tertiary)', fontSize: 10.5 }}>שלב {tab.stage}</small>}
               </button>
             )
           })}
@@ -711,11 +711,8 @@ export default function AdminPanelPage() {
 
       <section style={contentStyle}>
         <header style={headerStyle}>
-          <div>
-            <h1 style={titleStyle}>{ADMIN_TABS.find(tab => tab.id === activeTab)?.label}</h1>
-            <p style={mutedStyle}>פאנל בהיר לניהול משתמשים, הרשאות, סוכנויות ולוג פעילות. שלב 1 פעיל, שאר המודולים בתשתית.</p>
-          </div>
-          <div style={{ display: 'grid', gap: 8, justifyItems: 'start' }}>
+          <h1 style={titleStyle}>{ADMIN_TABS.find(tab => tab.id === activeTab)?.label}</h1>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <span style={adminBadgeStyle}>System Admin</span>
             <span style={versionBadgeStyle}>{ADMIN_PANEL_VERSION}</span>
           </div>
@@ -1003,7 +1000,7 @@ export default function AdminPanelPage() {
               </div>
               <div style={agencyBrandPreviewStyle}>
                 {selectedAgency.logoUrl ? <img src={selectedAgency.logoUrl} alt={selectedAgency.name} style={agencyLogoStyle} /> : <Building2 size={28} />}
-                <span style={{ width: 28, height: 28, borderRadius: 999, border: '1px solid #CFE6FA', background: selectedAgency.brandColor || '#2563EB' }} />
+                <span style={{ width: 28, height: 28, borderRadius: 999, border: '1px solid var(--separator)', background: selectedAgency.brandColor || '#64748B' }} />
               </div>
             </div>
 
@@ -1020,7 +1017,7 @@ export default function AdminPanelPage() {
                   <input style={inputStyle} value={selectedAgency.logoUrl || ''} onChange={event => updateAgencyOverride(selectedAgency.name, { logoUrl: event.target.value })} placeholder="URL ללוגו" />
                 </label>
                 <label style={adminFieldStyle}>צבע מותג
-                  <input type="color" value={selectedAgency.brandColor || '#2563EB'} onChange={event => updateAgencyOverride(selectedAgency.name, { brandColor: event.target.value })} style={colorInputStyle} />
+                  <input type="color" value={selectedAgency.brandColor || '#64748B'} onChange={event => updateAgencyOverride(selectedAgency.name, { brandColor: event.target.value })} style={colorInputStyle} />
                 </label>
               </article>
 
@@ -1927,102 +1924,131 @@ function statusDotStyle(result: AuditEvent['result']): React.CSSProperties {
   }
 }
 
+// macOS System Settings-style sidebar row: a small colored icon badge (like
+// Wi-Fi/Bluetooth/Notifications category icons) + label, selected state is a
+// flat tinted pill rather than the app's filled-accent-button look.
+const TAB_BADGE_COLORS: Record<string, string> = {
+  dashboard: '#8E8E93',
+  users: '#5AC8FA',
+  agencies: '#FF9F0A',
+  plans: '#BF5AF2',
+  leads: '#30D158',
+  workspace: '#64748B',
+  templates: '#0A84FF',
+  data: '#5E5CE6',
+  landing: '#FF375F',
+  messages: '#FF9F0A',
+  support: '#32ADE6',
+  reports: '#30B0C7',
+  security: '#FF453A',
+  settings: '#8E8E93',
+}
+
+function navIconBadgeStyle(tabId: string): React.CSSProperties {
+  return {
+    display: 'grid',
+    placeItems: 'center',
+    width: 26,
+    height: 26,
+    borderRadius: 7,
+    background: TAB_BADGE_COLORS[tabId] || '#8E8E93',
+    color: '#fff',
+    flexShrink: 0,
+  }
+}
+
 function navButtonStyle(active: boolean): React.CSSProperties {
   return {
     width: '100%',
-    minHeight: 42,
-    display: 'grid',
-    gridTemplateColumns: '22px 1fr auto',
+    minHeight: 34,
+    display: 'flex',
     alignItems: 'center',
     gap: 9,
-    border: '1px solid',
-    borderColor: active ? '#B8D9FF' : 'transparent',
-    borderRadius: 13,
-    background: active ? '#EFF6FF' : 'transparent',
-    color: active ? 'var(--abd-primary)' : '#6F8DB5',
+    border: 0,
+    borderRadius: 8,
+    background: active ? 'var(--bg-surface)' : 'transparent',
+    boxShadow: active ? 'var(--shadow-1)' : 'none',
+    color: 'var(--text-heading)',
     fontFamily: 'var(--font-main)',
-    fontWeight: 900,
+    fontWeight: active ? 600 : 500,
+    fontSize: 13.5,
     textAlign: 'right',
-    padding: '8px 10px',
+    padding: '4px 8px',
     cursor: 'pointer',
   }
 }
 
-function metricCardStyle(tone: string): React.CSSProperties {
-  const colors: Record<string, string> = {
-    green: 'linear-gradient(135deg, #ECFDF5, #FFFFFF)',
-    orange: 'linear-gradient(135deg, #FFFBEB, #FFFFFF)',
-    red: 'linear-gradient(135deg, #FEF2F2, #FFFFFF)',
-    blue: 'linear-gradient(135deg, #EFF6FF, #FFFFFF)',
-    gray: 'linear-gradient(135deg, #F8FAFC, #FFFFFF)',
-  }
+function metricCardStyle(_tone: string): React.CSSProperties {
   return {
     display: 'grid',
     gap: 7,
-    minHeight: 105,
+    minHeight: 100,
     padding: 18,
-    borderRadius: 18,
-    border: '1px solid #D7EAFB',
-    background: colors[tone] || colors.gray,
-    boxShadow: 'var(--shadow-card)',
-    color: 'var(--abd-primary)',
+    borderRadius: 'var(--radius-lg)',
+    border: '1px solid var(--separator)',
+    background: 'var(--bg-surface)',
+    color: 'var(--text-heading)',
   }
 }
 
-const pageStyle: React.CSSProperties = { minHeight: '100vh', display: 'grid', gridTemplateColumns: '300px 1fr', fontFamily: 'var(--font-main)', background: 'var(--bg-shell)' }
-const loginPageStyle: React.CSSProperties = { minHeight: '100vh', padding: 28, display: 'grid', placeItems: 'center', fontFamily: 'var(--font-main)', background: 'var(--bg-shell)' }
-const loginCardStyle: React.CSSProperties = { width: 'min(420px, 92vw)', display: 'grid', gap: 14, background: '#fff', border: '1px solid #D7EAFB', borderRadius: 22, padding: 28, boxShadow: 'var(--shadow-hover)' }
-const sidebarStyle: React.CSSProperties = { minHeight: '100vh', padding: 18, background: '#FFFFFF', borderLeft: '1px solid #D7EAFB', boxShadow: '0 8px 30px rgba(15,25,41,0.08)', position: 'sticky', top: 0, alignSelf: 'start' }
-const brandStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 12, padding: '8px 8px 16px', color: 'var(--abd-primary)', borderBottom: '1px solid #E6EEF7', marginBottom: 14 }
-const logoStyle: React.CSSProperties = { width: 54, height: 38, objectFit: 'contain', borderRadius: 10, background: '#F8FBFF' }
-const navStyle: React.CSSProperties = { display: 'grid', gap: 5 }
-const contentStyle: React.CSSProperties = { padding: 28, minWidth: 0 }
-const headerStyle: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', gap: 16, marginBottom: 22 }
-const titleStyle: React.CSSProperties = { color: 'var(--abd-primary)', fontSize: 32, fontWeight: 900 }
-const loginTitleStyle: React.CSSProperties = { color: 'var(--abd-primary)', fontSize: 28, fontWeight: 900 }
+// macOS System Settings-style shell: flat gray sidebar (no border/shadow),
+// white content groups on a light canvas, subdued type weights (600/700
+// instead of the app's 900 everywhere) — deliberately a different visual
+// language from the rest of the app per the redesign plan.
+const pageStyle: React.CSSProperties = { minHeight: '100vh', display: 'grid', gridTemplateColumns: '260px 1fr', fontFamily: 'var(--font-main)', background: 'var(--bg-canvas)' }
+const loginPageStyle: React.CSSProperties = { minHeight: '100vh', padding: 28, display: 'grid', placeItems: 'center', fontFamily: 'var(--font-main)', background: 'var(--bg-canvas)' }
+const loginCardStyle: React.CSSProperties = { width: 'min(420px, 92vw)', display: 'grid', gap: 14, background: 'var(--bg-surface)', border: '1px solid var(--separator)', borderRadius: 'var(--radius-xl)', padding: 28, boxShadow: 'var(--shadow-floating)' }
+const sidebarStyle: React.CSSProperties = { minHeight: '100vh', padding: '18px 12px', background: 'var(--bg-surface-sunken)', borderLeft: '1px solid var(--separator)', position: 'sticky', top: 0, alignSelf: 'start' }
+const brandStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 10, padding: '4px 8px 16px', color: 'var(--text-heading)' }
+const logoStyle: React.CSSProperties = { width: 40, height: 40, objectFit: 'contain', borderRadius: 9, background: 'var(--bg-surface)' }
+const navStyle: React.CSSProperties = { display: 'grid', gap: 2 }
+const contentStyle: React.CSSProperties = { padding: '28px 32px', minWidth: 0 }
+const headerStyle: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, marginBottom: 22 }
+const titleStyle: React.CSSProperties = { color: 'var(--text-heading)', fontSize: 26, fontWeight: 700 }
+const loginTitleStyle: React.CSSProperties = { color: 'var(--text-heading)', fontSize: 24, fontWeight: 700 }
 const mutedStyle: React.CSSProperties = { color: 'var(--text-muted)', lineHeight: 1.7, marginTop: 5 }
-const adminBadgeStyle: React.CSSProperties = { height: 38, border: '1px solid #CFE6FA', borderRadius: 999, padding: '8px 14px', background: '#fff', color: 'var(--abd-primary)', fontWeight: 900 }
-const versionBadgeStyle: React.CSSProperties = { border: '1px solid #D7EAFB', borderRadius: 999, padding: '5px 10px', background: '#F8FBFF', color: '#6F8DB5', fontSize: 12, fontWeight: 900, direction: 'ltr' }
+const adminBadgeStyle: React.CSSProperties = { height: 32, display: 'flex', alignItems: 'center', border: '1px solid var(--separator)', borderRadius: 999, padding: '0 12px', background: 'var(--bg-surface)', color: 'var(--text-heading)', fontWeight: 600, fontSize: 13 }
+const versionBadgeStyle: React.CSSProperties = { border: '1px solid var(--separator)', borderRadius: 999, padding: '4px 10px', background: 'var(--bg-surface-sunken)', color: 'var(--text-muted)', fontSize: 11.5, fontWeight: 600, direction: 'ltr' }
 const stackStyle: React.CSSProperties = { display: 'grid', gap: 18 }
 const metricsGridStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 14 }
 const twoColumnStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18, alignItems: 'start' }
-const cardStyle: React.CSSProperties = { display: 'grid', gap: 14, background: '#fff', border: '1px solid #D7EAFB', borderRadius: 20, padding: 20, boxShadow: 'var(--shadow-card)' }
+const cardStyle: React.CSSProperties = { display: 'grid', gap: 14, background: 'var(--bg-surface)', border: '1px solid var(--separator)', borderRadius: 'var(--radius-lg)', padding: 18, boxShadow: 'var(--shadow-1)' }
 const sectionHeaderStyle: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'start', gap: 16 }
-const sectionTitleStyle: React.CSSProperties = { color: 'var(--abd-primary)', fontSize: 22, fontWeight: 900 }
+const sectionTitleStyle: React.CSSProperties = { color: 'var(--text-heading)', fontSize: 15, fontWeight: 700 }
 const toolbarStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, alignItems: 'center' }
-const inputStyle: React.CSSProperties = { minHeight: 44, border: '1px solid #CFE6FA', borderRadius: 12, padding: '8px 12px', fontFamily: 'var(--font-main)', color: 'var(--abd-primary)' }
-const compactNumberInputStyle: React.CSSProperties = { width: '100%', minHeight: 34, border: '1px solid #CFE6FA', borderRadius: 10, padding: '4px 8px', fontFamily: 'var(--font-main)', color: 'var(--abd-primary)', fontWeight: 900, direction: 'ltr', textAlign: 'center' }
+const inputStyle: React.CSSProperties = { minHeight: 40, border: '1px solid var(--separator)', borderRadius: 'var(--radius-md)', padding: '8px 12px', fontFamily: 'var(--font-main)', color: 'var(--text-heading)', background: 'var(--bg-canvas)' }
+const compactNumberInputStyle: React.CSSProperties = { width: '100%', minHeight: 32, border: '1px solid var(--separator)', borderRadius: 'var(--radius-sm)', padding: '4px 8px', fontFamily: 'var(--font-main)', color: 'var(--text-heading)', fontWeight: 600, direction: 'ltr', textAlign: 'center', background: 'var(--bg-canvas)' }
 const searchInputStyle: React.CSSProperties = { ...inputStyle, width: '100%' }
-const primaryButtonStyle: React.CSSProperties = { minHeight: 44, border: 0, borderRadius: 12, background: 'var(--abd-accent)', color: '#fff', fontFamily: 'var(--font-main)', fontWeight: 900, padding: '0 16px', cursor: 'pointer' }
-const smallButtonStyle: React.CSSProperties = { ...primaryButtonStyle, minHeight: 36, padding: '0 10px' }
-const dangerButtonStyle: React.CSSProperties = { ...smallButtonStyle, background: 'var(--status-danger)', color: '#fff' }
-const quickActionsStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10 }
-const quickButtonStyle: React.CSSProperties = { minHeight: 46, display: 'flex', alignItems: 'center', gap: 8, border: '1px solid #CFE6FA', borderRadius: 13, background: '#F8FBFF', color: 'var(--abd-primary)', fontFamily: 'var(--font-main)', fontWeight: 900, padding: '0 12px', cursor: 'pointer' }
-const errorStyle: React.CSSProperties = { color: 'var(--status-danger-text)', background: 'var(--status-danger-bg)', borderRadius: 12, padding: 10, fontWeight: 800 }
-const noticeStyle: React.CSSProperties = { background: '#EAF6FF', color: 'var(--abd-primary)', border: '1px solid #CFE6FA', borderRadius: 14, padding: 12, marginBottom: 18, fontWeight: 900 }
-const tableWrapStyle: React.CSSProperties = { overflowX: 'auto', border: '1px solid #D7EAFB', borderRadius: 14 }
+const primaryButtonStyle: React.CSSProperties = { minHeight: 38, border: 0, borderRadius: 'var(--radius-md)', background: 'var(--abd-accent)', color: '#fff', fontFamily: 'var(--font-main)', fontWeight: 600, fontSize: 13.5, padding: '0 16px', cursor: 'pointer' }
+const smallButtonStyle: React.CSSProperties = { ...primaryButtonStyle, minHeight: 32, padding: '0 10px', fontSize: 12.5 }
+const dangerButtonStyle: React.CSSProperties = { ...smallButtonStyle, background: 'var(--destructive)', color: '#fff' }
+const quickActionsStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8 }
+const quickButtonStyle: React.CSSProperties = { minHeight: 42, display: 'flex', alignItems: 'center', gap: 8, border: '1px solid var(--separator)', borderRadius: 'var(--radius-md)', background: 'var(--bg-canvas)', color: 'var(--text-heading)', fontFamily: 'var(--font-main)', fontWeight: 600, fontSize: 13, padding: '0 12px', cursor: 'pointer' }
+const errorStyle: React.CSSProperties = { color: 'var(--destructive-text)', background: 'var(--destructive-bg)', borderRadius: 'var(--radius-md)', padding: 10, fontWeight: 600 }
+const noticeStyle: React.CSSProperties = { background: 'var(--bg-surface-sunken)', color: 'var(--text-heading)', border: '1px solid var(--separator)', borderRadius: 'var(--radius-lg)', padding: 12, marginBottom: 18, fontWeight: 600 }
+const tableWrapStyle: React.CSSProperties = { overflowX: 'auto', border: '1px solid var(--separator)', borderRadius: 'var(--radius-lg)' }
 const tableStyle: React.CSSProperties = { width: '100%', borderCollapse: 'collapse', minWidth: 1020 }
-const thStyle: React.CSSProperties = { textAlign: 'right', background: 'var(--abd-primary)', color: '#fff', padding: 11, whiteSpace: 'nowrap' }
-const tdStyle: React.CSSProperties = { padding: 11, borderBottom: '1px solid #E6EEF7', color: 'var(--abd-primary)', fontWeight: 700, verticalAlign: 'middle' }
-const selectedTableRowStyle: React.CSSProperties = { background: '#EFF6FF', boxShadow: 'inset 4px 0 0 var(--abd-accent)' }
-const pillBaseStyle: React.CSSProperties = { borderRadius: 999, padding: '5px 9px', fontWeight: 900, whiteSpace: 'nowrap' }
+const thStyle: React.CSSProperties = { textAlign: 'right', background: 'var(--bg-surface-sunken)', color: 'var(--text-muted)', fontWeight: 600, fontSize: 12.5, padding: 11, whiteSpace: 'nowrap' }
+const tdStyle: React.CSSProperties = { padding: 11, borderBottom: '1px solid var(--separator)', color: 'var(--text-heading)', fontWeight: 500, verticalAlign: 'middle' }
+const selectedTableRowStyle: React.CSSProperties = { background: 'var(--bg-surface-sunken)', boxShadow: 'inset 4px 0 0 var(--abd-accent)' }
+const pillBaseStyle: React.CSSProperties = { borderRadius: 999, padding: '5px 9px', fontWeight: 600, fontSize: 12, whiteSpace: 'nowrap' }
 const rowActionsStyle: React.CSSProperties = { display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }
-const smallInputStyle: React.CSSProperties = { ...inputStyle, minHeight: 36, width: 138 }
-const smallSelectStyle: React.CSSProperties = { ...inputStyle, minHeight: 36, width: 150, padding: '4px 8px', fontWeight: 900 }
-const activityListStyle: React.CSSProperties = { display: 'grid', gap: 9 }
-const activityRowStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: '12px 1fr auto', alignItems: 'center', gap: 9, padding: 10, borderRadius: 12, background: '#F8FBFF', color: 'var(--abd-primary)' }
-const cardsListStyle: React.CSSProperties = { display: 'grid', gap: 10, maxHeight: 360, overflow: 'auto' }
-const roleCardStyle: React.CSSProperties = { display: 'grid', gap: 5, border: '1px solid #D7EAFB', borderRadius: 14, padding: 12, color: 'var(--abd-primary)', background: '#FBFDFF', textAlign: 'right', fontFamily: 'var(--font-main)', cursor: 'pointer' }
-const activeRoleCardStyle: React.CSSProperties = { ...roleCardStyle, borderColor: 'var(--abd-accent)', background: '#EFF6FF', boxShadow: 'inset 0 0 0 1px rgba(37,99,235,0.25)' }
-const innerCardStyle: React.CSSProperties = { display: 'grid', gap: 13, border: '1px solid #D7EAFB', borderRadius: 18, background: '#FBFDFF', padding: 16 }
-const smallSectionTitleStyle: React.CSSProperties = { color: 'var(--abd-primary)', fontSize: 18, fontWeight: 900 }
-const agencyDetailHeaderStyle: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, borderBottom: '1px solid #E6EEF7', paddingBottom: 14 }
-const agencyBrandPreviewStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: '70px 28px', gap: 10, alignItems: 'center', color: 'var(--abd-primary)' }
-const agencyLogoStyle: React.CSSProperties = { width: 70, height: 48, objectFit: 'contain', border: '1px solid #D7EAFB', borderRadius: 12, background: '#fff', padding: 6 }
-const colorInputStyle: React.CSSProperties = { width: 72, height: 42, border: '1px solid #CFE6FA', borderRadius: 12, background: '#fff', padding: 4, cursor: 'pointer' }
+const smallInputStyle: React.CSSProperties = { ...inputStyle, minHeight: 34, width: 138 }
+const smallSelectStyle: React.CSSProperties = { ...inputStyle, minHeight: 34, width: 150, padding: '4px 8px', fontWeight: 600 }
+const activityListStyle: React.CSSProperties = { display: 'grid', gap: 1 }
+const activityRowStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: '10px 1fr auto', alignItems: 'center', gap: 9, padding: '9px 10px', borderBottom: '1px solid var(--separator)', color: 'var(--text-heading)', fontSize: 13.5 }
+const cardsListStyle: React.CSSProperties = { display: 'grid', gap: 8, maxHeight: 360, overflow: 'auto' }
+const roleCardStyle: React.CSSProperties = { display: 'grid', gap: 5, border: '1px solid var(--separator)', borderRadius: 'var(--radius-md)', padding: 12, color: 'var(--text-heading)', background: 'var(--bg-canvas)', textAlign: 'right', fontFamily: 'var(--font-main)', cursor: 'pointer' }
+const activeRoleCardStyle: React.CSSProperties = { ...roleCardStyle, borderColor: 'var(--abd-accent)', background: 'var(--bg-surface-sunken)', boxShadow: 'inset 0 0 0 1px var(--abd-accent)' }
+const innerCardStyle: React.CSSProperties = { display: 'grid', gap: 13, border: '1px solid var(--separator)', borderRadius: 'var(--radius-lg)', background: 'var(--bg-canvas)', padding: 16 }
+const smallSectionTitleStyle: React.CSSProperties = { color: 'var(--text-heading)', fontSize: 14.5, fontWeight: 700 }
+const agencyDetailHeaderStyle: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, borderBottom: '1px solid var(--separator)', paddingBottom: 14 }
+const agencyBrandPreviewStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: '70px 28px', gap: 10, alignItems: 'center', color: 'var(--text-heading)' }
+const agencyLogoStyle: React.CSSProperties = { width: 70, height: 48, objectFit: 'contain', border: '1px solid var(--separator)', borderRadius: 'var(--radius-md)', background: 'var(--bg-surface)', padding: 6 }
+const colorInputStyle: React.CSSProperties = { width: 72, height: 42, border: '1px solid var(--separator)', borderRadius: 'var(--radius-md)', background: 'var(--bg-surface)', padding: 4, cursor: 'pointer' }
 const notesTextAreaStyle: React.CSSProperties = { ...inputStyle, minHeight: 155, resize: 'vertical' }
 const permissionGridStyle: React.CSSProperties = { display: 'flex', flexWrap: 'wrap', gap: 8 }
-const permissionPillStyle: React.CSSProperties = { borderRadius: 999, padding: '6px 10px', background: '#EFF6FF', border: '1px solid #CFE6FA', color: 'var(--abd-primary)', fontWeight: 900, fontSize: 12 }
+const permissionPillStyle: React.CSSProperties = { borderRadius: 999, padding: '6px 10px', background: 'var(--bg-surface-sunken)', border: '1px solid var(--separator)', color: 'var(--text-heading)', fontWeight: 600, fontSize: 12 }
 const permissionEditorStyle: React.CSSProperties = { display: 'grid', gap: 10, maxHeight: 560, overflowY: 'auto', paddingInlineEnd: 4 }
 const permissionToggleStyle = (active: boolean): React.CSSProperties => ({
   display: 'grid',
@@ -2030,30 +2056,30 @@ const permissionToggleStyle = (active: boolean): React.CSSProperties => ({
   gap: 10,
   alignItems: 'start',
   border: '1px solid',
-  borderColor: active ? '#93C5FD' : '#D7EAFB',
-  borderRadius: 14,
-  background: active ? '#EFF6FF' : '#FFFFFF',
-  color: 'var(--abd-primary)',
+  borderColor: active ? 'var(--abd-accent)' : 'var(--separator)',
+  borderRadius: 'var(--radius-md)',
+  background: active ? 'var(--bg-surface-sunken)' : 'var(--bg-surface)',
+  color: 'var(--text-heading)',
   padding: 12,
   cursor: 'pointer',
   lineHeight: 1.55,
 })
-const userOverrideNoteStyle: React.CSSProperties = { marginTop: 14, border: '1px dashed #BFE2FB', borderRadius: 14, background: '#F8FBFF', color: '#5F789C', padding: 12, fontWeight: 800, lineHeight: 1.7 }
-const emptyStateStyle: React.CSSProperties = { minHeight: 180, display: 'grid', placeItems: 'center', alignContent: 'center', gap: 8, borderRadius: 18, border: '1px dashed #CFE6FA', background: '#F8FBFF', color: 'var(--abd-primary)', textAlign: 'center', padding: 20 }
+const userOverrideNoteStyle: React.CSSProperties = { marginTop: 14, border: '1px dashed var(--separator-strong)', borderRadius: 'var(--radius-md)', background: 'var(--bg-canvas)', color: 'var(--text-muted)', padding: 12, fontWeight: 500, lineHeight: 1.7 }
+const emptyStateStyle: React.CSSProperties = { minHeight: 180, display: 'grid', placeItems: 'center', alignContent: 'center', gap: 8, borderRadius: 'var(--radius-lg)', border: '1px dashed var(--separator)', background: 'var(--bg-canvas)', color: 'var(--text-heading)', textAlign: 'center', padding: 20 }
 const planCardsGridStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 14 }
-const planCardStyle: React.CSSProperties = { display: 'grid', gap: 14, padding: 16, borderRadius: 18, border: '1px solid #D7EAFB', background: '#FBFDFF', color: 'var(--abd-primary)' }
-const planTitleStyle: React.CSSProperties = { fontSize: 22, fontWeight: 900, color: 'var(--abd-primary)' }
-const planPriceStyle: React.CSSProperties = { fontSize: 28, fontWeight: 900, color: 'var(--abd-primary)' }
-const priceInputStyle: React.CSSProperties = { width: 110, border: '1px solid #CFE6FA', borderRadius: 12, padding: '4px 8px', marginInline: 6, fontFamily: 'var(--font-main)', color: 'var(--abd-primary)', fontSize: 26, fontWeight: 900, direction: 'ltr', textAlign: 'center' }
+const planCardStyle: React.CSSProperties = { display: 'grid', gap: 14, padding: 16, borderRadius: 'var(--radius-lg)', border: '1px solid var(--separator)', background: 'var(--bg-canvas)', color: 'var(--text-heading)' }
+const planTitleStyle: React.CSSProperties = { fontSize: 18, fontWeight: 700, color: 'var(--text-heading)' }
+const planPriceStyle: React.CSSProperties = { fontSize: 24, fontWeight: 700, color: 'var(--text-heading)' }
+const priceInputStyle: React.CSSProperties = { width: 110, border: '1px solid var(--separator)', borderRadius: 'var(--radius-md)', padding: '4px 8px', marginInline: 6, fontFamily: 'var(--font-main)', color: 'var(--text-heading)', fontSize: 22, fontWeight: 700, direction: 'ltr', textAlign: 'center', background: 'var(--bg-surface)' }
 const limitsGridStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 8 }
-const limitStyle: React.CSSProperties = { display: 'grid', gap: 4, padding: 10, borderRadius: 12, background: '#EFF6FF', color: 'var(--abd-primary)' }
+const limitStyle: React.CSSProperties = { display: 'grid', gap: 4, padding: 10, borderRadius: 'var(--radius-md)', background: 'var(--bg-surface-sunken)', color: 'var(--text-heading)' }
 const featureListStyle: React.CSSProperties = { display: 'flex', flexWrap: 'wrap', gap: 8 }
 function featureItemStyle(enabled: boolean): React.CSSProperties {
-  return { display: 'inline-flex', alignItems: 'center', gap: 5, borderRadius: 999, padding: '6px 10px', background: enabled ? 'var(--status-active-bg)' : 'var(--status-danger-bg)', color: enabled ? 'var(--status-active-text)' : 'var(--status-danger-text)', fontWeight: 900, fontSize: 12 }
+  return { display: 'inline-flex', alignItems: 'center', gap: 5, borderRadius: 999, padding: '6px 10px', background: enabled ? 'var(--success-bg)' : 'var(--destructive-bg)', color: enabled ? 'var(--success-text)' : 'var(--destructive-text)', fontWeight: 600, fontSize: 12 }
 }
 const flagsGridStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 12 }
 function flagCardStyle(enabled: boolean): React.CSSProperties {
-  return { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: 14, borderRadius: 16, border: '1px solid #D7EAFB', background: enabled ? '#F8FBFF' : '#FFFFFF', color: 'var(--abd-primary)', fontWeight: 900 }
+  return { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: 14, borderRadius: 'var(--radius-lg)', border: '1px solid var(--separator)', background: enabled ? 'var(--bg-surface-sunken)' : 'var(--bg-surface)', color: 'var(--text-heading)', fontWeight: 600 }
 }
-const settingRowStyle: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', gap: 12, padding: 12, borderRadius: 12, background: '#F8FBFF', color: 'var(--abd-primary)', border: '1px solid #E6EEF7' }
-const adminFieldStyle: React.CSSProperties = { display: 'grid', gap: 8, color: 'var(--abd-primary)', fontWeight: 900 }
+const settingRowStyle: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', gap: 12, padding: '12px 4px', color: 'var(--text-heading)', borderBottom: '1px solid var(--separator)' }
+const adminFieldStyle: React.CSSProperties = { display: 'grid', gap: 8, color: 'var(--text-heading)', fontWeight: 600 }
