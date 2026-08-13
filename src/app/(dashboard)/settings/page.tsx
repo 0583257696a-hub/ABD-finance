@@ -12,6 +12,9 @@ import {
   type ThemeId,
   USER_SETTINGS_KEY,
 } from '@/lib/branding'
+import { Toolbar } from '@/components/ui/Toolbar'
+import { Button } from '@/components/ui/Button'
+import { Surface } from '@/components/ui/Surface'
 
 type GeneratedTheme = {
   id: string
@@ -106,15 +109,15 @@ export default function SettingsPage() {
 
   return (
     <main dir="rtl" style={pageStyle}>
-      <header style={headerStyle}>
-        <div>
-          <h1 style={titleStyle}>הגדרות תצוגה ומיתוג</h1>
-        </div>
-        <div style={headerActionsStyle}>
-          <span style={saveBadgeStyle}>{saved ? 'נשמר אוטומטית' : 'שמירה אוטומטית פעילה'}</span>
-          <button type="button" onClick={resetBranding} style={secondaryButtonStyle}>איפוס מיתוג</button>
-        </div>
-      </header>
+      <Toolbar
+        title="הגדרות תצוגה ומיתוג"
+        actions={
+          <>
+            <span style={saveBadgeStyle}>{saved ? 'נשמר אוטומטית' : 'שמירה אוטומטית פעילה'}</span>
+            <Button variant="secondary" size="sm" onClick={resetBranding}>איפוס מיתוג</Button>
+          </>
+        }
+      />
 
       <section style={layoutStyle}>
         <aside style={sideTabsStyle}>
@@ -125,7 +128,7 @@ export default function SettingsPage() {
         </aside>
 
         <div style={contentStyle}>
-          <section id="brand" style={cardStyle}>
+          <Surface id="brand" style={cardStyle}>
             <h2 style={sectionTitleStyle}>מיתוג אישי</h2>
             <div style={gridStyle}>
               <Field label="שם חברה / מותג">
@@ -139,7 +142,7 @@ export default function SettingsPage() {
               </Field>
               <div style={logoPreviewBoxStyle}>
                 {settings.logoData ? <img src={settings.logoData} alt="לוגו אישי" style={logoPreviewStyle} /> : <span style={logoPlaceholderStyle}>ABD</span>}
-                <button type="button" onClick={() => update('logoData', '')} style={smallButtonStyle}>הסר לוגו</button>
+                <Button variant="secondary" size="sm" onClick={() => update('logoData', '')}>הסר לוגו</Button>
               </div>
             </div>
 
@@ -151,9 +154,9 @@ export default function SettingsPage() {
                 <CirclePalette colors={logoPalette} fallback={[settings.primaryColor, settings.accentColor, settings.zebraRowColor]} />
               </div>
             )}
-          </section>
+          </Surface>
 
-          <section id="themes" style={cardStyle}>
+          <Surface id="themes" style={cardStyle}>
             <div style={sectionHeaderStyle}>
               <div>
                 <h2 style={sectionTitleStyle}>ערכות נושא</h2>
@@ -204,9 +207,9 @@ export default function SettingsPage() {
                 אנימציות עדינות בממשק
               </label>
             </div>
-          </section>
+          </Surface>
 
-          <section id="summary" style={cardStyle}>
+          <Surface id="summary" style={cardStyle}>
             <h2 style={sectionTitleStyle}>נוסחי סיכום וחתימה</h2>
             <Field label="טקסט פתיחה">
               <textarea value={settings.summaryOpening} onChange={event => update('summaryOpening', event.target.value)} rows={3} style={textareaStyle} />
@@ -217,9 +220,9 @@ export default function SettingsPage() {
             <Field label="חתימת מייל">
               <textarea value={settings.emailSignature} onChange={event => update('emailSignature', event.target.value)} rows={5} style={textareaStyle} />
             </Field>
-          </section>
+          </Surface>
 
-          <section id="preview" style={cardStyle}>
+          <Surface id="preview" style={cardStyle}>
             <h2 style={sectionTitleStyle}>תצוגה מקדימה מלאה</h2>
             <div style={{ ...previewStyle, background: settings.shellColor, color: settings.primaryColor, borderRadius: radiusValue(settings.borderRadius, 24, 12, 18) }}>
               <aside style={{ ...previewSidebarStyle, background: settings.sidebarColor }}>
@@ -245,7 +248,7 @@ export default function SettingsPage() {
                 </table>
               </div>
             </div>
-          </section>
+          </Surface>
         </div>
       </section>
     </main>
@@ -275,7 +278,7 @@ function ThemeButton({ theme, active, onClick }: { theme: GeneratedTheme; active
       onClick={onClick}
       style={{
         ...themeCardStyle,
-        borderColor: active ? theme.accentColor : '#D7EAFB',
+        borderColor: active ? theme.accentColor : 'var(--separator)',
         boxShadow: active ? `0 14px 34px ${theme.accentColor}33` : 'var(--shadow-card)',
       }}
     >
@@ -394,45 +397,39 @@ function darken(color: string, amount: number) {
 }
 
 const pageStyle: React.CSSProperties = { fontFamily: 'var(--font-main)' }
-const headerStyle: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', gap: 16, marginBottom: 22 }
-const headerActionsStyle: React.CSSProperties = { display: 'flex', gap: 10, alignItems: 'flex-start', flexWrap: 'wrap' }
-const titleStyle: React.CSSProperties = { color: 'var(--abd-primary)', fontSize: 32, fontWeight: 900 }
-const mutedStyle: React.CSSProperties = { color: 'var(--text-muted)', lineHeight: 1.7, marginTop: 6 }
-const saveBadgeStyle: React.CSSProperties = { border: '1px solid #CFE6FA', borderRadius: 999, padding: '9px 14px', background: '#fff', color: 'var(--abd-primary)', fontWeight: 900 }
-const secondaryButtonStyle: React.CSSProperties = { minHeight: 38, border: '1px solid #CFE6FA', borderRadius: 999, padding: '0 14px', background: '#fff', color: 'var(--abd-primary)', fontFamily: 'var(--font-main)', fontWeight: 900, cursor: 'pointer' }
+const saveBadgeStyle: React.CSSProperties = { border: '1px solid var(--separator)', borderRadius: 999, padding: '9px 14px', background: 'var(--bg-surface)', color: 'var(--abd-primary)', fontWeight: 900 }
 const layoutStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: '180px 1fr', gap: 16, alignItems: 'start' }
-const sideTabsStyle: React.CSSProperties = { position: 'sticky', top: 86, display: 'grid', gap: 8, background: 'var(--bg-card)', border: '1px solid #D7EAFB', borderRadius: 'var(--radius-card)', padding: 12, boxShadow: 'var(--shadow-card)' }
-const sideTabStyle: React.CSSProperties = { textDecoration: 'none', color: 'var(--abd-primary)', fontWeight: 900, padding: '11px 12px', borderRadius: 12, background: '#F8FBFF' }
+const sideTabsStyle: React.CSSProperties = { position: 'sticky', top: 86, display: 'grid', gap: 8, background: 'var(--bg-card)', border: '1px solid var(--separator)', borderRadius: 'var(--radius-card)', padding: 12, boxShadow: 'var(--shadow-card)' }
+const sideTabStyle: React.CSSProperties = { textDecoration: 'none', color: 'var(--abd-primary)', fontWeight: 900, padding: '11px 12px', borderRadius: 12, background: 'var(--bg-canvas)' }
 const contentStyle: React.CSSProperties = { display: 'grid', gap: 16 }
-const cardStyle: React.CSSProperties = { background: 'var(--bg-card)', border: '1px solid #D7EAFB', borderRadius: 'var(--radius-card)', padding: 18, boxShadow: 'var(--shadow-card)' }
+const cardStyle: React.CSSProperties = { background: 'var(--bg-card)', border: '1px solid var(--separator)', borderRadius: 'var(--radius-card)', padding: 18, boxShadow: 'var(--shadow-card)' }
 const sectionHeaderStyle: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'start', marginBottom: 14 }
 const sectionTitleStyle: React.CSSProperties = { color: 'var(--abd-primary)', fontSize: 22, fontWeight: 900, marginBottom: 8 }
 const miniTitleStyle: React.CSSProperties = { margin: '0 0 12px', color: 'var(--abd-primary)', fontSize: 18, fontWeight: 900 }
-const themeBadgeStyle: React.CSSProperties = { border: '1px solid #CFE6FA', borderRadius: 999, padding: '8px 12px', color: 'var(--abd-primary)', background: '#F8FBFF' }
+const themeBadgeStyle: React.CSSProperties = { border: '1px solid var(--separator)', borderRadius: 999, padding: '8px 12px', color: 'var(--abd-primary)', background: 'var(--bg-canvas)' }
 const themeGridStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(5, minmax(136px, 1fr))', gap: 10, marginBottom: 14 }
-const themeCardStyle: React.CSSProperties = { display: 'grid', alignContent: 'start', gap: 8, textAlign: 'right', border: '1px solid #D7EAFB', borderRadius: 14, padding: 10, background: '#fff', color: 'var(--abd-primary)', fontFamily: 'var(--font-main)', cursor: 'pointer', minHeight: 112 }
+const themeCardStyle: React.CSSProperties = { display: 'grid', alignContent: 'start', gap: 8, textAlign: 'right', border: '1px solid var(--separator)', borderRadius: 14, padding: 10, background: 'var(--bg-surface)', color: 'var(--abd-primary)', fontFamily: 'var(--font-main)', cursor: 'pointer', minHeight: 112 }
 const themeTextStyle: React.CSSProperties = { display: 'grid', gap: 2, lineHeight: 1.25 }
-const themeDisplayOptionsStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginTop: 14, padding: 12, border: '1px solid #D7EAFB', borderRadius: 16, background: '#F8FBFF' }
+const themeDisplayOptionsStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginTop: 14, padding: 12, border: '1px solid var(--separator)', borderRadius: 16, background: 'var(--bg-canvas)' }
 const gridStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 14 }
 const fieldStyle: React.CSSProperties = { display: 'grid', gap: 7, color: 'var(--abd-primary)', fontWeight: 900 }
-const inputStyle: React.CSSProperties = { minHeight: 42, border: '1px solid #CFE6FA', borderRadius: 12, padding: '8px 12px', fontFamily: 'var(--font-main)', color: 'var(--abd-primary)', background: '#fff' }
+const inputStyle: React.CSSProperties = { minHeight: 42, border: '1px solid var(--separator)', borderRadius: 12, padding: '8px 12px', fontFamily: 'var(--font-main)', color: 'var(--abd-primary)', background: 'var(--bg-surface)' }
 const textareaStyle: React.CSSProperties = { ...inputStyle, resize: 'vertical', width: '100%', marginBottom: 12 }
-const logoPreviewBoxStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 12, border: '1px solid #D7EAFB', borderRadius: 16, padding: 12, background: '#F8FBFF' }
-const logoPreviewStyle: React.CSSProperties = { width: 92, height: 58, objectFit: 'contain', borderRadius: 12, background: '#fff', border: '1px solid #D7EAFB' }
-const logoPlaceholderStyle: React.CSSProperties = { display: 'grid', placeItems: 'center', width: 92, height: 58, borderRadius: 12, background: '#fff', border: '1px solid #D7EAFB', color: 'var(--abd-primary)', fontWeight: 900 }
-const smallButtonStyle: React.CSSProperties = { border: '1px solid #CFE6FA', borderRadius: 999, background: '#fff', color: 'var(--abd-primary)', padding: '8px 12px', fontFamily: 'var(--font-main)', fontWeight: 900, cursor: 'pointer' }
-const logoPalettePanelStyle: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', gap: 14, alignItems: 'center', marginTop: 14, padding: 12, border: '1px solid #D7EAFB', borderRadius: 16, background: '#F8FBFF' }
+const logoPreviewBoxStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 12, border: '1px solid var(--separator)', borderRadius: 16, padding: 12, background: 'var(--bg-canvas)' }
+const logoPreviewStyle: React.CSSProperties = { width: 92, height: 58, objectFit: 'contain', borderRadius: 12, background: 'var(--bg-surface)', border: '1px solid var(--separator)' }
+const logoPlaceholderStyle: React.CSSProperties = { display: 'grid', placeItems: 'center', width: 92, height: 58, borderRadius: 12, background: 'var(--bg-surface)', border: '1px solid var(--separator)', color: 'var(--abd-primary)', fontWeight: 900 }
+const logoPalettePanelStyle: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', gap: 14, alignItems: 'center', marginTop: 14, padding: 12, border: '1px solid var(--separator)', borderRadius: 16, background: 'var(--bg-canvas)' }
 const circleRowStyle: React.CSSProperties = { display: 'flex', gap: 7, flexWrap: 'wrap', alignItems: 'center' }
-const logoColorCircleStyle: React.CSSProperties = { width: 28, height: 28, borderRadius: '50%', border: '2px solid #fff', boxShadow: '0 0 0 1px #B9DDF7, 0 5px 12px rgba(15,25,41,.10)' }
+const logoColorCircleStyle: React.CSSProperties = { width: 28, height: 28, borderRadius: '50%', border: '2px solid var(--bg-surface)', boxShadow: '0 0 0 1px var(--separator-strong), 0 5px 12px rgba(15,25,41,.10)' }
 const toggleStyle: React.CSSProperties = { display: 'flex', gap: 10, alignItems: 'center', color: 'var(--abd-primary)', fontWeight: 900 }
-const previewStyle: React.CSSProperties = { minHeight: 320, display: 'grid', gridTemplateColumns: '92px 1fr', gap: 16, border: '1px solid #D7EAFB', padding: 16, color: 'var(--abd-primary)' }
-const previewSidebarStyle: React.CSSProperties = { display: 'grid', justifyItems: 'center', alignContent: 'start', gap: 10, border: '1px solid #D7EAFB', borderRadius: 18, padding: 10 }
-const previewLogoStyle: React.CSSProperties = { width: 58, height: 42, objectFit: 'contain', borderRadius: 10, background: '#fff', border: '1px solid #D7EAFB' }
-const previewLogoFallbackStyle: React.CSSProperties = { display: 'grid', placeItems: 'center', width: 58, height: 42, borderRadius: 10, background: '#fff', border: '1px solid #D7EAFB', fontWeight: 900 }
-const previewNavItemStyle: React.CSSProperties = { width: '100%', borderRadius: 12, padding: '8px 4px', textAlign: 'center', fontSize: 12, fontWeight: 900, color: '#6F8DB5' }
+const previewStyle: React.CSSProperties = { minHeight: 320, display: 'grid', gridTemplateColumns: '92px 1fr', gap: 16, border: '1px solid var(--separator)', padding: 16, color: 'var(--abd-primary)' }
+const previewSidebarStyle: React.CSSProperties = { display: 'grid', justifyItems: 'center', alignContent: 'start', gap: 10, border: '1px solid var(--separator)', borderRadius: 18, padding: 10 }
+const previewLogoStyle: React.CSSProperties = { width: 58, height: 42, objectFit: 'contain', borderRadius: 10, background: 'var(--bg-surface)', border: '1px solid var(--separator)' }
+const previewLogoFallbackStyle: React.CSSProperties = { display: 'grid', placeItems: 'center', width: 58, height: 42, borderRadius: 10, background: 'var(--bg-surface)', border: '1px solid var(--separator)', fontWeight: 900 }
+const previewNavItemStyle: React.CSSProperties = { width: '100%', borderRadius: 12, padding: '8px 4px', textAlign: 'center', fontSize: 12, fontWeight: 900, color: 'var(--text-muted)' }
 const previewContentStyle: React.CSSProperties = { display: 'grid', gap: 14, alignContent: 'start' }
-const previewHeroStyle: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', border: '1px solid #D7EAFB', borderRadius: 18, padding: 16, boxShadow: 'var(--shadow-card)' }
-const previewButtonStyle: React.CSSProperties = { border: 0, borderRadius: 12, color: '#fff', minHeight: 38, padding: '0 14px', fontFamily: 'var(--font-main)', fontWeight: 900 }
-const previewThStyle: React.CSSProperties = { textAlign: 'right', padding: 10, color: '#fff' }
-const previewTdStyle: React.CSSProperties = { padding: 10, borderBottom: '1px solid #D7EAFB', color: 'var(--abd-primary)', fontWeight: 800, background: '#fff' }
+const previewHeroStyle: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', border: '1px solid var(--separator)', borderRadius: 18, padding: 16, boxShadow: 'var(--shadow-card)' }
+const previewButtonStyle: React.CSSProperties = { border: 0, borderRadius: 12, color: 'var(--bg-surface)', minHeight: 38, padding: '0 14px', fontFamily: 'var(--font-main)', fontWeight: 900 }
+const previewThStyle: React.CSSProperties = { textAlign: 'right', padding: 10, color: 'var(--bg-surface)' }
+const previewTdStyle: React.CSSProperties = { padding: 10, borderBottom: '1px solid var(--separator)', color: 'var(--abd-primary)', fontWeight: 800, background: 'var(--bg-surface)' }
 
