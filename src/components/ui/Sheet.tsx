@@ -17,16 +17,21 @@ export function Sheet({
   open,
   onClose,
   title,
+  subtitle,
   placement = 'side',
   children,
   footer,
+  width,
 }: {
   open: boolean
   onClose: () => void
   title: string
+  subtitle?: ReactNode
   placement?: SheetPlacement
   children: ReactNode
   footer?: ReactNode
+  /** Overrides the placement's default width (e.g. a wider side sheet for data-dense content). */
+  width?: string
 }) {
   useEffect(() => {
     if (!open) return
@@ -67,19 +72,24 @@ export function Sheet({
           animationTimingFunction: 'var(--easing-standard)',
           animationFillMode: 'both',
           ...placementStyle[placement],
+          ...(width ? { width } : {}),
         }}
       >
         <header
           style={{
             display: 'flex',
-            alignItems: 'center',
+            alignItems: 'flex-start',
             justifyContent: 'space-between',
+            gap: 12,
             padding: '16px 20px',
             borderBottom: '1px solid var(--separator)',
             flexShrink: 0,
           }}
         >
-          <strong style={{ fontSize: 17, fontWeight: 700, color: 'var(--text-heading)' }}>{title}</strong>
+          <div style={{ minWidth: 0 }}>
+            <strong style={{ display: 'block', fontSize: 17, fontWeight: 700, color: 'var(--text-heading)' }}>{title}</strong>
+            {subtitle && <div style={{ marginTop: 2, fontSize: 13, color: 'var(--text-muted)' }}>{subtitle}</div>}
+          </div>
           <IconButton label="סגירה" onClick={onClose}>
             <X size={18} />
           </IconButton>

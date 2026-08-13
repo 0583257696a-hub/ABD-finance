@@ -17,6 +17,7 @@ import {
 import { ManufacturerLogo as SharedManufacturerLogo } from '@/components/shared/ManufacturerLogo'
 import { buildInfrastructureRows } from '@/lib/infrastructure'
 import { DataTable, type DataTableColumn } from '@/components/ui/DataTable'
+import { Sheet } from '@/components/ui/Sheet'
 
 type FundActivityView = 'employers' | 'deposits' | 'beneficiaries'
 
@@ -966,17 +967,19 @@ function FundModal({
   }
 
   return (
-    <div style={fundModalOverlayStyle} onClick={onClose}>
-      <section style={fundModalStyle} onClick={event => event.stopPropagation()}>
-        <button type="button" aria-label="סגירה" onClick={onClose} style={modalCloseStyle}>×</button>
-        <header style={modalHeaderStyle}>
-          <h2 style={modalTitleStyle}>{fund.manufacturer || 'יצרן לא ידוע'}</h2>
-          <p style={mutedStyle}>
-            {fund.productType || 'מוצר'} |{' '}
-            <button type="button" onClick={copyAccount} style={copyNumberStyle}>{fund.accountNumber || 'אין מספר קופה'}</button>
-          </p>
-        </header>
-
+    <Sheet
+      open
+      onClose={onClose}
+      placement="side"
+      width="min(1200px, 100vw)"
+      title={fund.manufacturer || 'יצרן לא ידוע'}
+      subtitle={(
+        <>
+          {fund.productType || 'מוצר'} |{' '}
+          <button type="button" onClick={copyAccount} style={copyNumberStyle}>{fund.accountNumber || 'אין מספר קופה'}</button>
+        </>
+      )}
+    >
         <div style={modalGridStyle}>
           <ModalCell label="תוכנית" value={fund.productName || fund.planName || 'אין נתון'} strong />
           <ModalCell label="מספר קופה" value={<button type="button" onClick={copyAccount} style={copyNumberStyle}>{fund.accountNumber || 'אין נתון'}</button>} strong />
@@ -1218,8 +1221,7 @@ function FundModal({
             ))}
           </div>
         </section>
-      </section>
-    </div>
+    </Sheet>
   )
 }
 
@@ -1700,11 +1702,8 @@ const pillStyle: React.CSSProperties = { display: 'inline-flex', justifyContent:
 const targetButtonStyle = (value?: string): React.CSSProperties => ({ ...pillStyle, cursor: 'pointer', background: value === 'משוך קצבה' ? '#E5F8EE' : '#F8FBFF', borderColor: value === 'משוך קצבה' ? '#93E0B3' : '#B9DDF7', color: value === 'משוך קצבה' ? '#047857' : 'var(--abd-primary)' })
 const statusStyle: React.CSSProperties = { display: 'inline-flex', alignItems: 'center', borderRadius: 999, padding: '5px 11px', fontSize: 13, fontWeight: 900 }
 const modalOverlayStyle: React.CSSProperties = { position: 'fixed', inset: 0, zIndex: 100, display: 'grid', placeItems: 'start center', overflowY: 'auto', background: 'rgba(15, 23, 42, 0.45)', padding: '48px 24px 24px' }
-const fundModalOverlayStyle: React.CSSProperties = { position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', background: 'rgba(15, 23, 42, 0.45)', padding: 16, boxSizing: 'border-box' }
 const modalStyle: React.CSSProperties = { position: 'relative', width: 'min(860px, 96vw)', maxHeight: 'calc(100dvh - 48px)', overflow: 'auto', background: '#fff', borderRadius: 28, padding: 24, boxShadow: '0 32px 80px rgba(15,25,41,0.28)' }
-const fundModalStyle: React.CSSProperties = { ...modalStyle, width: 'min(1320px, calc(100vw - 32px))', maxHeight: 'calc(100dvh - 32px)', padding: 30, boxSizing: 'border-box' }
 const modalCloseStyle: React.CSSProperties = { position: 'absolute', top: 16, left: 16, width: 38, height: 38, borderRadius: 14, border: '1px solid #CFE6FA', background: '#fff', color: 'var(--abd-primary)', fontSize: 24, cursor: 'pointer' }
-const modalHeaderStyle: React.CSSProperties = { textAlign: 'center', marginBottom: 18 }
 const modalTitleStyle: React.CSSProperties = { color: 'var(--abd-primary)', fontSize: 26, fontWeight: 900 }
 const modalGridStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', borderRadius: 18, overflow: 'hidden', background: '#F8FBFF', boxShadow: 'var(--shadow-card)' }
 const modalCellStyle: React.CSSProperties = { minHeight: 82, display: 'grid', gap: 6, alignContent: 'center', justifyItems: 'center', padding: 12, borderLeft: '1px solid #EDF4FC', borderBottom: '1px solid #EDF4FC', textAlign: 'center', color: 'var(--abd-primary)' }
