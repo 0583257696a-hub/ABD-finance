@@ -18,6 +18,7 @@ import { indexAmount, loadCpiSeries } from '../src/lib/retirement/core/indexatio
 import { calculateGrantRevaluation } from '../src/lib/retirement/core/grant-revaluation'
 import { calculateRightsFixation } from '../src/lib/retirement/core/rights-fixation'
 import { calculateTaxSpread } from '../src/lib/retirement/core/tax-spread'
+import { calculateAmendment190 } from '../src/lib/retirement/core/amendment-190'
 
 let failures = 0
 
@@ -274,6 +275,45 @@ const fixationBase = {
 
   // Recommended scenario should be the longest spread here (monotone improvement in this flat-income setup).
   propertyTest('spread: recommends the 6-year scenario in the §6.6 setup', result.value.scenarios[result.value.recommendedScenario]?.spreadYears === 6, { recommended: result.value.scenarios[result.value.recommendedScenario]?.spreadYears })
+}
+
+// --- Phase 2: amendment 190 (spec §7 — the nominal-vs-real flip is the core claim) ---
+
+{
+  const base190 = {
+    depositAmount: 500000,
+    currentAge: 62,
+    withdrawalAge: 72,
+    expectedNominalReturn: 0.06,
+    managementFees: {
+      amendment190: { fromDeposit: 0, fromAccumulation: 0 },
+      investmentGemel: { fromAccumulation: 0 },
+      managedPortfolio: { annualFee: 0.008, tradingCosts: 0.002 },
+    },
+    portfolioTurnoverRate: 0.25,
+    currentPension: 6000, // above the 5,306 minimum — eligible
+    intendedUse: 'capital' as const,
+  }
+
+  // Low inflation: 15% nominal < 25% real (they tax the same gain) -> 190 capital beats gemel (spec §7.5).
+  const lowInflation = calculateAmendment190(params, { ...base190, expectedInflation: 0 })
+  const capital190 = lowInflation.value.tracks[0]
+  const gemelLow = lowInflation.value.tracks[2]
+  propertyTest('a190: at 0% inflation, 190-capital beats gemel-lehashkaa (spec §7.5)', capital190.netValue > gemelLow.netValue, { net190: capital190.netValue, netGemel: gemelLow.netValue })
+  propertyTest('a190: annuity track is best when eligible (0% tax)', lowInflation.value.tracks[lowInflation.value.bestTrack].name.includes('קצבה'), { best: lowInflation.value.tracks[lowInflation.value.bestTrack].name })
+
+  // High inflation: real gain shrinks toward zero, gemel's 25%-real tax vanishes while 190's 15%-nominal stays -> flip.
+  const highInflation = calculateAmendment190(params, { ...base190, expectedInflation: 0.055 })
+  const gemelHigh = highInflation.value.tracks[2]
+  propertyTest('a190: at 5.5% inflation the ranking flips — gemel beats 190-capital (spec §7.5)', gemelHigh.netValue > highInflation.value.tracks[0].netValue, { net190: highInflation.value.tracks[0].netValue, netGemel: gemelHigh.netValue })
+
+  // Break-even inflation exists between the two regimes and separates them correctly.
+  propertyTest('a190: break-even inflation found in (0, 5.5%)', lowInflation.value.breakEvenInflation != null && lowInflation.value.breakEvenInflation > 0 && lowInflation.value.breakEvenInflation < 0.055, { breakEven: lowInflation.value.breakEvenInflation })
+
+  // Gate check: pension below the proven-minimum -> not eligible, best track must not be a 190 track.
+  const notEligible = calculateAmendment190(params, { ...base190, expectedInflation: 0, currentPension: 4000 })
+  propertyTest('a190 gate: below minimum pension -> not eligible + warning (spec §7.2)', !notEligible.value.eligible && notEligible.warnings.some(warning => warning.code === 'A190_NO_MIN_PENSION'), notEligible.warnings.map(warning => warning.code))
+  propertyTest('a190 gate: best track excludes 190 tracks when not eligible', !notEligible.value.tracks[notEligible.value.bestTrack].name.includes('190'), { best: notEligible.value.tracks[notEligible.value.bestTrack].name })
 }
 
 console.info(`\n${failures === 0 ? 'ALL GREEN' : `${failures} FAILURE(S)`}`)
