@@ -1,12 +1,32 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { CalendarPlus, FileText, Mail, Send } from 'lucide-react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { Calendar, CalendarPlus, FileText, Link2, Mail, Send, Unlink, Zap } from 'lucide-react'
 import { Toolbar } from '@/components/ui/Toolbar'
 import { Button } from '@/components/ui/Button'
 import { Surface } from '@/components/ui/Surface'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { StatusBadge } from '@/components/ui/StatusBadge'
+
+type ProviderStatus = {
+  id: 'google_calendar' | 'microsoft_outlook' | 'calendly'
+  name: string
+  configured: boolean
+  connected: boolean
+}
+
+type CalendarMeeting = {
+  externalEventId?: string
+  title: string
+  startsAt: string
+  endsAt: string
+  location?: string
+  meetingUrl?: string
+  source: string
+  providerName: string
+  participants: Array<{ name?: string; email?: string }>
+}
 
 type Meeting = {
   id: string
@@ -63,11 +83,25 @@ function formatWhen(iso: string) {
 }
 
 export default function MeetingsPage() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const [meetings, setMeetings] = useState<Meeting[]>([])
   const [forms, setForms] = useState<ClientForm[]>([])
   const [status, setStatus] = useState('')
   const [busy, setBusy] = useState(false)
   const [openFormToken, setOpenFormToken] = useState('')
+
+  // --- Start Meeting flow state ---
+  const [startChoice, setStartChoice] = useState<'closed' | 'choose' | 'calendar' | 'spontaneous'>('closed')
+  const [providers, setProviders] = useState<ProviderStatus[]>([])
+  const [calendarMeetings, setCalendarMeetings] = useState<CalendarMeeting[]>([])
+  const [calendarErrors, setCalendarErrors] = useState<Array<{ providerName: string; message: string }>>([])
+  const [calendarLoading, setCalendarLoading] = useState(false)
+  const [spontaneousTitle, setSpontaneousTitle] = useState('')
+  const [starting, setStarting] = useState(false)
+
+  const calendarNotice = searchParams.get('calendarConnected') ? `${searchParams.get('calendarConnected')} חובר בהצלחה.`
+    : searchParams.get('calendarError') || ''
 
   const [clientName, setClientName] = useState('')
   const [clientEmail, setClientEmail] = useState('')
@@ -92,6 +126,107 @@ export default function MeetingsPage() {
   }, [])
 
   useEffect(() => { void refresh() }, [refresh])
+
+  const loadProviders = useCallback(async () => {
+    try {
+      const response = await fetch('/api/calendar?include=providers')
+      if (!response.ok) return
+      const data = await response.json() as { providers: ProviderStatus[] }
+      setProviders(data.providers || [])
+    } catch { /* calendar layer optional — silent */ }
+  }, [])
+
+  useEffect(() => { void loadProviders() }, [loadProviders])
+
+  async function loadCalendarMeetings() {
+    setCalendarLoading(true)
+    try {
+      const response = await fetch('/api/calendar')
+      if (!response.ok) { setCalendarMeetings([]); return }
+      const data = await response.json() as { meetings: CalendarMeeting[]; errors: Array<{ providerName: string; message: string }> }
+      setCalendarMeetings(data.meetings || [])
+      setCalendarErrors(data.errors || [])
+    } finally {
+      setCalendarLoading(false)
+    }
+  }
+
+  function openStartFlow() {
+    setStartChoice('choose')
+  }
+
+  function chooseFromCalendar() {
+    setStartChoice('calendar')
+    void loadCalendarMeetings()
+  }
+
+  /** Imports the chosen calendar event as a local meeting, then enters the Meeting Workspace. */
+  async function startFromCalendarEvent(event: CalendarMeeting) {
+    setStarting(true)
+    try {
+      const response = await fetch('/api/meetings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'import-calendar-event',
+          title: event.title,
+          startsAt: event.startsAt,
+          endsAt: event.endsAt,
+          location: event.location,
+          source: event.source,
+          externalEventId: event.externalEventId,
+          meetingUrl: event.meetingUrl,
+          participants: event.participants,
+          clientName: event.participants.find(person => person.name)?.name,
+          clientEmail: event.participants.find(person => person.email)?.email,
+        }),
+      })
+      const data = await response.json() as { ok?: boolean; id?: string }
+      if (data.ok && data.id) router.push(`/meeting/${data.id}`)
+      else setStatus('פתיחת הפגישה נכשלה.')
+    } finally {
+      setStarting(false)
+    }
+  }
+
+  async function startSpontaneous() {
+    setStarting(true)
+    try {
+      const now = new Date()
+      const title = spontaneousTitle.trim() || `פגישה ספונטנית — ${now.toLocaleDateString('he-IL')}`
+      const response = await fetch('/api/meetings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'import-calendar-event',
+          title,
+          startsAt: now.toISOString(),
+          endsAt: new Date(now.getTime() + 60 * 60000).toISOString(),
+          source: 'spontaneous',
+          externalEventId: `spontaneous-${crypto.randomUUID()}`,
+          participants: [],
+        }),
+      })
+      const data = await response.json() as { ok?: boolean; id?: string }
+      if (data.ok && data.id) router.push(`/meeting/${data.id}`)
+      else setStatus('פתיחת הפגישה נכשלה.')
+    } finally {
+      setStarting(false)
+    }
+  }
+
+  function connectProvider(providerId: ProviderStatus['id']) {
+    window.location.href = `/api/calendar/connect/${providerId}`
+  }
+
+  async function disconnectProvider(providerId: ProviderStatus['id']) {
+    await fetch('/api/calendar/disconnect', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ provider: providerId }),
+    })
+    await loadProviders()
+  }
 
   async function createMeeting(sendInvite: boolean) {
     if (!date || !time) { setStatus('בחר תאריך ושעה לפגישה.'); return }
@@ -189,10 +324,108 @@ export default function MeetingsPage() {
     <main dir="rtl" style={{ fontFamily: 'var(--font-main)' }}>
       <Toolbar
         title="פגישות ושאלונים"
-        subtitle="זימון פגישות עם קובץ יומן אוניברסלי (Google / Outlook / Apple) ושליחת שאלון הכנה ללקוח"
+        subtitle="התחלת פגישה, זימון עם קובץ יומן אוניברסלי, ושליחת שאלון הכנה ללקוח"
+        actions={<Button variant="primary" onClick={openStartFlow}><Zap size={15} style={iconStyle} /> התחל פגישה</Button>}
       />
 
       {status && <div style={noticeStyle}>{status}</div>}
+      {calendarNotice && <div style={noticeStyle}>{calendarNotice}</div>}
+
+      {startChoice !== 'closed' && (
+        <Surface style={{ padding: 20, marginBottom: 18 }}>
+          {startChoice === 'choose' && (
+            <div>
+              <h2 style={sectionTitleStyle}>איך תרצה להתחיל?</h2>
+              <div style={choiceGridStyle}>
+                <button type="button" onClick={chooseFromCalendar} style={choiceCardStyle}>
+                  <Calendar size={22} />
+                  <strong>מהיומן</strong>
+                  <span style={metaStyle}>בחר פגישה קיימת מהיומן שלך</span>
+                </button>
+                <button type="button" onClick={() => setStartChoice('spontaneous')} style={choiceCardStyle}>
+                  <Zap size={22} />
+                  <strong>פגישה ספונטנית</strong>
+                  <span style={metaStyle}>התחל פגישה חדשה עכשיו</span>
+                </button>
+              </div>
+              <Button variant="ghost" size="sm" onClick={() => setStartChoice('closed')}>ביטול</Button>
+            </div>
+          )}
+
+          {startChoice === 'spontaneous' && (
+            <div style={{ display: 'grid', gap: 12, maxWidth: 420 }}>
+              <h2 style={sectionTitleStyle}>פגישה ספונטנית</h2>
+              <Field label="שם הפגישה (אופציונלי)">
+                <input value={spontaneousTitle} onChange={event => setSpontaneousTitle(event.target.value)} placeholder="פגישה עם לקוח חדש" style={inputStyle} />
+              </Field>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <Button variant="primary" disabled={starting} onClick={() => void startSpontaneous()}>{starting ? 'פותח…' : 'התחל פגישה'}</Button>
+                <Button variant="ghost" onClick={() => setStartChoice('choose')}>חזרה</Button>
+              </div>
+            </div>
+          )}
+
+          {startChoice === 'calendar' && (
+            <div>
+              <h2 style={sectionTitleStyle}>בחר פגישה מהיומן</h2>
+              {!providers.some(provider => provider.connected) ? (
+                <div>
+                  <p style={metaStyle}>עדיין לא חיברת יומן.</p>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
+                    {providers.filter(provider => provider.configured).map(provider => (
+                      <Button key={provider.id} variant="secondary" size="sm" onClick={() => connectProvider(provider.id)}>
+                        <Link2 size={13} style={iconStyle} /> חבר {provider.name}
+                      </Button>
+                    ))}
+                    {providers.every(provider => !provider.configured) && (
+                      <span style={metaStyle}>אף ספק יומן לא הוגדר עדיין בסביבה זו.</span>
+                    )}
+                  </div>
+                </div>
+              ) : calendarLoading ? (
+                <p style={metaStyle}>טוען פגישות…</p>
+              ) : calendarMeetings.length ? (
+                <div style={{ display: 'grid', gap: 8 }}>
+                  {calendarMeetings.map(event => (
+                    <div key={`${event.source}-${event.externalEventId}`} style={meetingRowStyle}>
+                      <div style={{ minWidth: 0 }}>
+                        <strong style={{ color: 'var(--text-heading)' }}>{event.title}</strong>
+                        <span style={metaStyle}>{formatWhen(event.startsAt)} · {event.providerName}</span>
+                      </div>
+                      <Button size="sm" variant="primary" disabled={starting} onClick={() => void startFromCalendarEvent(event)}>התחל פגישה</Button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p style={metaStyle}>אין פגישות קרובות ביומן המחובר.</p>
+              )}
+              {calendarErrors.map(error => (
+                <p key={error.providerName} style={{ ...metaStyle, color: 'var(--destructive-text)', marginTop: 8 }}>{error.providerName}: {error.message}</p>
+              ))}
+              <Button variant="ghost" size="sm" onClick={() => setStartChoice('choose')} style={{ marginTop: 10 }}>חזרה</Button>
+            </div>
+          )}
+        </Surface>
+      )}
+
+      <Surface style={{ padding: 20, marginBottom: 18 }}>
+        <h2 style={sectionTitleStyle}><Link2 size={17} style={iconStyle} /> חיבורי יומן</h2>
+        {providers.length ? (
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            {providers.map(provider => (
+              <div key={provider.id} style={providerChipStyle}>
+                <StatusBadge tone={provider.connected ? 'success' : provider.configured ? 'neutral' : 'warning'} label={provider.connected ? 'מחובר' : provider.configured ? 'לא מחובר' : 'לא מוגדר'} />
+                <span style={{ color: 'var(--text-heading)', fontWeight: 600, fontSize: 13.5 }}>{provider.name}</span>
+                {provider.configured && (
+                  provider.connected
+                    ? <Button size="sm" variant="ghost" onClick={() => void disconnectProvider(provider.id)}><Unlink size={12} style={iconStyle} /> נתק</Button>
+                    : <Button size="sm" variant="ghost" onClick={() => connectProvider(provider.id)}>חבר</Button>
+                )}
+              </div>
+            ))}
+          </div>
+        ) : <p style={metaStyle}>טוען…</p>}
+      </Surface>
 
       <section style={layoutStyle}>
         <Surface style={{ padding: 20 }}>
@@ -231,10 +464,10 @@ export default function MeetingsPage() {
                       {meeting.invite_sent_at && <span style={{ ...metaStyle, color: 'var(--success-text)' }}>זימון נשלח {formatWhen(meeting.invite_sent_at)}</span>}
                     </div>
                     <div style={{ display: 'flex', gap: 6, flexShrink: 0, flexWrap: 'wrap' }}>
+                      <Button size="sm" variant="primary" onClick={() => router.push(`/meeting/${meeting.id}`)}>התחל פגישה</Button>
                       <Button size="sm" variant="secondary" disabled={busy || !meeting.client_email} onClick={() => void sendInvite(meeting)}>
                         <Send size={13} style={iconStyle} /> {meeting.invite_sent_at ? 'שלח שוב' : 'שלח זימון'}
                       </Button>
-                      <Button size="sm" variant="ghost" onClick={() => void setMeetingStatus(meeting, 'done')}>התקיימה</Button>
                       <Button size="sm" variant="ghost" onClick={() => void setMeetingStatus(meeting, 'cancelled')}>בוטלה</Button>
                     </div>
                   </article>
@@ -318,3 +551,6 @@ const noticeStyle: React.CSSProperties = { background: 'var(--bg-surface-sunken)
 const meetingRowStyle: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, border: '1px solid var(--separator)', borderRadius: 'var(--radius-md)', padding: 12, background: 'var(--bg-canvas)' }
 const metaStyle: React.CSSProperties = { display: 'block', color: 'var(--text-muted)', fontSize: 12.5, marginTop: 2 }
 const payloadStyle: React.CSSProperties = { display: 'grid', gap: 4, marginTop: 10, padding: 10, borderRadius: 'var(--radius-md)', background: 'var(--bg-surface)', border: '1px solid var(--separator)', fontSize: 13 }
+const choiceGridStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12, marginBottom: 14 }
+const choiceCardStyle: React.CSSProperties = { display: 'grid', gap: 6, justifyItems: 'center', textAlign: 'center', padding: '22px 16px', border: '1px solid var(--separator)', borderRadius: 'var(--radius-lg)', background: 'var(--bg-canvas)', color: 'var(--text-heading)', fontFamily: 'var(--font-main)', cursor: 'pointer' }
+const providerChipStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', border: '1px solid var(--separator)', borderRadius: 999, background: 'var(--bg-canvas)' }

@@ -37,6 +37,7 @@ const NAV_GROUPS: Array<{ title: string; items: NavItem[] }> = [
       { tab: 'recommendations', icon: Lightbulb, label: 'המלצות' },
       { tab: 'summary', icon: FileText, label: 'סיכום פגישה' },
       { tab: 'meetings', icon: CalendarClock, label: 'פגישות' },
+      { tab: 'meeting-summaries', icon: FileText, label: 'סיכומי פגישות' },
       { tab: 'smart-agent', icon: Radar, label: 'Smart Agent' },
     ],
   },
