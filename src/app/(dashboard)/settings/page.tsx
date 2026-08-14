@@ -1,6 +1,7 @@
 ﻿'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Link2, Unlink } from 'lucide-react'
 import {
   applyBrandingSettings,
   defaultBrandingSettings,
@@ -15,6 +16,14 @@ import {
 import { Toolbar } from '@/components/ui/Toolbar'
 import { Button } from '@/components/ui/Button'
 import { Surface } from '@/components/ui/Surface'
+import { StatusBadge } from '@/components/ui/StatusBadge'
+
+type ProviderStatus = {
+  id: 'google_calendar' | 'microsoft_outlook' | 'calendly'
+  name: string
+  configured: boolean
+  connected: boolean
+}
 
 type GeneratedTheme = {
   id: string
@@ -36,6 +45,38 @@ export default function SettingsPage() {
   const [saved, setSaved] = useState(false)
   const selectedTheme = useMemo(() => settingsFromTheme(settings.themeId), [settings.themeId])
   const generatedThemes = useMemo(() => buildLogoThemes(logoPalette), [logoPalette])
+  const [providers, setProviders] = useState<ProviderStatus[]>([])
+  const [providersError, setProvidersError] = useState<string | null>(null)
+
+  const loadProviders = useCallback(async () => {
+    setProvidersError(null)
+    try {
+      const response = await fetch('/api/calendar?include=providers')
+      if (!response.ok) {
+        setProvidersError(`שגיאה בטעינת סטטוס חיבורים (${response.status})`)
+        return
+      }
+      const data = await response.json() as { providers: ProviderStatus[] }
+      setProviders(data.providers || [])
+    } catch {
+      setProvidersError('לא ניתן היה להתחבר לשרת. בדוק חיבור אינטרנט ונסה שוב.')
+    }
+  }, [])
+
+  useEffect(() => { void loadProviders() }, [loadProviders])
+
+  function connectProvider(providerId: ProviderStatus['id']) {
+    window.location.href = `/api/calendar/connect/${providerId}`
+  }
+
+  async function disconnectProvider(providerId: ProviderStatus['id']) {
+    await fetch('/api/calendar/disconnect', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ provider: providerId }),
+    })
+    await loadProviders()
+  }
 
   useEffect(() => {
     try {
@@ -124,6 +165,7 @@ export default function SettingsPage() {
           <a href="#brand" style={sideTabStyle}>מיתוג אישי</a>
           <a href="#themes" style={sideTabStyle}>ערכות נושא</a>
           <a href="#summary" style={sideTabStyle}>סיכום וחתימה</a>
+          <a href="#calendar" style={sideTabStyle}>חיבור יומן</a>
           <a href="#preview" style={sideTabStyle}>תצוגה מקדימה</a>
         </aside>
 
@@ -220,6 +262,32 @@ export default function SettingsPage() {
             <Field label="חתימת מייל">
               <textarea value={settings.emailSignature} onChange={event => update('emailSignature', event.target.value)} rows={5} style={textareaStyle} />
             </Field>
+          </Surface>
+
+          <Surface id="calendar" style={cardStyle}>
+            <h2 style={sectionTitleStyle}>חיבור יומן</h2>
+            {providers.length ? (
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                {providers.map(provider => (
+                  <div key={provider.id} style={providerChipStyle}>
+                    <StatusBadge tone={provider.connected ? 'success' : provider.configured ? 'neutral' : 'warning'} label={provider.connected ? 'מחובר' : provider.configured ? 'לא מחובר' : 'לא מוגדר'} />
+                    <span style={{ color: 'var(--abd-primary)', fontWeight: 900, fontSize: 13.5 }}>{provider.name}</span>
+                    {provider.configured && (
+                      provider.connected
+                        ? <Button size="sm" variant="ghost" onClick={() => void disconnectProvider(provider.id)}><Unlink size={12} style={{ marginInlineEnd: 4 }} /> נתק</Button>
+                        : <Button size="sm" variant="ghost" onClick={() => connectProvider(provider.id)}><Link2 size={12} style={{ marginInlineEnd: 4 }} /> חבר</Button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : providersError ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <p style={{ color: 'var(--danger, #c0392b)' }}>{providersError}</p>
+                <Button variant="secondary" size="sm" onClick={() => void loadProviders()}>נסה שוב</Button>
+              </div>
+            ) : (
+              <p style={{ color: 'var(--text-muted)' }}>טוען סטטוס חיבורים...</p>
+            )}
           </Surface>
 
           <Surface id="preview" style={cardStyle}>
@@ -397,6 +465,7 @@ function darken(color: string, amount: number) {
 }
 
 const pageStyle: React.CSSProperties = { fontFamily: 'var(--font-main)' }
+const providerChipStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', border: '1px solid var(--separator)', borderRadius: 999, background: 'var(--bg-canvas)' }
 const saveBadgeStyle: React.CSSProperties = { border: '1px solid var(--separator)', borderRadius: 999, padding: '9px 14px', background: 'var(--bg-surface)', color: 'var(--abd-primary)', fontWeight: 900 }
 const layoutStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: '180px 1fr', gap: 16, alignItems: 'start' }
 const sideTabsStyle: React.CSSProperties = { position: 'sticky', top: 86, display: 'grid', gap: 8, background: 'var(--bg-card)', border: '1px solid var(--separator)', borderRadius: 'var(--radius-card)', padding: 12, boxShadow: 'var(--shadow-card)' }

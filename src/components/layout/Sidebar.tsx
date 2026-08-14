@@ -272,6 +272,7 @@ const collapseButtonStyle: React.CSSProperties = {
 
 const navStyle: React.CSSProperties = {
   flex: 1,
+  minHeight: 0,
   width: '100%',
   display: 'grid',
   alignContent: 'start',
@@ -323,6 +324,7 @@ const newClientStyle: React.CSSProperties = {
 
 const bottomStyle: React.CSSProperties = {
   width: '100%',
+  flexShrink: 0,
   display: 'grid',
   gap: 2,
   paddingTop: 10,

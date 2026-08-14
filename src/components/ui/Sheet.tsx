@@ -94,7 +94,7 @@ export function Sheet({
             <X size={18} />
           </IconButton>
         </header>
-        <div style={{ flex: 1, overflowY: 'auto', padding: 20 }}>{children}</div>
+        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: 20 }}>{children}</div>
         {footer && (
           <footer style={{ padding: '14px 20px', borderTop: '1px solid var(--separator)', flexShrink: 0 }}>{footer}</footer>
         )}
