@@ -122,7 +122,7 @@ export default function SmartAgentPage() {
   }, [findings])
 
   return (
-    <main dir="rtl" style={{ fontFamily: 'var(--font-main)' }}>
+    <div dir="rtl" style={{ fontFamily: 'var(--font-main)' }}>
       <Toolbar
         title="Smart Agent"
         subtitle="מנוע זיהוי חריגות דטרמיניסטי — מציף ממצאים עובדתיים לבחינת הסוכן, לא המלצות"
@@ -229,7 +229,7 @@ export default function SmartAgentPage() {
       <p style={{ ...metaTextStyle, marginTop: 16 }}>
         Smart Agent מזהה חריגות לפי כללים דטרמיניסטיים ומציג עובדות בלבד — אינו ממליץ על מוצר, יצרן או מסלול. ההחלטה המקצועית היא של הסוכן.
       </p>
-    </main>
+    </div>
   )
 }
 

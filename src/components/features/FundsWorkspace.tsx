@@ -657,7 +657,7 @@ export default function FundsWorkspace() {
 
   if (mounted && !funds.length) {
     return (
-      <main dir="rtl" style={pageStyle}>
+      <div dir="rtl" style={pageStyle}>
         <input ref={inputRef} hidden multiple type="file" accept=".zip,.xml,.xlsx,.xls,.xlsm" onChange={event => void handleFiles(event.target.files)} />
         <section style={welcomeShellStyle}>
           <div style={welcomeTopStripStyle}>
@@ -697,12 +697,12 @@ export default function FundsWorkspace() {
             </div>
           </div>
         </section>
-      </main>
+      </div>
     )
   }
 
   return (
-    <main dir="rtl" style={pageStyle}>
+    <div dir="rtl" style={pageStyle}>
       <header style={headerStyle}>
         <div>
           <h1 style={titleStyle}>דשבורד קופות</h1>
@@ -796,6 +796,7 @@ export default function FundsWorkspace() {
               type="checkbox"
               checked={selectedIds.includes(fund.id)}
               onChange={event => toggleFundSelection(fund.id, event.target.checked)}
+              aria-label={`בחר קופה: ${[fund.manufacturer, fund.accountNumber].filter(Boolean).join(' ') || 'ללא זיהוי'}`}
               style={checkboxStyle}
             />
           )}
@@ -814,7 +815,7 @@ export default function FundsWorkspace() {
         />
       )}
       {needsOpen && <NeedsModal onClose={() => setNeedsOpen(false)} funds={funds} />}
-    </main>
+    </div>
   )
 }
 
@@ -1495,7 +1496,7 @@ function KpiCard({ title, value, sub, icon }: { title: string; value: string; su
   return (
     <article style={kpiStyle}>
       <span style={kpiIconStyle}>{icon}</span>
-      <span style={{ color: '#7EA0C9', fontWeight: 900 }}>{title}</span>
+      <span style={{ color: 'var(--text-muted)', fontWeight: 900 }}>{title}</span>
       <strong style={{ color: 'var(--abd-primary)', fontSize: 26, lineHeight: 1.1 }}>{value}</strong>
       <small style={{ color: 'var(--text-muted)' }}>{sub}</small>
     </article>
@@ -1504,7 +1505,13 @@ function KpiCard({ title, value, sub, icon }: { title: string; value: string; su
 
 function StatusBadge({ status }: { status?: string }) {
   const active = isActiveStatus(status)
-  return <span style={{ ...statusStyle, background: active ? 'var(--status-active-bg)' : 'var(--status-danger-bg)', color: active ? 'var(--status-active-text)' : 'var(--status-danger-text)' }}>{status || 'לא ידוע'}</span>
+  // "לא פעיל" is a neutral fact, not a problem — it shouldn't compete visually
+  // with genuine warnings. Only "מוקפא" (frozen) gets the warning tone; red is
+  // reserved for states that actually need attention, which this field never has.
+  const isFrozen = String(status || '').includes('מוקפא')
+  const bg = active ? 'var(--status-active-bg)' : isFrozen ? 'var(--status-warning-bg)' : 'var(--bg-surface-sunken)'
+  const color = active ? 'var(--status-active-text)' : isFrozen ? 'var(--status-warning-text)' : 'var(--text-muted)'
+  return <span style={{ ...statusStyle, background: bg, color }}>{status || 'לא ידוע'}</span>
 }
 
 function ModalCell({ label, value, strong }: { label: string; value: React.ReactNode; strong?: boolean }) {

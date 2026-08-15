@@ -470,7 +470,7 @@ export default function SimulationsPage() {
   const scenarioRows = useMemo(() => buildScenarioRows(compoundInputs), [compoundInputs])
 
   return (
-    <main dir="rtl" style={{ fontFamily: 'var(--font-main)' }}>
+    <div dir="rtl" style={{ fontFamily: 'var(--font-main)' }}>
       <Toolbar title="סימולציות" />
 
       <section style={{ marginBottom: 20 }} aria-label="בחירת סימולציה">
@@ -503,7 +503,7 @@ export default function SimulationsPage() {
           resetColumnWidths={resetColumnWidths}
         />
       )}
-    </main>
+    </div>
   )
 }
 

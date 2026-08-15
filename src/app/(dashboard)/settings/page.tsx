@@ -149,7 +149,7 @@ export default function SettingsPage() {
   }
 
   return (
-    <main dir="rtl" style={pageStyle}>
+    <div dir="rtl" style={pageStyle}>
       <Toolbar
         title="הגדרות תצוגה ומיתוג"
         actions={
@@ -319,7 +319,7 @@ export default function SettingsPage() {
           </Surface>
         </div>
       </section>
-    </main>
+    </div>
   )
 }
 

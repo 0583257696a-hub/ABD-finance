@@ -343,7 +343,7 @@ export default function MeetingsPage() {
   const past = useMemo(() => meetings.filter(meeting => meeting.status !== 'scheduled'), [meetings])
 
   return (
-    <main dir="rtl" style={{ fontFamily: 'var(--font-main)' }}>
+    <div dir="rtl" style={{ fontFamily: 'var(--font-main)' }}>
       <Toolbar
         title="פגישות ושאלונים"
         subtitle="התחלת פגישה, זימון עם קובץ יומן אוניברסלי, ושליחת שאלון הכנה ללקוח"
@@ -560,7 +560,7 @@ export default function MeetingsPage() {
           </Surface>
         </div>
       </section>
-    </main>
+    </div>
   )
 }
 

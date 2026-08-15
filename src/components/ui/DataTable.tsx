@@ -150,12 +150,14 @@ export function DataTable<T>({
         </colgroup>
         <thead>
           <tr>
-            {hasLeadingColumn && <th style={{ ...thStyle, width: leadingColumnWidth ?? 44 }} />}
+            {hasLeadingColumn && <th scope="col" style={{ ...thStyle, width: leadingColumnWidth ?? 44 }} />}
             {orderedColumns.map(column => {
               const active = sortKey === column.key
               return (
                 <th
                   key={column.key}
+                  scope="col"
+                  aria-sort={active ? (sortDirection === 'asc' ? 'ascending' : 'descending') : undefined}
                   style={thStyle}
                   onDragOver={event => event.preventDefault()}
                   onDrop={() => {

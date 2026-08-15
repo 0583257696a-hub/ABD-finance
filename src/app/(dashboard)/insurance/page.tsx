@@ -229,7 +229,7 @@ export default function InsurancePage() {
   }
 
   return (
-    <main dir="rtl" style={{ fontFamily: 'var(--font-main)' }}>
+    <div dir="rtl" style={{ fontFamily: 'var(--font-main)' }}>
       <Toolbar
         title="פוליסות ביטוח"
         actions={(
@@ -261,6 +261,7 @@ export default function InsurancePage() {
             type="checkbox"
             checked={selectedInsurancePolicyIds.includes(policy.id)}
             onChange={event => togglePolicySelection(policy.id, event.target.checked)}
+            aria-label={`בחר פוליסה: ${[policy.manufacturer, policy.policyNumber].filter(Boolean).join(' ') || 'ללא זיהוי'}`}
             style={checkboxStyle}
           />
         )}
@@ -274,7 +275,7 @@ export default function InsurancePage() {
           onSave={recommendation => savePolicyRecommendation(activePolicy, recommendation)}
         />
       )}
-    </main>
+    </div>
   )
 }
 

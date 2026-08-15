@@ -628,7 +628,7 @@ export default function MeetingSummaryPage() {
   const screenshots = summary.screenshots || []
 
   return (
-    <main dir="rtl" style={pageStyle}>
+    <div dir="rtl" style={pageStyle}>
       <style>{printCss}</style>
       <div className="no-print">
         <Toolbar
@@ -873,7 +873,7 @@ export default function MeetingSummaryPage() {
           </article>
         </section>
       </section>
-    </main>
+    </div>
   )
 }
 

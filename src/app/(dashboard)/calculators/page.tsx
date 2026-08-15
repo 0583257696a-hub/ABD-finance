@@ -83,7 +83,7 @@ export default function CalculatorsPage() {
   }
 
   return (
-    <main dir="rtl" style={{ fontFamily: 'var(--font-main)' }}>
+    <div dir="rtl" style={{ fontFamily: 'var(--font-main)' }}>
       <Toolbar title="מחשבונים" />
 
       <section style={gridStyle}>
@@ -180,7 +180,7 @@ export default function CalculatorsPage() {
           </table>
         </Surface>
       </section>
-    </main>
+    </div>
   )
 }
 

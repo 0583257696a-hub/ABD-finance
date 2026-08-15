@@ -56,9 +56,9 @@ export default function WorkspaceTabs() {
   }, [searchParams])
 
   return (
-    <main dir="rtl" style={pageStyle}>
+    <div dir="rtl" style={pageStyle}>
       <section style={tabContentStyle}>{active.render()}</section>
-    </main>
+    </div>
   )
 }
 

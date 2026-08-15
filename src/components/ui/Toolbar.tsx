@@ -43,9 +43,10 @@ export function Toolbar({
         </IconButton>
       )}
       <div style={{ flex: 1, minWidth: 0 }}>
-        <strong
+        <h1
           style={{
             display: 'block',
+            margin: 0,
             fontSize: 20,
             fontWeight: 700,
             color: 'var(--text-heading)',
@@ -55,7 +56,7 @@ export function Toolbar({
           }}
         >
           {title}
-        </strong>
+        </h1>
         {subtitle && (
           <span style={{ fontSize: 12.5, color: 'var(--text-muted)' }}>{subtitle}</span>
         )}

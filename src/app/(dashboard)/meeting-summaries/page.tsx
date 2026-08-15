@@ -62,7 +62,7 @@ export default function MeetingSummariesHistoryPage() {
   useEffect(() => { loadSummaries() }, [])
 
   return (
-    <main dir="rtl" style={{ fontFamily: 'var(--font-main)' }}>
+    <div dir="rtl" style={{ fontFamily: 'var(--font-main)' }}>
       <Toolbar title="סיכומי פגישות" subtitle="ארכיון סיכומים שנשמרו בסיום כל פגישה" />
 
       {justSaved && (
@@ -92,7 +92,7 @@ export default function MeetingSummariesHistoryPage() {
           <EmptyState icon={<FileText size={30} />} title="אין סיכומים בהיסטוריה" description='סיכום נשמר כאן אוטומטית כשלוחצים "סיים פגישה" בתוך פגישה פעילה.' />
         </Surface>
       ) : null}
-    </main>
+    </div>
   )
 }
 

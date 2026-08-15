@@ -185,7 +185,7 @@ export default function AbdReturnsPage() {
   }
 
   return (
-    <main dir="rtl" style={{ fontFamily: 'var(--font-main)' }}>
+    <div dir="rtl" style={{ fontFamily: 'var(--font-main)' }}>
       <style>{`
         .abd-returns-grid {
           display: grid;
@@ -336,7 +336,7 @@ export default function AbdReturnsPage() {
           <button type="button" onClick={() => saveHighlight(palette.trackName)} style={clearButtonStyle}>× הסר</button>
         </div>
       )}
-    </main>
+    </div>
   )
 }
 

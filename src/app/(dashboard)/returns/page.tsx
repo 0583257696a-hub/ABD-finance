@@ -180,7 +180,7 @@ export default function ReturnsPage() {
   const hasSignificantBlindSpot = coverage.unmatchedShare >= 0.2
 
   return (
-    <main dir="rtl" style={{ fontFamily: 'var(--font-main)', padding: '20px 24px' }}>
+    <div dir="rtl" style={{ fontFamily: 'var(--font-main)', padding: '20px 24px' }}>
       {hasSignificantBlindSpot && (
         <div style={{
           display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14, padding: '10px 14px',
@@ -217,7 +217,7 @@ export default function ReturnsPage() {
           </button>
         )}
       />
-    </main>
+    </div>
   )
 }
 

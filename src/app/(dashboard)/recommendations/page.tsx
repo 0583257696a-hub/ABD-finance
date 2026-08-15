@@ -108,7 +108,7 @@ export default function RecommendationsPage() {
   }
 
   return (
-    <main dir="rtl" style={{ fontFamily: 'var(--font-main)' }}>
+    <div dir="rtl" style={{ fontFamily: 'var(--font-main)' }}>
       <Toolbar
         title="המלצות ניוד"
         subtitle="המסלולים מגיעים מנתוני רשות שוק ההון. בחירת יצרן מסננת רק מסלולים של אותו יצרן, כולל כלל → רק מסלולים שמתחילים בכלל."
@@ -176,7 +176,7 @@ export default function RecommendationsPage() {
           )}
         </Surface>
       </section>
-    </main>
+    </div>
   )
 }
 
