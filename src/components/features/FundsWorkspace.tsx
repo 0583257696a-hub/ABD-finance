@@ -598,6 +598,23 @@ export default function FundsWorkspace() {
         return { ...base, render: (fund: FundRecord) => fund.standing || 'שכיר' }
       case 'investmentTrack':
         return { ...base, render: (fund: FundRecord) => fund.investmentTrack || fund.productName || 'אין נתון' }
+      case 'managementFeeText':
+        return {
+          ...base,
+          render: (fund: FundRecord) => {
+            const balanceFee = parseFeePercent(fund.balanceFee)
+            // 2% is above the legal balance-fee cap for every common Israeli
+            // retirement product (gemel 1.05%, hishtalmut 2%) — anything above
+            // it is always worth a look, whether it's a real fee or a parsing error.
+            const isAnomalous = balanceFee != null && balanceFee > 2
+            if (!isAnomalous) return fund.managementFeeText || 'אין נתון'
+            return (
+              <span style={{ color: 'var(--destructive-text)', fontWeight: 800 }} title="דמי ניהול מצבירה גבוהים מהתקרה הרגולטורית המקובלת — לבדוק">
+                ⚠ {fund.managementFeeText || `${balanceFee}%`}
+              </span>
+            )
+          },
+        }
       default:
         return { ...base, render: (fund: FundRecord) => String(fund[column.key] || 'אין נתון') }
     }
