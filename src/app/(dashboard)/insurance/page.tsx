@@ -254,7 +254,7 @@ export default function InsurancePage() {
         rowKey={policy => policy.id}
         onRowClick={policy => setActivePolicy(policy)}
         storageKey="abd_next_insurance_table"
-        emptyMessage="אין פוליסות להצגה."
+        emptyMessage="לא נמצאו פוליסות ביטוח בקבצים שיובאו. ייתכן שהלקוח אינו מבוטח דרך המסלקה, או שקובץ המסלקה שיובא אינו כולל נתוני ביטוח."
         leadingColumnWidth={44}
         renderLeadingCell={policy => (
           <input

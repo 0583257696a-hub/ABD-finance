@@ -23,6 +23,7 @@ type FundRow = {
 }
 
 const FUNDS_KEY = 'abd_next_funds'
+const INFRASTRUCTURE_IDS_KEY = 'abd_next_infrastructure_ids'
 
 function toNumber(value: unknown) {
   const parsed = Number(String(value || '').replace(/[^\d.-]/g, ''))
@@ -52,11 +53,15 @@ export default function CalculatorsPage() {
   useEffect(() => {
     try {
       const storedFunds = JSON.parse(localStorage.getItem(FUNDS_KEY) || '[]')
-      const list = Array.isArray(storedFunds) ? storedFunds : []
+      const list: FundRow[] = Array.isArray(storedFunds) ? storedFunds : []
       setFunds(list)
-      const pensionFunds = list.filter((fund: FundRow) => fund.genderScore === 'משוך קצבה')
-      const pensionCapital = pensionFunds.reduce((sum: number, fund: FundRow) => sum + (toNumber(fund.retirementCapital) || toNumber(fund.currentBalance)), 0)
-      const importedPension = pensionFunds.reduce((sum: number, fund: FundRow) => sum + toNumber(fund.importedPension), 0)
+      const storedInfrastructureIds = JSON.parse(localStorage.getItem(INFRASTRUCTURE_IDS_KEY) || '[]')
+      const infrastructureIds: string[] = Array.isArray(storedInfrastructureIds) ? storedInfrastructureIds : []
+      // Must match FundsWorkspace's marking mechanism exactly — funds are marked via
+      // infrastructureIds (localStorage), not the legacy genderScore field alone.
+      const pensionFunds = list.filter(fund => infrastructureIds.includes(String(fund.id || '')) || fund.genderScore === 'משוך קצבה')
+      const pensionCapital = pensionFunds.reduce((sum, fund) => sum + (toNumber(fund.retirementCapital) || toNumber(fund.currentBalance)), 0)
+      const importedPension = pensionFunds.reduce((sum, fund) => sum + toNumber(fund.importedPension), 0)
       if (pensionCapital > 0) setCapital(String(Math.round(pensionCapital)))
       if (pensionCapital > 0 && importedPension > 0) setFactor(String(Math.round((pensionCapital / importedPension) * 100) / 100))
     } catch {

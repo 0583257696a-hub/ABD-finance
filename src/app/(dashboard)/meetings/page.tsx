@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/Button'
 import { Surface } from '@/components/ui/Surface'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { StatusBadge } from '@/components/ui/StatusBadge'
+import { useWorkspaceStore } from '@/lib/store/workspaceStore'
 
 type ProviderStatus = {
   id: 'google_calendar' | 'microsoft_outlook' | 'calendly'
@@ -103,6 +104,7 @@ export default function MeetingsPage() {
   const calendarNotice = searchParams.get('calendarConnected') ? `${searchParams.get('calendarConnected')} חובר בהצלחה.`
     : searchParams.get('calendarError') || ''
 
+  const activeClient = useWorkspaceStore(state => state.client)
   const [clientName, setClientName] = useState('')
   const [clientEmail, setClientEmail] = useState('')
   const [title, setTitle] = useState('פגישת ייעוץ פנסיוני')
@@ -111,6 +113,18 @@ export default function MeetingsPage() {
   const [durationMinutes, setDurationMinutes] = useState('60')
   const [location, setLocation] = useState('')
   const [notes, setNotes] = useState('')
+
+  // Pre-fill from the active client so the advisor doesn't retype what the app already knows.
+  // Only fills empty fields, so it never overwrites something the advisor already typed.
+  useEffect(() => {
+    if (!activeClient) return
+    if (!clientName) {
+      const name = activeClient.fullName || [activeClient.firstName, activeClient.lastName].filter(Boolean).join(' ')
+      if (name) setClientName(name)
+    }
+    if (!clientEmail && activeClient.email) setClientEmail(activeClient.email)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeClient])
 
   const refresh = useCallback(async () => {
     try {

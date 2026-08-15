@@ -257,6 +257,15 @@ function isActiveStatus(status?: string) {
   return value.includes('פעיל') && !value.includes('לא')
 }
 
+// The dashboard KPI card is on-screen during live meetings and screen-shares —
+// mask the ID number there. The formal meeting-summary document sent to the
+// client is a different context (their own official record) and is left as-is.
+function maskIdNumber(value?: string) {
+  const digits = String(value || '').replace(/\D/g, '')
+  if (digits.length < 4) return ''
+  return `${'•'.repeat(digits.length - 3)}${digits.slice(-3)}`
+}
+
 function parseFeePercent(value: string | number | undefined) {
   if (typeof value === 'number') return Number.isFinite(value) ? value : null
   const match = String(value ?? '').match(/[\d.]+/)
@@ -708,7 +717,7 @@ export default function FundsWorkspace() {
       </header>
 
       <section style={kpiGridStyle}>
-        <KpiCard title="לקוח" value={mounted ? getClientName() : 'ממתין'} sub={storeClient?.idNumber || ''} icon={<Briefcase size={18} />} />
+        <KpiCard title="לקוח" value={mounted ? getClientName() : 'ממתין'} sub={maskIdNumber(storeClient?.idNumber)} icon={<Briefcase size={18} />} />
         <KpiCard title="קופות" value={mounted ? String(funds.length) : '0'} sub="" icon={<BarChart2 size={18} />} />
         <KpiCard title="קופות פעילות" value={mounted ? String(activeFunds) : '0'} sub="" icon={<Shield size={18} />} />
         <KpiCard title="הון לקצבה" value={mounted ? money(pensionCapital) : money(0)} sub={`${selectedForPension} קופות שסומנו לחישוב`} icon={<FileText size={18} />} />
