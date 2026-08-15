@@ -15,7 +15,7 @@ import {
   type AbdTrack,
 } from '@/lib/returns-catalog'
 import { ManufacturerLogo as SharedManufacturerLogo } from '@/components/shared/ManufacturerLogo'
-import { buildInfrastructureRows } from '@/lib/infrastructure'
+import { buildInfrastructureRows, isInfrastructureFund } from '@/lib/infrastructure'
 import { DataTable, type DataTableColumn } from '@/components/ui/DataTable'
 import { Sheet } from '@/components/ui/Sheet'
 
@@ -353,7 +353,7 @@ function defaultRecommendationReason(action: RecommendationActionId, fund: FundR
   const fundLabel = [fund.manufacturer, fund.accountNumber].filter(Boolean).join(' ')
   switch (action) {
     case 'new-product':
-      return `ניוד למוצר חדש: מומלץ לבחון ניוד של ${fundLabel || 'הקופה'} אל ${productType || 'מוצר מתאים'}${manufacturer ? ` ב${manufacturer}` : ''}, בהתאם לצורכי הלקוח, רמת הסיכון, דמי הניהול ותשואות מסלול ההשקעה.`
+      return `ניוד למוצר חדש: מומלץ לבחון ניוד של ${fundLabel || 'הקופה'} אל ${productType || 'מוצר מתאים'}${manufacturer ? ` ב${manufacturer}` : ''}, בהתאם לדמי הניהול ותשואות מסלול ההשקעה. יש לוודא התאמה לרמת הסיכון ולצורכי הלקוח לפני אישור ההמלצה — התאמה זו טרם נבדקה במערכת.`
     case 'keep':
       return `השארה: בשלב זה מומלץ להשאיר את ${fundLabel || 'הקופה'} במוצר הקיים, בכפוף להמשך מעקב אחר דמי הניהול, תשואות המסלול והתאמתו לצורכי הלקוח.`
     case 'pension':
@@ -408,9 +408,12 @@ export default function FundsWorkspace() {
     setInfrastructureIds(nextInfrastructureIds)
   }, [hydrated, storeFunds, storeInfrastructureIds, storeRecommendations])
 
-  const totalBalance = funds.reduce((sum, fund) => sum + Number(fund.currentBalance || 0), 0)
   const activeFunds = funds.filter(fund => isActiveStatus(fund.status)).length
-  const selectedForPension = funds.filter(fund => infrastructureIds.includes(fund.id) || fund.genderScore === 'משוך קצבה').length
+  const pensionTargetFunds = funds.filter(fund => isInfrastructureFund(fund, infrastructureIds))
+  const selectedForPension = pensionTargetFunds.length
+  // "הון לקצבה" must reflect only funds explicitly marked for pension calculation —
+  // not the whole portfolio (which includes non-annuity products like קרן השתלמות).
+  const pensionCapital = pensionTargetFunds.reduce((sum, fund) => sum + Number(fund.currentBalance || 0), 0)
   const selectedFunds = funds.filter(fund => selectedIds.includes(fund.id))
   const selectedBalance = selectedFunds.reduce((sum, fund) => sum + Number(fund.currentBalance || 0), 0)
   const consolidationLeadingFund = selectedFunds[0]
@@ -475,6 +478,8 @@ export default function FundsWorkspace() {
   }
 
   function togglePensionTarget(fund: FundRecord) {
+    // קרן השתלמות is not an annuity product — it must never enter the "הון לקצבה" calculation.
+    if (/השתלמות/.test(fund.productType || '')) return
     setInfrastructureIds(current => {
       const exists = current.includes(fund.id) || fund.genderScore === 'משוך קצבה'
       const next = exists ? current.filter(id => id !== fund.id) : Array.from(new Set([...current, fund.id]))
@@ -553,11 +558,15 @@ export default function FundsWorkspace() {
       case 'genderScore':
         return {
           ...base,
-          render: (fund: FundRecord) => (
-            <button type="button" onClick={event => { event.stopPropagation(); togglePensionTarget(fund) }} style={targetButtonStyle(infrastructureIds.includes(fund.id) || fund.genderScore === 'משוך קצבה' ? 'משוך קצבה' : '')}>
-              {infrastructureIds.includes(fund.id) || fund.genderScore === 'משוך קצבה' ? 'מיועד לקצבה' : 'יעד'}
-            </button>
-          ),
+          render: (fund: FundRecord) => {
+            const isStudyFund = /השתלמות/.test(fund.productType || '')
+            if (isStudyFund) return <span style={mutedStyle} title="קרן השתלמות אינה מוצר קצבתי">לא רלוונטי</span>
+            return (
+              <button type="button" onClick={event => { event.stopPropagation(); togglePensionTarget(fund) }} style={targetButtonStyle(infrastructureIds.includes(fund.id) || fund.genderScore === 'משוך קצבה' ? 'משוך קצבה' : '')}>
+                {infrastructureIds.includes(fund.id) || fund.genderScore === 'משוך קצבה' ? 'מיועד לקצבה' : 'יעד'}
+              </button>
+            )
+          },
         }
       case 'manufacturer':
         return { ...base, render: (fund: FundRecord) => <SharedManufacturerLogo name={fund.manufacturer} /> }
@@ -665,7 +674,7 @@ export default function FundsWorkspace() {
         <KpiCard title="לקוח" value={mounted ? getClientName() : 'ממתין'} sub={storeClient?.idNumber || ''} icon={<Briefcase size={18} />} />
         <KpiCard title="קופות" value={mounted ? String(funds.length) : '0'} sub="" icon={<BarChart2 size={18} />} />
         <KpiCard title="קופות פעילות" value={mounted ? String(activeFunds) : '0'} sub="" icon={<Shield size={18} />} />
-        <KpiCard title="הון לקצבה" value={mounted ? money(totalBalance) : money(0)} sub={`${selectedForPension} קופות שסומנו לחישוב`} icon={<FileText size={18} />} />
+        <KpiCard title="הון לקצבה" value={mounted ? money(pensionCapital) : money(0)} sub={`${selectedForPension} קופות שסומנו לחישוב`} icon={<FileText size={18} />} />
         <KpiCard title="דמי ניהול" value={mounted ? averageFee(funds) : '0'} sub="" icon={<BarChart2 size={18} />} />
       </section>
 
@@ -814,7 +823,7 @@ function FundModal({
       .filter(isAllowedAbdReturnManufacturer)
   }, [productType])
   const tracks = useMemo(() => getTracksByProductAndManufacturer(productType, manufacturer), [manufacturer, productType])
-  const selectedTrack = trackId ? getTrackDetails(trackId) : tracks[0]
+  const selectedTrack = trackId ? getTrackDetails(trackId) : null
   const periodBreakdown = getFundPeriodBreakdown(fund)
   const pensionBalance = periodBreakdown.pension || fund.pensionBalance
   const compensationBalance = periodBreakdown.compensation || fund.compensationBalance
@@ -830,6 +839,10 @@ function FundModal({
   const migrationSourceLabel = migrationSourceMode === 'parts' && selectedSourceParts.length
     ? selectedSourceParts.map(part => part.label).join(', ')
     : 'כל הקופה'
+  const canSaveRecommendation = Boolean(activeRecommendationAction) && (
+    activeRecommendationAction !== 'new-product' ||
+    (allowedProducts.length > 0 && migrationSourceAmount > 0 && Boolean(trackId))
+  )
 
   useEffect(() => {
     if (!allowedProducts.includes(productType)) {
@@ -847,9 +860,11 @@ function FundModal({
   }, [manufacturer, manufacturers])
 
   useEffect(() => {
-    if (!trackId && tracks[0]) setTrackId(tracks[0].id)
+    // Never auto-pick a track — tracks are sorted by descending 5yr return,
+    // so silently defaulting to tracks[0] would default to the highest-risk
+    // option without the advisor choosing it. Only clear an invalid selection.
     if (trackId && !tracks.some(track => track.id === trackId)) {
-      setTrackId(tracks[0]?.id || '')
+      setTrackId('')
     }
   }, [trackId, tracks])
 
@@ -1013,13 +1028,15 @@ function FundModal({
                 כיסוי ביטוחי בקופה
               </button>
             )}
-            <button
-              type="button"
-              onClick={() => onToggleInfrastructureTarget(fund)}
-              style={smallButtonStyle}
-            >
-              {isInfrastructureTarget ? 'הסר יעד קצבה' : 'משוך קצבה'}
-            </button>
+            {!/השתלמות/.test(fund.productType || '') && (
+              <button
+                type="button"
+                onClick={() => onToggleInfrastructureTarget(fund)}
+                style={smallButtonStyle}
+              >
+                {isInfrastructureTarget ? 'הסר יעד קצבה' : 'משוך קצבה'}
+              </button>
+            )}
           </div>
         </div>
 
@@ -1157,6 +1174,7 @@ function FundModal({
                 </Field>
                 <Field label="מסלול השקעה">
                   <select value={trackId} onChange={event => setTrackId(event.target.value)} style={inputStyle}>
+                    <option value="">בחר מסלול...</option>
                     {tracks.map(item => <option key={item.id} value={item.id}>{item.trackName}</option>)}
                   </select>
                 </Field>
@@ -1190,8 +1208,8 @@ function FundModal({
           <button
             type="button"
             onClick={addRecommendation}
-            disabled={!activeRecommendationAction || (activeRecommendationAction === 'new-product' && (!allowedProducts.length || !(migrationSourceAmount > 0)))}
-            style={!activeRecommendationAction || (activeRecommendationAction === 'new-product' && (!allowedProducts.length || !(migrationSourceAmount > 0))) ? disabledButtonStyle : primaryButtonStyle}
+            disabled={!canSaveRecommendation}
+            style={!canSaveRecommendation ? disabledButtonStyle : primaryButtonStyle}
           >
             שמור המלצה לקופה
           </button>
