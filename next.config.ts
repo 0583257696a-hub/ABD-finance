@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import withSerwistInit from "@serwist/next";
 
 const nextConfig: NextConfig = {
   output: 'standalone',
@@ -62,8 +63,25 @@ const nextConfig: NextConfig = {
         source: '/:path*',
         headers: securityHeaders,
       },
+      {
+        // A broken/stale service worker cached at the CDN or browser layer
+        // can't be fixed by deploying a new one — it must always be re-fetched.
+        source: '/sw.js',
+        headers: [{ key: 'Cache-Control', value: 'no-cache, no-store, must-revalidate' }],
+      },
     ]
   },
 };
 
-export default nextConfig;
+const withSerwist = withSerwistInit({
+  swSrc: 'src/app/sw.ts',
+  swDest: 'public/sw.js',
+  // Registered in production only (Phase 7) — we register it ourselves via a
+  // client component for full control over the update-prompt UX, not
+  // @serwist/next's built-in auto-registration.
+  disable: process.env.NODE_ENV === 'development',
+  register: false,
+  reloadOnOnline: true,
+});
+
+export default withSerwist(nextConfig);

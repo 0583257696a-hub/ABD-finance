@@ -22,7 +22,7 @@ const OUT_DIR = path.join(ROOT, 'public/icons')
 // 1254x1254 source — adjust if the source logo file changes).
 const MARK_CROP_HEIGHT = 655
 
-const MASKABLE_BG = '#0B1F3F' // dark navy from the mark's gradient
+const MASKABLE_BG = { r: 0x0b, g: 0x1f, b: 0x3f } // dark navy from the mark's gradient
 
 /**
  * The source PNG has no alpha channel (flat white background baked in), so
@@ -65,8 +65,10 @@ async function getTrimmedMark(): Promise<Buffer> {
   return whiteToTransparent(trimmed)
 }
 
+type RgbaColor = { r: number; g: number; b: number; alpha?: number }
+
 /** Centers the mark on a transparent square canvas with the given padding fraction. */
-async function squareIcon(mark: Buffer, size: number, paddingFraction: number, background: sharp.Color): Promise<Buffer> {
+async function squareIcon(mark: Buffer, size: number, paddingFraction: number, background: RgbaColor): Promise<Buffer> {
   const meta = await sharp(mark).metadata()
   const markWidth = meta.width!
   const markHeight = meta.height!
