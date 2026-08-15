@@ -1,6 +1,6 @@
 'use client'
 
-import type { CSSProperties } from 'react'
+import { useState, type CSSProperties } from 'react'
 
 type LogoConfig = {
   match: string[]
@@ -17,7 +17,6 @@ const LOGOS: LogoConfig[] = [
   { match: ['שחם'], src: '/assets/altshuler-logo.png', width: 132, height: 50 },
   { match: ['מגדל'], src: '/assets/migdal-logo.svg', width: 110, height: 38 },
   { match: ['עמיתים'], src: '/assets/amitim-logo.svg', width: 104, height: 38 },
-  { match: ['מבטחים'], src: '/assets/amitim-logo.svg', width: 104, height: 38 },
   { match: ['קרן פנסיה לשכירים'], src: '/assets/amitim-logo.svg', width: 104, height: 38 },
   { match: ['שכירים ועצמאיים'], src: '/assets/amitim-logo.svg', width: 104, height: 38 },
   { match: ['מיטב'], src: '/assets/meitav-logo.svg', width: 112, height: 38 },
@@ -29,6 +28,7 @@ const LOGOS: LogoConfig[] = [
 ]
 
 export function ManufacturerLogo({ name, compact = false }: { name?: string; compact?: boolean }) {
+  const [imageFailed, setImageFailed] = useState(false)
   const value = String(name || '').trim()
   if (!value) return <span style={fallbackStyle}>אין נתון</span>
 
@@ -47,12 +47,13 @@ export function ManufacturerLogo({ name, compact = false }: { name?: string; com
   }
 
   const logo = LOGOS.find(item => item.match.every(part => value.includes(part)))
-  if (logo?.src) {
+  if (logo?.src && !imageFailed) {
     return (
       <span style={wrapStyle} title={value}>
         <img
           src={logo.src}
           alt={value}
+          onError={() => setImageFailed(true)}
           style={{
             ...imageStyle,
             width: compact ? Math.round((logo.width || 96) * 0.86) : logo.width,

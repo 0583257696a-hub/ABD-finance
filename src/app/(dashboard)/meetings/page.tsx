@@ -121,19 +121,27 @@ export default function MeetingsPage() {
       if (meetingsResponse.ok) setMeetings(((await meetingsResponse.json()) as { meetings: Meeting[] }).meetings || [])
       if (formsResponse.ok) setForms(((await formsResponse.json()) as { forms: ClientForm[] }).forms || [])
     } catch {
-      setStatus('טעינת הנתונים נכשלה — ייתכן שהמערכת רצה ללא חיבור D1 (סביבת פיתוח).')
+      setStatus('טעינת הנתונים נכשלה. נסו לרענן את הדף, ואם הבעיה נמשכת פנו לתמיכה.')
     }
   }, [])
 
   useEffect(() => { void refresh() }, [refresh])
 
+  const [providersError, setProvidersError] = useState<string | null>(null)
+
   const loadProviders = useCallback(async () => {
+    setProvidersError(null)
     try {
       const response = await fetch('/api/calendar?include=providers')
-      if (!response.ok) return
+      if (!response.ok) {
+        setProvidersError(`שגיאה בטעינת סטטוס חיבורים (${response.status})`)
+        return
+      }
       const data = await response.json() as { providers: ProviderStatus[] }
       setProviders(data.providers || [])
-    } catch { /* calendar layer optional — silent */ }
+    } catch {
+      setProvidersError('לא ניתן היה להתחבר לשרת. בדוק חיבור אינטרנט ונסה שוב.')
+    }
   }, [])
 
   useEffect(() => { void loadProviders() }, [loadProviders])
@@ -423,6 +431,11 @@ export default function MeetingsPage() {
                 )}
               </div>
             ))}
+          </div>
+        ) : providersError ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <p style={{ ...metaStyle, color: 'var(--destructive-text)' }}>{providersError}</p>
+            <Button variant="secondary" size="sm" onClick={() => void loadProviders()}>נסה שוב</Button>
           </div>
         ) : <p style={metaStyle}>טוען…</p>}
       </Surface>

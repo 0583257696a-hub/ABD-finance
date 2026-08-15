@@ -257,13 +257,32 @@ function isActiveStatus(status?: string) {
   return value.includes('פעיל') && !value.includes('לא')
 }
 
+function parseFeePercent(value: string | number | undefined) {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null
+  const match = String(value ?? '').match(/[\d.]+/)
+  if (!match) return null
+  const parsed = Number(match[0])
+  return Number.isFinite(parsed) ? parsed : null
+}
+
+// Balance-weighted average of the ongoing balance-based fee (דמי ניהול מצבירה) only —
+// deposit fees (דמי ניהול מהפקדה) are a different, much smaller number and mixing the
+// two into one flat average produces a figure that matches neither.
 function averageFee(funds: FundRecord[]) {
-  const values = funds
-    .flatMap(fund => String(fund.managementFeeText || '').match(/[\d.]+/g) || [])
-    .map(Number)
-    .filter(Number.isFinite)
-  if (!values.length) return 'אין נתון'
-  return `${(values.reduce((sum, value) => sum + value, 0) / values.length).toFixed(2)}%`
+  const withFee = funds
+    .map(fund => ({ fee: parseFeePercent(fund.balanceFee), balance: Math.max(Number(fund.currentBalance) || 0, 0) }))
+    .filter((item): item is { fee: number; balance: number } => item.fee !== null)
+  if (!withFee.length) return 'אין נתון'
+  const totalBalance = withFee.reduce((sum, item) => sum + item.balance, 0)
+  const average = totalBalance > 0
+    ? withFee.reduce((sum, item) => sum + item.fee * item.balance, 0) / totalBalance
+    : withFee.reduce((sum, item) => sum + item.fee, 0) / withFee.length
+  return `${average.toFixed(2)}%`
+}
+
+function feeDataCoverage(funds: FundRecord[]) {
+  const withFee = funds.filter(fund => parseFeePercent(fund.balanceFee) !== null).length
+  return { withFee, total: funds.length, missing: funds.length - withFee }
 }
 
 function fundMergeKey(fund: FundRecord) {
@@ -414,6 +433,7 @@ export default function FundsWorkspace() {
   // "הון לקצבה" must reflect only funds explicitly marked for pension calculation —
   // not the whole portfolio (which includes non-annuity products like קרן השתלמות).
   const pensionCapital = pensionTargetFunds.reduce((sum, fund) => sum + Number(fund.currentBalance || 0), 0)
+  const feeCoverage = feeDataCoverage(funds)
   const selectedFunds = funds.filter(fund => selectedIds.includes(fund.id))
   const selectedBalance = selectedFunds.reduce((sum, fund) => sum + Number(fund.currentBalance || 0), 0)
   const consolidationLeadingFund = selectedFunds[0]
@@ -675,7 +695,7 @@ export default function FundsWorkspace() {
         <KpiCard title="קופות" value={mounted ? String(funds.length) : '0'} sub="" icon={<BarChart2 size={18} />} />
         <KpiCard title="קופות פעילות" value={mounted ? String(activeFunds) : '0'} sub="" icon={<Shield size={18} />} />
         <KpiCard title="הון לקצבה" value={mounted ? money(pensionCapital) : money(0)} sub={`${selectedForPension} קופות שסומנו לחישוב`} icon={<FileText size={18} />} />
-        <KpiCard title="דמי ניהול" value={mounted ? averageFee(funds) : '0'} sub="" icon={<BarChart2 size={18} />} />
+        <KpiCard title="דמי ניהול" value={mounted ? averageFee(funds) : '0'} sub={mounted && feeCoverage.missing > 0 ? `חסר נתון ב-${feeCoverage.missing} מתוך ${feeCoverage.total} קופות` : ''} icon={<BarChart2 size={18} />} />
       </section>
 
       <section style={tableCardStyle}>

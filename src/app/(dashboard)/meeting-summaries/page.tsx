@@ -7,6 +7,7 @@ import { Toolbar } from '@/components/ui/Toolbar'
 import { Surface } from '@/components/ui/Surface'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { StatusBadge } from '@/components/ui/StatusBadge'
+import { Button } from '@/components/ui/Button'
 
 /**
  * סיכומי פגישות — archive of every completed meeting session. Written once,
@@ -46,7 +47,8 @@ export default function MeetingSummariesHistoryPage() {
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading')
   const justSaved = searchParams.get('justSaved')
 
-  useEffect(() => {
+  function loadSummaries() {
+    setStatus('loading')
     fetch('/api/meeting-summaries')
       .then(async response => {
         if (!response.ok) throw new Error('failed')
@@ -55,7 +57,9 @@ export default function MeetingSummariesHistoryPage() {
         setStatus('ready')
       })
       .catch(() => setStatus('error'))
-  }, [])
+  }
+
+  useEffect(() => { loadSummaries() }, [])
 
   return (
     <main dir="rtl" style={{ fontFamily: 'var(--font-main)' }}>
@@ -65,7 +69,10 @@ export default function MeetingSummariesHistoryPage() {
         <div style={noticeStyle}>הפגישה הסתיימה והסיכום נשמר בהיסטוריה.</div>
       )}
       {status === 'error' && (
-        <div style={noticeStyle}>טעינת ההיסטוריה נכשלה — ייתכן שאין חיבור D1 בסביבה הנוכחית.</div>
+        <div style={{ ...noticeStyle, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+          <span>טעינת ההיסטוריה נכשלה. נסו שוב, ואם הבעיה נמשכת פנו לתמיכה.</span>
+          <Button variant="secondary" size="sm" onClick={loadSummaries}>נסה שוב</Button>
+        </div>
       )}
 
       {summaries.length ? (
