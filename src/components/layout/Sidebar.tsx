@@ -4,76 +4,43 @@ import Link from 'next/link'
 import { usePathname, useSearchParams, useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import {
-  BarChart2,
-  Calculator,
   CalendarClock,
-  Radar,
   ChevronsLeft,
   ChevronsRight,
   FileText,
-  LayoutDashboard,
-  Lightbulb,
-  LineChart,
   LogOut,
-  Plus,
   Settings,
-  Shield,
   ShieldCheck,
-  TrendingUp,
 } from 'lucide-react'
 import { useSession } from 'next-auth/react'
 import { BRANDING_EVENT, readBrandingSettings, type BrandingSettings } from '@/lib/branding'
-import { useWorkspaceStore } from '@/lib/store/workspaceStore'
-import { Dialog } from '@/components/ui/Dialog'
 
-type NavItem = { tab: string; icon: typeof LayoutDashboard; label: string }
+type NavItem = { tab: string; icon: typeof CalendarClock; label: string }
 
+// Dashboard tier only — meetings + their history. The full feature set
+// (funds/insurance/recommendations/simulations/calculators/returns/Smart
+// Agent) lives exclusively inside an active meeting
+// (src/app/meeting/[id]/page.tsx), reachable via "התחל פגישה" below, not
+// from this sidebar.
 const NAV_GROUPS: Array<{ title: string; items: NavItem[] }> = [
   {
-    title: 'עבודה עם לקוח',
+    title: 'פגישות',
     items: [
-      { tab: 'funds', icon: LayoutDashboard, label: 'קופות' },
-      { tab: 'insurance', icon: Shield, label: 'ביטוח' },
-      { tab: 'recommendations', icon: Lightbulb, label: 'המלצות' },
-      { tab: 'summary', icon: FileText, label: 'סיכום פגישה' },
       { tab: 'meetings', icon: CalendarClock, label: 'פגישות' },
       { tab: 'meeting-summaries', icon: FileText, label: 'סיכומי פגישות' },
-      { tab: 'smart-agent', icon: Radar, label: 'Smart Agent' },
     ],
   },
-  {
-    title: 'כלים',
-    items: [
-      { tab: 'simulations', icon: TrendingUp, label: 'סימולציות' },
-      { tab: 'calculators', icon: Calculator, label: 'מחשבונים' },
-      { tab: 'client-returns', icon: BarChart2, label: 'תשואות הלקוח' },
-      { tab: 'abd-returns', icon: LineChart, label: 'תשואות השוק' },
-    ],
-  },
-]
-
-const WORKSPACE_KEYS = [
-  'abd-workspace-v2',
-  'abd_next_funds',
-  'abd_next_insurance',
-  'abd_next_client',
-  'abd_next_needs',
-  'abd_next_recommendations',
-  'abd_next_infrastructure_ids',
 ]
 
 const COLLAPSE_KEY = 'abd_sidebar_collapsed'
 
 export default function Sidebar() {
-  const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
-  const activeTab = searchParams.get('tab') || pathnameToTab(pathname) || 'funds'
+  const activeTab = searchParams.get('tab') || pathnameToTab(pathname) || 'meetings'
   const { data: session } = useSession()
-  const resetWorkspace = useWorkspaceStore(state => state.resetWorkspace)
   const [branding, setBranding] = useState<BrandingSettings | null>(null)
   const [collapsed, setCollapsed] = useState(false)
-  const [confirmNewClient, setConfirmNewClient] = useState(false)
   const isAdmin = session?.user?.role === 'admin'
 
   useEffect(() => {
@@ -102,14 +69,6 @@ export default function Sidebar() {
     })
   }
 
-  function newClient() {
-    WORKSPACE_KEYS.forEach(key => localStorage.removeItem(key))
-    resetWorkspace()
-    setConfirmNewClient(false)
-    router.push('/?tab=funds')
-    router.refresh()
-  }
-
   function logout() {
     window.location.href = '/api/auth/logout'
   }
@@ -131,11 +90,6 @@ export default function Sidebar() {
           <ChevronsLeft size={16} />
         </button>
       )}
-
-      <button type="button" onClick={() => setConfirmNewClient(true)} title="לקוח חדש" style={newClientStyle}>
-        <Plus size={18} />
-        {!collapsed && <span>לקוח חדש</span>}
-      </button>
 
       <nav style={navStyle}>
         {NAV_GROUPS.map(group => (
@@ -191,30 +145,16 @@ export default function Sidebar() {
           </button>
         )}
       </div>
-
-      <Dialog
-        open={confirmNewClient}
-        title="לפתוח לקוח חדש?"
-        description="הנתונים המקומיים של הלקוח הנוכחי יימחקו מהדפדפן. פעולה זו אינה הפיכה."
-        confirmLabel="פתיחת לקוח חדש"
-        destructive
-        onConfirm={newClient}
-        onCancel={() => setConfirmNewClient(false)}
-      />
     </aside>
   )
 }
 
 function pathnameToTab(pathname: string) {
-  if (pathname.includes('/insurance')) return 'insurance'
-  if (pathname.includes('/simulations')) return 'simulations'
-  if (pathname.includes('/abd-returns')) return 'abd-returns'
-  if (pathname.includes('/returns')) return 'client-returns'
-  if (pathname.includes('/calculators')) return 'calculators'
-  if (pathname.includes('/recommendations')) return 'recommendations'
+  if (pathname.includes('/meeting-summaries')) return 'meeting-summaries'
   if (pathname.includes('/meeting-summary')) return 'summary'
   if (pathname.includes('/settings')) return 'settings'
-  return 'funds'
+  if (pathname.includes('/meetings')) return 'meetings'
+  return 'meetings'
 }
 
 const sidebarStyle: React.CSSProperties = {
@@ -308,18 +248,6 @@ const navItemStyle: React.CSSProperties = {
   fontFamily: 'var(--font-main)',
   whiteSpace: 'nowrap',
   transition: `background var(--duration-fast) var(--easing-standard), color var(--duration-fast) var(--easing-standard)`,
-}
-
-const newClientStyle: React.CSSProperties = {
-  ...navItemStyle,
-  width: '100%',
-  minHeight: 40,
-  marginBottom: 12,
-  justifyContent: 'flex-start',
-  background: 'var(--abd-accent)',
-  color: '#fff',
-  border: 0,
-  cursor: 'pointer',
 }
 
 const bottomStyle: React.CSSProperties = {

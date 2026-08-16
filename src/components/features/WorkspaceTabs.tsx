@@ -2,16 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
-import FundsWorkspace from './FundsWorkspace'
-import InsurancePage from '@/app/(dashboard)/insurance/page'
-import SimulationsPage from '@/app/(dashboard)/simulations/page'
-import ReturnsPage from '@/app/(dashboard)/returns/page'
-import AbdReturnsPage from '@/app/(dashboard)/abd-returns/page'
-import CalculatorsPage from '@/app/(dashboard)/calculators/page'
-import RecommendationsPage from '@/app/(dashboard)/recommendations/page'
 import MeetingSummaryPage from '@/app/(dashboard)/meeting-summary/page'
 import MeetingsPage from '@/app/(dashboard)/meetings/page'
-import SmartAgentPage from '@/app/(dashboard)/smart-agent/page'
 import MeetingSummariesHistoryPage from '@/app/(dashboard)/meeting-summaries/page'
 import SettingsPage from '@/app/(dashboard)/settings/page'
 
@@ -22,25 +14,23 @@ type WorkspaceTab = {
   render: () => React.ReactNode
 }
 
+// Dashboard tier only — meetings overview, history, and settings. The full
+// feature set (funds/insurance/recommendations/simulations/calculators/
+// returns/Smart Agent) lives exclusively inside an active meeting
+// (src/app/meeting/[id]/page.tsx), not here. meeting-summary (the live,
+// editable document) stays reachable standalone since a session can be
+// resumed via its own summary page outside the meeting timer chrome.
 const TABS: WorkspaceTab[] = [
-  { id: 'funds', label: 'קופות', description: 'דשבורד קופות, טעינת נתונים וחלון קופה מלא', render: () => <FundsWorkspace /> },
-  { id: 'insurance', label: 'פוליסות ביטוח', description: 'הר הביטוח ופוליסות ביטוח של הלקוח', render: () => <InsurancePage /> },
-  { id: 'simulations', label: 'סימולציות', description: 'תשתיות לקצבה, סימולציות וטבלאות תשואות', render: () => <SimulationsPage /> },
-  { id: 'client-returns', label: 'טבלת תשואות', description: 'תשואות הקופות הקיימות של הלקוח', render: () => <ReturnsPage /> },
-  { id: 'abd-returns', label: 'תשואות ABD Finance', description: 'טבלאות רשות שוק ההון והשוואת מסלולים', render: () => <AbdReturnsPage /> },
-  { id: 'calculators', label: 'מחשבונים', description: 'מחשבוני פרישה וקצבה', render: () => <CalculatorsPage /> },
-  { id: 'recommendations', label: 'המלצות ניוד', description: 'מודול המלצות וסנכרון מסלולי השקעה', render: () => <RecommendationsPage /> },
-  { id: 'summary', label: 'סיכום פגישה', description: 'מסמך סיכום, המלצות ותהליכים להמשך', render: () => <MeetingSummaryPage /> },
   { id: 'meetings', label: 'פגישות', description: 'התחלת פגישה, זימון פגישות ושליחת שאלוני הכנה ללקוח', render: () => <MeetingsPage /> },
   { id: 'meeting-summaries', label: 'סיכומי פגישות', description: 'ארכיון סיכומי פגישות שהסתיימו', render: () => <MeetingSummariesHistoryPage /> },
-  { id: 'smart-agent', label: 'Smart Agent', description: 'מנוע זיהוי חריגות בתיק הלקוח — ממצאים, לא המלצות', render: () => <SmartAgentPage /> },
+  { id: 'summary', label: 'סיכום פגישה', description: 'מסמך סיכום, המלצות ותהליכים להמשך', render: () => <MeetingSummaryPage /> },
   { id: 'settings', label: 'הגדרות', description: 'הגדרות משתמש, תצוגה, מיתוג ותבניות', render: () => <SettingsPage /> },
 ]
 
 function getInitialTab() {
-  if (typeof window === 'undefined') return 'funds'
+  if (typeof window === 'undefined') return 'meetings'
   const requested = new URLSearchParams(window.location.search).get('tab')
-  return TABS.some(tab => tab.id === requested) ? requested || 'funds' : 'funds'
+  return TABS.some(tab => tab.id === requested) ? requested || 'meetings' : 'meetings'
 }
 
 export default function WorkspaceTabs() {
@@ -49,7 +39,7 @@ export default function WorkspaceTabs() {
   const active = useMemo(() => TABS.find(tab => tab.id === activeTab) || TABS[0], [activeTab])
 
   useEffect(() => {
-    const requested = searchParams.get('tab') || 'funds'
+    const requested = searchParams.get('tab') || 'meetings'
     if (TABS.some(tab => tab.id === requested)) {
       setActiveTab(requested)
     }

@@ -3,19 +3,28 @@
 import { use, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
+  BarChart2,
   Calculator,
   FileText,
   Home,
+  Lightbulb,
+  LineChart,
   Mic,
+  Radar,
   Settings,
-  Sparkles,
+  Shield,
   Square,
   StickyNote,
   TrendingUp,
 } from 'lucide-react'
 import FundsWorkspace from '@/components/features/FundsWorkspace'
+import InsurancePage from '@/app/(dashboard)/insurance/page'
+import RecommendationsPage from '@/app/(dashboard)/recommendations/page'
 import SimulationsPage from '@/app/(dashboard)/simulations/page'
 import CalculatorsPage from '@/app/(dashboard)/calculators/page'
+import ReturnsPage from '@/app/(dashboard)/returns/page'
+import AbdReturnsPage from '@/app/(dashboard)/abd-returns/page'
+import SmartAgentPage from '@/app/(dashboard)/smart-agent/page'
 import MeetingSummaryPage from '@/app/(dashboard)/meeting-summary/page'
 import { Button } from '@/components/ui/Button'
 import { useWorkspaceStore } from '@/lib/store/workspaceStore'
@@ -45,13 +54,22 @@ type MeetingRecord = {
   notes: string
 }
 
-type MeetingTab = 'overview' | 'summary' | 'tools' | 'calculators' | 'notes' | 'settings'
+type MeetingTab = 'overview' | 'insurance' | 'recommendations' | 'summary' | 'tools' | 'calculators' | 'client-returns' | 'abd-returns' | 'smart-agent' | 'notes' | 'settings'
 
+// The full feature set lives here and only here (per the app's hierarchy:
+// a minimal dashboard for meetings/settings, full features gated behind an
+// active meeting) — this NAV is the complete list of what an advisor can do
+// inside a meeting.
 const NAV: Array<{ id: MeetingTab; label: string; icon: typeof Home }> = [
-  { id: 'overview', label: 'פגישה', icon: Home },
-  { id: 'summary', label: 'סיכום', icon: FileText },
+  { id: 'overview', label: 'קופות', icon: Home },
+  { id: 'insurance', label: 'ביטוח', icon: Shield },
+  { id: 'recommendations', label: 'המלצות', icon: Lightbulb },
+  { id: 'summary', label: 'סיכום פגישה', icon: FileText },
   { id: 'tools', label: 'כלים', icon: TrendingUp },
   { id: 'calculators', label: 'מחשבונים', icon: Calculator },
+  { id: 'client-returns', label: 'תשואות הלקוח', icon: BarChart2 },
+  { id: 'abd-returns', label: 'תשואות השוק', icon: LineChart },
+  { id: 'smart-agent', label: 'Smart Agent', icon: Radar },
   { id: 'notes', label: 'הערות', icon: StickyNote },
   { id: 'settings', label: 'הגדרות פגישה', icon: Settings },
 ]
@@ -190,9 +208,14 @@ export default function MeetingWorkspacePage({ params }: { params: Promise<{ id:
 
         <main style={contentStyle}>
           {tab === 'overview' && <FundsWorkspace />}
+          {tab === 'insurance' && <InsurancePage />}
+          {tab === 'recommendations' && <RecommendationsPage />}
           {tab === 'summary' && <MeetingSummaryPage />}
           {tab === 'tools' && <SimulationsPage />}
           {tab === 'calculators' && <CalculatorsPage />}
+          {tab === 'client-returns' && <ReturnsPage />}
+          {tab === 'abd-returns' && <AbdReturnsPage />}
+          {tab === 'smart-agent' && <SmartAgentPage />}
           {tab === 'notes' && (
             <div style={{ maxWidth: 720 }}>
               <h2 style={{ color: 'var(--text-heading)', fontSize: 18, fontWeight: 700, marginBottom: 12 }}>הערות פגישה</h2>
