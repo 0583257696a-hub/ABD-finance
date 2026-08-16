@@ -1,4 +1,3 @@
-import { createMimeMessage } from 'mimetext'
 import { getCloudflareEnv } from './system-db'
 import { writeEmailOutbox } from './system-db'
 
@@ -47,43 +46,43 @@ export async function sendSystemEmail(input: MailInput) {
       return { ok: false, queued: true, reason: 'missing-cloudflare-email-binding' }
     }
 
-    // The Cloudflare Workers Send Email binding requires a real EmailMessage built
-    // from a raw MIME source (RFC 5322) — a plain {from,to,subject,html,text}
-    // object is not a valid message and produces malformed/unsigned mail, which is
-    // a common cause of spam placement. Build a proper multipart/alternative
-    // message (text + HTML, UTF-8, explicit Reply-To) here instead.
-    //
-    // The specifier is built at runtime (not a string literal) so esbuild/webpack
-    // never try to statically resolve "cloudflare:email" at bundle time — it's a
-    // workerd-only builtin that only exists once deployed. A literal import()
-    // string here breaks OpenNext's esbuild bundling step with
-    // "Could not resolve cloudflare:email".
-    const cloudflareEmailModule = ['cloudflare', 'email'].join(':')
-    const { EmailMessage } = await import(cloudflareEmailModule)
-    const mime = createMimeMessage()
-    mime.setSender(from)
-    mime.setRecipient(to)
-    mime.setSubject(input.subject)
-    mime.setHeader('Reply-To', replyTo)
-    mime.addMessage({ contentType: 'text/plain', data: input.text, charset: 'UTF-8' })
-    mime.addMessage({ contentType: 'text/html', data: input.html, charset: 'UTF-8' })
-    for (const attachment of input.attachments || []) {
-      mime.addAttachment({
+    // Modern Cloudflare Email Service API: the binding's send() accepts a plain
+    // message object directly — no EmailMessage, no hand-built MIME. The previous
+    // implementation dynamically imported "cloudflare:email" (a workerd builtin)
+    // with a runtime-computed specifier to dodge esbuild; that import fails at
+    // runtime inside the bundled OpenNext worker ("Cannot find module
+    // 'cloudflare:email'"), which is why no invite email was ever delivered.
+    // The object API needs no import at all, eliminating the problem outright.
+    const fromName = from.includes('<') ? from.slice(0, from.indexOf('<')).trim() : 'Smart Meeting'
+    await binding.send({
+      to,
+      from: { email: extractAddr(from), name: fromName },
+      replyTo: extractAddr(replyTo),
+      subject: input.subject,
+      html: input.html,
+      text: input.text,
+      attachments: (input.attachments || []).map(attachment => ({
+        // Workers-binding attachments take raw content (string or ArrayBuffer),
+        // NOT base64 — decode here so callers can keep passing base64.
+        content: base64ToArrayBuffer(attachment.base64),
         filename: attachment.filename,
-        contentType: attachment.contentType,
-        data: attachment.base64,
-        encoding: 'base64',
-      })
-    }
-
-    const message = new EmailMessage(extractAddr(from), to, mime.asRaw())
-    await binding.send(message)
+        type: attachment.contentType,
+        disposition: 'attachment' as const,
+      })),
+    })
     await writeEmailOutbox({ ...input, to, status: 'sent' })
     return { ok: true }
   } catch (error) {
-    await writeEmailOutbox({ ...input, to, status: 'error', error: error instanceof Error ? error.message : String(error) })
+    await writeEmailOutbox({ ...input, to, status: 'error', error: error instanceof Error ? `${(error as { code?: string }).code || ''} ${error.message}`.trim() : String(error) })
     return { ok: false, error }
   }
+}
+
+function base64ToArrayBuffer(base64: string): ArrayBuffer {
+  const binary = atob(base64)
+  const bytes = new Uint8Array(binary.length)
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+  return bytes.buffer
 }
 
 export function adminNotificationEmail() {
