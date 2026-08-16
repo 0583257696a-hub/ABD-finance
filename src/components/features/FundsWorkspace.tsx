@@ -856,6 +856,9 @@ function FundModal({
   const [managementFeeBalance, setManagementFeeBalance] = useState(existingPlan.managementFeeBalance || '')
   const [managementFeeDeposit, setManagementFeeDeposit] = useState(existingPlan.managementFeeDeposit || '')
   const [reason, setReason] = useState('')
+  // Tracks the auto-generated reason text so target changes can refresh it —
+  // but never overwrite text the advisor typed themselves.
+  const lastAutoReasonRef = useRef('')
   const [professionalNotes, setProfessionalNotes] = useState(existingPlan.professionalNotes || '')
   const [activityView, setActivityView] = useState<FundActivityView>('deposits')
   const [insuranceCoverageOpen, setInsuranceCoverageOpen] = useState(false)
@@ -914,6 +917,20 @@ function FundModal({
       setTrackId('')
     }
   }, [trackId, tracks])
+
+  useEffect(() => {
+    // Keep the auto-generated reason in sync with the CURRENT migration target.
+    // Without this, the reason kept describing whatever product/manufacturer
+    // happened to be selected the moment the action button was clicked — a
+    // reason about "ביטוח מנהלים בכלל" under a recommendation whose actual
+    // target is a Meitav gemel track. Only replaces text the advisor hasn't
+    // edited (tracked via lastAutoReasonRef).
+    if (activeRecommendationAction !== 'new-product') return
+    const nextAuto = defaultRecommendationReason('new-product', fund, productType, manufacturer)
+    setReason(current => (current === lastAutoReasonRef.current || !current.trim()) ? nextAuto : current)
+    lastAutoReasonRef.current = nextAuto
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeRecommendationAction, productType, manufacturer])
 
   async function copyAccount() {
     if (fund.accountNumber) await navigator.clipboard.writeText(fund.accountNumber)
@@ -987,6 +1004,7 @@ function FundModal({
     if (activeRecommendationAction === actionId) {
       setActiveRecommendationAction(null)
       setReason('')
+      lastAutoReasonRef.current = ''
       setProfessionalNotes('')
       return
     }
@@ -1002,7 +1020,9 @@ function FundModal({
       setMigrationSourceMode('whole')
       setMigrationSourcePartIds([])
     }
-    setReason(defaultRecommendationReason(actionId, fund, nextProduct, manufacturer))
+    const autoReason = defaultRecommendationReason(actionId, fund, nextProduct, manufacturer)
+    setReason(autoReason)
+    lastAutoReasonRef.current = autoReason
     if (actionId === 'pension' && !isInfrastructureTarget) {
       onToggleInfrastructureTarget(fund)
     }

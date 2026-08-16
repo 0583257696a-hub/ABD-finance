@@ -37,6 +37,9 @@ export type MeetingRecord = {
   ended_at: string | null
   /** Links to the archived summary produced when the session ended. */
   summary_id: string | null
+  /** Unguessable token embedded in the invite email's "אשר הגעה" link. */
+  confirm_token: string | null
+  confirmed_at: string | null
 }
 
 export type MeetingSummaryRecord = {
@@ -63,6 +66,31 @@ export type ClientFormRecord = {
   payload_json: string | null
   sent_at: string
   submitted_at: string | null
+  /** Template the form was sent from (informational — questions_json is the authority). */
+  template_id: string | null
+  /** Snapshot of the questions at send time, so template edits never corrupt sent forms. */
+  questions_json: string | null
+}
+
+export type QuestionnaireTemplateRow = {
+  id: string
+  user_email: string
+  name: string
+  questions_json: string
+  is_default: number
+  created_at: string
+  updated_at: string
+}
+
+export type NotificationRecord = {
+  id: string
+  user_email: string
+  type: 'form-submitted' | 'meeting-confirmed'
+  title: string
+  body: string
+  link: string
+  read: number
+  created_at: string
 }
 
 let schemaEnsured = false
@@ -107,6 +135,25 @@ async function ensureMeetingsSchema(db: D1Like) {
       meeting_ended_at TEXT,
       created_at TEXT NOT NULL
     )`,
+    `CREATE TABLE IF NOT EXISTS questionnaire_templates (
+      id TEXT PRIMARY KEY,
+      user_email TEXT NOT NULL,
+      name TEXT NOT NULL,
+      questions_json TEXT NOT NULL,
+      is_default INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )`,
+    `CREATE TABLE IF NOT EXISTS notifications (
+      id TEXT PRIMARY KEY,
+      user_email TEXT NOT NULL,
+      type TEXT NOT NULL,
+      title TEXT NOT NULL DEFAULT '',
+      body TEXT NOT NULL DEFAULT '',
+      link TEXT NOT NULL DEFAULT '',
+      read INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL
+    )`,
   ]
   for (const statement of statements) {
     await db.prepare(statement).run()
@@ -124,6 +171,10 @@ async function ensureMeetingsSchema(db: D1Like) {
     'ALTER TABLE meetings ADD COLUMN started_at TEXT',
     'ALTER TABLE meetings ADD COLUMN ended_at TEXT',
     'ALTER TABLE meetings ADD COLUMN summary_id TEXT',
+    'ALTER TABLE meetings ADD COLUMN confirm_token TEXT',
+    'ALTER TABLE meetings ADD COLUMN confirmed_at TEXT',
+    'ALTER TABLE client_forms ADD COLUMN template_id TEXT',
+    'ALTER TABLE client_forms ADD COLUMN questions_json TEXT',
   ]
   for (const statement of addedColumns) {
     try {
@@ -272,16 +323,17 @@ export async function createClientForm(form: Omit<ClientFormRecord, 'status' | '
   const db = await getDb()
   if (!db) return false
   await db.prepare(
-    "INSERT INTO client_forms (token, user_email, client_name, client_email, status, payload_json, sent_at, submitted_at) VALUES (?, ?, ?, ?, 'sent', NULL, ?, NULL)"
-  ).bind(form.token, form.user_email, form.client_name, form.client_email, form.sent_at).run()
+    "INSERT INTO client_forms (token, user_email, client_name, client_email, status, payload_json, sent_at, submitted_at, template_id, questions_json) VALUES (?, ?, ?, ?, 'sent', NULL, ?, NULL, ?, ?)"
+  ).bind(form.token, form.user_email, form.client_name, form.client_email, form.sent_at, form.template_id ?? null, form.questions_json ?? null).run()
   return true
 }
 
 /** Public lookup by token — deliberately returns only what the client-facing form page needs, never the advisor's other data. */
-export async function getClientFormByToken(token: string): Promise<Pick<ClientFormRecord, 'token' | 'client_name' | 'status'> | null> {
+export async function getClientFormByToken(token: string): Promise<Pick<ClientFormRecord, 'token' | 'client_name' | 'status' | 'questions_json' | 'user_email' | 'client_email'> | null> {
   const db = await getDb()
   if (!db) return null
-  const result = await db.prepare('SELECT token, client_name, status FROM client_forms WHERE token = ?').bind(token).first<Pick<ClientFormRecord, 'token' | 'client_name' | 'status'>>()
+  const result = await db.prepare('SELECT token, client_name, status, questions_json, user_email, client_email FROM client_forms WHERE token = ?').bind(token)
+    .first<Pick<ClientFormRecord, 'token' | 'client_name' | 'status' | 'questions_json' | 'user_email' | 'client_email'>>()
   return result || null
 }
 
@@ -301,4 +353,100 @@ export async function listClientForms(userEmail: string): Promise<ClientFormReco
   if (!db) return []
   const result = await db.prepare('SELECT * FROM client_forms WHERE user_email = ? ORDER BY sent_at DESC LIMIT 200').bind(userEmail).all<ClientFormRecord>()
   return result?.results || []
+}
+
+/** Latest submitted questionnaire for a given client email — used to auto-load client data into a starting meeting. */
+export async function findLatestSubmittedForm(userEmail: string, clientEmail: string): Promise<ClientFormRecord | null> {
+  const db = await getDb()
+  if (!db) return null
+  const row = await db.prepare(
+    "SELECT * FROM client_forms WHERE user_email = ? AND client_email = ? COLLATE NOCASE AND status = 'submitted' ORDER BY submitted_at DESC LIMIT 1",
+  ).bind(userEmail, clientEmail).first<ClientFormRecord>()
+  return row || null
+}
+
+// --- Questionnaire templates (שאלוני הכנה) ---
+
+export async function listQuestionnaireTemplates(userEmail: string): Promise<QuestionnaireTemplateRow[]> {
+  const db = await getDb()
+  if (!db) return []
+  const result = await db.prepare('SELECT * FROM questionnaire_templates WHERE user_email = ? ORDER BY is_default DESC, updated_at DESC LIMIT 50')
+    .bind(userEmail).all<QuestionnaireTemplateRow>()
+  return result?.results || []
+}
+
+export async function getQuestionnaireTemplate(userEmail: string, id: string): Promise<QuestionnaireTemplateRow | null> {
+  const db = await getDb()
+  if (!db) return null
+  const row = await db.prepare('SELECT * FROM questionnaire_templates WHERE id = ? AND user_email = ?').bind(id, userEmail).first<QuestionnaireTemplateRow>()
+  return row || null
+}
+
+export async function saveQuestionnaireTemplate(template: Omit<QuestionnaireTemplateRow, 'created_at' | 'updated_at'>): Promise<boolean> {
+  const db = await getDb()
+  if (!db) return false
+  const now = new Date().toISOString()
+  await db.prepare(
+    `INSERT INTO questionnaire_templates (id, user_email, name, questions_json, is_default, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(id) DO UPDATE SET name = excluded.name, questions_json = excluded.questions_json, updated_at = excluded.updated_at
+     WHERE questionnaire_templates.user_email = excluded.user_email`,
+  ).bind(template.id, template.user_email, template.name, template.questions_json, template.is_default, now, now).run()
+  return true
+}
+
+export async function deleteQuestionnaireTemplate(userEmail: string, id: string): Promise<boolean> {
+  const db = await getDb()
+  if (!db) return false
+  // The default (base) template is protected from deletion — it's the seeded
+  // starting point every advisor gets; without it "צור שאלון חדש" loses its base.
+  await db.prepare('DELETE FROM questionnaire_templates WHERE id = ? AND user_email = ? AND is_default = 0').bind(id, userEmail).run()
+  return true
+}
+
+// --- Notifications (התראות) ---
+
+export async function createNotification(notification: Omit<NotificationRecord, 'read' | 'created_at'>): Promise<boolean> {
+  const db = await getDb()
+  if (!db) return false
+  await db.prepare(
+    'INSERT INTO notifications (id, user_email, type, title, body, link, read, created_at) VALUES (?, ?, ?, ?, ?, ?, 0, ?)',
+  ).bind(notification.id, notification.user_email, notification.type, notification.title, notification.body, notification.link, new Date().toISOString()).run()
+  return true
+}
+
+export async function listNotifications(userEmail: string): Promise<NotificationRecord[]> {
+  const db = await getDb()
+  if (!db) return []
+  const result = await db.prepare('SELECT * FROM notifications WHERE user_email = ? ORDER BY created_at DESC LIMIT 50').bind(userEmail).all<NotificationRecord>()
+  return result?.results || []
+}
+
+export async function markNotificationsRead(userEmail: string): Promise<boolean> {
+  const db = await getDb()
+  if (!db) return false
+  await db.prepare('UPDATE notifications SET read = 1 WHERE user_email = ? AND read = 0').bind(userEmail).run()
+  return true
+}
+
+// --- Meeting confirmation (client clicks "אשר הגעה" in the invite email) ---
+
+export async function setMeetingConfirmToken(userEmail: string, id: string, token: string): Promise<boolean> {
+  const db = await getDb()
+  if (!db) return false
+  await db.prepare('UPDATE meetings SET confirm_token = COALESCE(confirm_token, ?) WHERE id = ? AND user_email = ?').bind(token, id, userEmail).run()
+  return true
+}
+
+/** Public path — looked up by token alone; returns the minimal fields the confirm page needs. */
+export async function confirmMeetingByToken(token: string): Promise<Pick<MeetingRecord, 'id' | 'user_email' | 'title' | 'client_name' | 'starts_at'> | null> {
+  const db = await getDb()
+  if (!db) return null
+  const row = await db.prepare('SELECT id, user_email, title, client_name, starts_at, confirmed_at FROM meetings WHERE confirm_token = ?')
+    .bind(token).first<Pick<MeetingRecord, 'id' | 'user_email' | 'title' | 'client_name' | 'starts_at' | 'confirmed_at'>>()
+  if (!row) return null
+  if (!row.confirmed_at) {
+    await db.prepare('UPDATE meetings SET confirmed_at = ? WHERE confirm_token = ?').bind(new Date().toISOString(), token).run()
+  }
+  return row
 }

@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/Button'
 import { Surface } from '@/components/ui/Surface'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { StatusBadge } from '@/components/ui/StatusBadge'
+import { Sheet } from '@/components/ui/Sheet'
 import { useWorkspaceStore } from '@/lib/store/workspaceStore'
 
 type ProviderStatus = {
@@ -40,6 +41,8 @@ type Meeting = {
   notes: string
   status: 'scheduled' | 'done' | 'cancelled'
   invite_sent_at: string | null
+  started_at: string | null
+  confirmed_at: string | null
 }
 
 type ClientForm = {
@@ -106,6 +109,8 @@ export default function MeetingsPage() {
 
   const activeClient = useWorkspaceStore(state => state.client)
   const resetWorkspace = useWorkspaceStore(state => state.resetWorkspace)
+  const applyImportedDataset = useWorkspaceStore(state => state.applyImportedDataset)
+  const setNeedsAssessment = useWorkspaceStore(state => state.setNeedsAssessment)
   const [clientName, setClientName] = useState('')
   const [clientEmail, setClientEmail] = useState('')
   const [title, setTitle] = useState('פגישת ייעוץ פנסיוני')
@@ -174,6 +179,47 @@ export default function MeetingsPage() {
     }
   }
 
+  /**
+   * Loads the latest submitted questionnaire for the given client into the
+   * fresh workspace: personal details into the client record, all answers
+   * into the needs-assessment (base-question ids equal NeedsState keys by
+   * design, so no field mapping is needed).
+   */
+  function applyQuestionnaireIfAny(clientName: string, clientEmail: string) {
+    const email = clientEmail.trim().toLowerCase()
+    if (!email) return
+    const submitted = forms
+      .filter(form => form.status === 'submitted' && form.payload_json && form.client_email.trim().toLowerCase() === email)
+      .sort((a, b) => String(b.submitted_at || '').localeCompare(String(a.submitted_at || '')))
+    const latest = submitted[0]
+    if (!latest?.payload_json) return
+    try {
+      const answers = JSON.parse(latest.payload_json) as Record<string, string>
+      applyImportedDataset({
+        client: {
+          fullName: answers.clientFullName || answers.fullName || clientName || latest.client_name || '',
+          email: answers.clientEmail || latest.client_email,
+          phone: answers.clientPhone || answers.phone || '',
+          birthDate: answers.clientBirthDate || '',
+        },
+      })
+      setNeedsAssessment(answers)
+      setStatus('נתוני שאלון ההכנה של הלקוח נטענו לתיק — פרטים אישיים ובירור צרכים.')
+    } catch { /* malformed payload — start the meeting without prefill */ }
+  }
+
+  /** Entry point for a locally-scheduled meeting's "התחל פגישה" button. */
+  function startLocalMeeting(meeting: Meeting) {
+    // A meeting that hasn't started yet gets a clean workspace (same rule as
+    // calendar/spontaneous starts) + the client's questionnaire if one was
+    // submitted. Re-entering an in-progress meeting keeps its work as-is.
+    if (!meeting.started_at) {
+      resetWorkspace()
+      applyQuestionnaireIfAny(meeting.client_name, meeting.client_email)
+    }
+    router.push(`/meeting/${meeting.id}`)
+  }
+
   function openStartFlow() {
     setStartChoice('choose')
   }
@@ -211,7 +257,13 @@ export default function MeetingsPage() {
         // different client entirely) silently carries into this one.
         // Re-entering an already-started meeting (reused: true) must NOT
         // reset, or it would wipe work already done in that same session.
-        if (!data.reused) resetWorkspace()
+        if (!data.reused) {
+          resetWorkspace()
+          applyQuestionnaireIfAny(
+            event.participants.find(person => person.name)?.name || '',
+            event.participants.find(person => person.email)?.email || '',
+          )
+        }
         router.push(`/meeting/${data.id}`)
       } else {
         setStatus('פתיחת הפגישה נכשלה.')
@@ -330,14 +382,34 @@ export default function MeetingsPage() {
     await refresh()
   }
 
-  async function sendForm(name: string, email: string) {
+  // "שלח שאלון הכנה" first opens a template picker; the actual send carries
+  // the chosen template id so the form snapshots those questions.
+  const [templatePicker, setTemplatePicker] = useState<{ name: string; email: string } | null>(null)
+  const [templates, setTemplates] = useState<Array<{ id: string; name: string; is_default: number }>>([])
+  const [chosenTemplateId, setChosenTemplateId] = useState('')
+
+  async function openTemplatePicker(name: string, email: string) {
+    if (!email.includes('@')) { setStatus('שליחת שאלון: חסר אימייל לקוח תקין.'); return }
+    try {
+      const response = await fetch('/api/questionnaires')
+      if (response.ok) {
+        const data = await response.json() as { templates: Array<{ id: string; name: string; is_default: number }> }
+        setTemplates(data.templates || [])
+        setChosenTemplateId(data.templates?.[0]?.id || '')
+      }
+    } catch { /* picker still opens; send falls back to the base questionnaire */ }
+    setTemplatePicker({ name, email })
+  }
+
+  async function sendForm(name: string, email: string, templateId?: string) {
     if (!email.includes('@')) { setStatus('שליחת שאלון: חסר אימייל לקוח תקין.'); return }
     setBusy(true)
+    setTemplatePicker(null)
     try {
       const response = await fetch('/api/client-forms', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ clientName: name, clientEmail: email }),
+        body: JSON.stringify({ clientName: name, clientEmail: email, templateId }),
       })
       const data = await response.json() as { ok?: boolean; formUrl?: string; emailSent?: boolean; emailQueued?: boolean }
       if (data.ok) {
@@ -485,7 +557,7 @@ export default function MeetingsPage() {
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               <Button variant="primary" disabled={busy} onClick={() => void createMeeting(true)}>שמור + שלח זימון ללקוח</Button>
               <Button variant="secondary" disabled={busy} onClick={() => void createMeeting(false)}>שמור בלבד</Button>
-              <Button variant="secondary" disabled={busy} onClick={() => void sendForm(clientName, clientEmail)}>
+              <Button variant="secondary" disabled={busy} onClick={() => void openTemplatePicker(clientName, clientEmail)}>
                 <FileText size={15} style={iconStyle} /> שלח שאלון הכנה
               </Button>
             </div>
@@ -503,9 +575,10 @@ export default function MeetingsPage() {
                       <strong style={{ display: 'block', color: 'var(--text-heading)' }}>{meeting.title}</strong>
                       <span style={metaStyle}>{meeting.client_name} · {formatWhen(meeting.starts_at)}{meeting.location ? ` · ${meeting.location}` : ''}</span>
                       {meeting.invite_sent_at && <span style={{ ...metaStyle, color: 'var(--success-text)' }}>זימון נשלח {formatWhen(meeting.invite_sent_at)}</span>}
+                      {meeting.confirmed_at && <span style={{ ...metaStyle, color: 'var(--success-text)' }}>✓ הלקוח אישר הגעה</span>}
                     </div>
                     <div style={{ display: 'flex', gap: 6, flexShrink: 0, flexWrap: 'wrap' }}>
-                      <Button size="sm" variant="primary" onClick={() => router.push(`/meeting/${meeting.id}`)}>התחל פגישה</Button>
+                      <Button size="sm" variant="primary" onClick={() => startLocalMeeting(meeting)}>התחל פגישה</Button>
                       <Button size="sm" variant="secondary" disabled={busy || !meeting.client_email} onClick={() => void sendInvite(meeting)}>
                         <Send size={13} style={iconStyle} /> {meeting.invite_sent_at ? 'שלח שוב' : 'שלח זימון'}
                       </Button>
@@ -561,7 +634,12 @@ export default function MeetingsPage() {
                       <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}>
                         <StatusBadge tone={form.status === 'submitted' ? 'success' : 'warning'} label={form.status === 'submitted' ? 'מולא' : 'ממתין'} />
                         {form.status === 'submitted' && (
-                          <Button size="sm" variant="ghost" onClick={() => setOpenFormToken(open ? '' : form.token)}>{open ? 'סגור' : 'צפה'}</Button>
+                          <>
+                            <Button size="sm" variant="ghost" onClick={() => setOpenFormToken(open ? '' : form.token)}>{open ? 'סגור' : 'צפה'}</Button>
+                            <Button size="sm" variant="ghost" onClick={() => window.open(`/client-form-print/${form.token}`, '_blank')} title="פתיחת תצוגת הדפסה — שמירה כ-PDF דרך חלון ההדפסה">
+                              הורד PDF
+                            </Button>
+                          </>
                         )}
                       </div>
                     </article>
@@ -574,6 +652,39 @@ export default function MeetingsPage() {
           </Surface>
         </div>
       </section>
+
+      {templatePicker && (
+        <Sheet
+          open
+          onClose={() => setTemplatePicker(null)}
+          placement="center"
+          width="min(440px, 94vw)"
+          title="איזה שאלון לשלוח?"
+          subtitle={`אל: ${templatePicker.name || templatePicker.email}`}
+          footer={
+            <div style={{ display: 'flex', gap: 8 }}>
+              <Button variant="primary" disabled={busy} onClick={() => void sendForm(templatePicker.name, templatePicker.email, chosenTemplateId || undefined)}>
+                שלח שאלון
+              </Button>
+              <Button variant="ghost" onClick={() => setTemplatePicker(null)}>ביטול</Button>
+            </div>
+          }
+        >
+          {templates.length ? (
+            <div style={{ display: 'grid', gap: 8 }}>
+              {templates.map(template => (
+                <label key={template.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', border: '1px solid var(--separator)', borderRadius: 'var(--radius-md)', background: chosenTemplateId === template.id ? 'var(--abd-accent-light, var(--bg-surface-sunken))' : 'var(--bg-canvas)', cursor: 'pointer' }}>
+                  <input type="radio" name="questionnaire-template" checked={chosenTemplateId === template.id} onChange={() => setChosenTemplateId(template.id)} />
+                  <span style={{ fontWeight: 600, color: 'var(--text-heading)', fontSize: 13.5 }}>{template.name}</span>
+                  {Boolean(template.is_default) && <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>(בסיס)</span>}
+                </label>
+              ))}
+            </div>
+          ) : (
+            <p style={{ color: 'var(--text-muted)', margin: 0 }}>לא נמצאו שאלונים — יישלח השאלון הבסיסי. ניתן ליצור שאלונים בהגדרות → שאלון הכנה.</p>
+          )}
+        </Sheet>
+      )}
     </div>
   )
 }

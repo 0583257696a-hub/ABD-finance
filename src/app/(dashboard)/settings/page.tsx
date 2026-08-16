@@ -17,6 +17,7 @@ import { Toolbar } from '@/components/ui/Toolbar'
 import { Button } from '@/components/ui/Button'
 import { Surface } from '@/components/ui/Surface'
 import { StatusBadge } from '@/components/ui/StatusBadge'
+import QuestionnaireManager from '@/components/features/QuestionnaireManager'
 
 type ProviderStatus = {
   id: 'google_calendar' | 'microsoft_outlook' | 'calendly'
@@ -166,6 +167,7 @@ export default function SettingsPage() {
           <a href="#themes" style={sideTabStyle}>ערכות נושא</a>
           <a href="#summary" style={sideTabStyle}>סיכום וחתימה</a>
           <a href="#calendar" style={sideTabStyle}>חיבור יומן</a>
+          <a href="#questionnaires" style={sideTabStyle}>שאלון הכנה</a>
           <a href="#preview" style={sideTabStyle}>תצוגה מקדימה</a>
         </aside>
 
@@ -288,6 +290,11 @@ export default function SettingsPage() {
             ) : (
               <p style={{ color: 'var(--text-muted)' }}>טוען סטטוס חיבורים...</p>
             )}
+          </Surface>
+
+          <Surface id="questionnaires" style={cardStyle}>
+            <h2 style={sectionTitleStyle}>שאלון הכנה</h2>
+            <QuestionnaireManager />
           </Surface>
 
           <Surface id="preview" style={cardStyle}>

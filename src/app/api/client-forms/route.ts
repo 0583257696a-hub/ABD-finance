@@ -2,7 +2,8 @@ import { getServerSession } from 'next-auth'
 import { NextResponse } from 'next/server'
 import { authOptions } from '@/lib/auth'
 import { requireSameOrigin, sanitizeText } from '@/lib/security'
-import { createClientForm, listClientForms } from '@/lib/meetings-db'
+import { createClientForm, getQuestionnaireTemplate, listClientForms } from '@/lib/meetings-db'
+import { buildBaseQuestions } from '@/lib/questionnaires'
 import { sendSystemEmail } from '@/lib/system-mail'
 
 /** Advisor-side management of client intake forms: list + create-and-email. */
@@ -22,10 +23,23 @@ export async function POST(request: Request) {
   const session = await getServerSession(authOptions)
   if (!session?.user?.email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const body = await request.json().catch(() => ({})) as { clientName?: string; clientEmail?: string }
+  const body = await request.json().catch(() => ({})) as { clientName?: string; clientEmail?: string; templateId?: string }
   const clientName = sanitizeText(body.clientName, 160) || ''
   const clientEmail = sanitizeText(body.clientEmail, 200) || ''
   if (!clientEmail.includes('@')) return NextResponse.json({ error: 'invalid-email' }, { status: 400 })
+
+  // Snapshot the chosen template's questions onto the form row — the form the
+  // client sees never changes even if the template is edited or deleted later.
+  // No template chosen (or not found) falls back to the built-in base set.
+  let questionsJson = JSON.stringify(buildBaseQuestions())
+  let templateId: string | null = null
+  if (body.templateId) {
+    const template = await getQuestionnaireTemplate(session.user.email, sanitizeText(body.templateId, 100))
+    if (template) {
+      questionsJson = template.questions_json
+      templateId = template.id
+    }
+  }
 
   const token = crypto.randomUUID().replace(/-/g, '')
   const ok = await createClientForm({
@@ -34,6 +48,8 @@ export async function POST(request: Request) {
     client_name: clientName,
     client_email: clientEmail,
     sent_at: new Date().toISOString(),
+    template_id: templateId,
+    questions_json: questionsJson,
   })
   if (!ok) return NextResponse.json({ error: 'd1-unavailable' }, { status: 503 })
 

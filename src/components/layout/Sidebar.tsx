@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import { useSession } from 'next-auth/react'
 import { BRANDING_EVENT, readBrandingSettings, type BrandingSettings } from '@/lib/branding'
+import NotificationsBell from './NotificationsBell'
 
 type NavItem = { tab: string; icon: typeof CalendarClock; label: string }
 
@@ -119,6 +120,7 @@ export default function Sidebar() {
       </nav>
 
       <div style={bottomStyle}>
+        {session?.user && <NotificationsBell collapsed={collapsed} />}
         <Link
           href="/?tab=settings"
           title="הגדרות"
