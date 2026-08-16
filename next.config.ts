@@ -80,6 +80,11 @@ const withSerwist = withSerwistInit({
   disable: process.env.NODE_ENV === 'development',
   register: false,
   reloadOnOnline: true,
+  // Excluding public/_headers etc. from the precache is done in src/app/sw.ts
+  // (filtering self.__SW_MANIFEST directly), not here — @serwist/next appends
+  // its own public-directory-scanning transform AFTER whatever is passed in
+  // manifestTransforms, so entries it adds never pass through a transform
+  // placed here. self.__SW_MANIFEST is the final, fully-assembled list.
 });
 
 export default withSerwist(nextConfig);
