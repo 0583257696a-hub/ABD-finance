@@ -129,19 +129,22 @@ const simViews: Array<{ id: SimView; label: string; note: string }> = [
   { id: 'infrastructure', label: 'תשתיות לקצבה', note: 'פילוח שכבות תגמולים ופיצויים' },
 ]
 
+// Widths sized for a ~1150px total so the table fits typical content areas
+// without horizontal scroll; multi-word headers wrap to two lines (thStyle
+// deliberately does NOT set nowrap) instead of forcing wide columns.
 const infrastructureColumns = [
-  { key: 'index', label: '#', width: 48, minWidth: 40 },
-  { key: 'manufacturer', label: 'יצרן', width: 118, minWidth: 88 },
-  { key: 'accountNumber', label: 'מס׳ פוליסה', width: 112, minWidth: 90 },
-  { key: 'startDate', label: 'תחילת ביטוח', width: 106, minWidth: 88 },
-  { key: 'compensationPension', label: 'פיצויים למס', width: 128, minWidth: 98 },
-  { key: 'compensationCapital', label: 'פיצויים מעסיק הון', width: 136, minWidth: 104 },
-  { key: 'capitalBefore2008', label: 'תגמולי הון עד 2008', width: 144, minWidth: 112 },
-  { key: 'capitalAfter2008', label: 'תגמולי הון מ-2008', width: 144, minWidth: 112 },
-  { key: 'pensionBefore2000', label: 'תגמולים לקצבה עד 2000', width: 154, minWidth: 120 },
-  { key: 'pensionAfter2000', label: 'תגמולים לקצבה אחרי 2000', width: 164, minWidth: 124 },
-  { key: 'total', label: 'סה"כ', width: 118, minWidth: 94 },
-  { key: 'yieldMode', label: 'אופן תשואה / מסלול', width: 172, minWidth: 128 },
+  { key: 'index', label: '#', width: 36, minWidth: 32 },
+  { key: 'manufacturer', label: 'יצרן', width: 96, minWidth: 76 },
+  { key: 'accountNumber', label: 'מס׳ פוליסה', width: 96, minWidth: 80 },
+  { key: 'startDate', label: 'תחילת ביטוח', width: 86, minWidth: 72 },
+  { key: 'compensationPension', label: 'פיצויים למס', width: 96, minWidth: 80 },
+  { key: 'compensationCapital', label: 'פיצויים מעסיק הון', width: 100, minWidth: 84 },
+  { key: 'capitalBefore2008', label: 'תגמולי הון עד 2008', width: 100, minWidth: 84 },
+  { key: 'capitalAfter2008', label: 'תגמולי הון מ-2008', width: 100, minWidth: 84 },
+  { key: 'pensionBefore2000', label: 'תגמולים לקצבה עד 2000', width: 104, minWidth: 88 },
+  { key: 'pensionAfter2000', label: 'תגמולים לקצבה אחרי 2000', width: 104, minWidth: 88 },
+  { key: 'total', label: 'סה"כ', width: 100, minWidth: 84 },
+  { key: 'yieldMode', label: 'אופן תשואה / מסלול', width: 128, minWidth: 100 },
 ] as const
 
 type InfrastructureColumnKey = typeof infrastructureColumns[number]['key']
@@ -1237,9 +1240,9 @@ const pillStripStyle: React.CSSProperties = { display: 'flex', flexWrap: 'wrap',
 const pillStyle: React.CSSProperties = { color: 'var(--abd-primary)', background: 'var(--bg-canvas)', border: '1px solid var(--separator)', borderRadius: 999, padding: '8px 12px', fontWeight: 800, fontSize: 13 }
 const tableWrapStyle: React.CSSProperties = { overflowX: 'auto', border: '1px solid var(--separator)', borderRadius: 16 }
 const tableStyle: React.CSSProperties = { width: 'max-content', minWidth: '100%', borderCollapse: 'collapse', fontSize: 13, color: 'var(--abd-primary)' }
-const thStyle: React.CSSProperties = { position: 'relative', background: 'var(--bg-surface-sunken)', color: 'var(--abd-primary)', textAlign: 'right', padding: '12px 14px', fontWeight: 900, whiteSpace: 'nowrap', userSelect: 'none', borderBottom: '1px solid var(--separator)' }
+const thStyle: React.CSSProperties = { position: 'relative', background: 'var(--bg-surface-sunken)', color: 'var(--abd-primary)', textAlign: 'right', padding: '10px 8px', fontWeight: 900, lineHeight: 1.35, verticalAlign: 'bottom', userSelect: 'none', borderBottom: '1px solid var(--separator)' }
 const resizeHandleStyle: React.CSSProperties = { position: 'absolute', insetBlock: 8, left: 0, width: 9, cursor: 'col-resize', borderLeft: '2px solid rgba(100, 116, 139, 0.45)', opacity: 0.9 }
-const tdStyle: React.CSSProperties = { padding: '11px 10px', borderBottom: '1px solid var(--separator)', verticalAlign: 'top', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis' }
+const tdStyle: React.CSSProperties = { padding: '10px 8px', borderBottom: '1px solid var(--separator)', verticalAlign: 'top', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis' }
 const tdCenterStyle: React.CSSProperties = { ...tdStyle, textAlign: 'center', fontWeight: 900 }
 const tdStrongStyle: React.CSSProperties = { ...tdStyle, color: 'var(--text-heading)', fontWeight: 900 }
 const tdMonoStyle: React.CSSProperties = { ...tdStyle, fontVariantNumeric: 'tabular-nums', direction: 'ltr', textAlign: 'right' }
