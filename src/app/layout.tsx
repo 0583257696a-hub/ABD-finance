@@ -6,6 +6,7 @@ import CookieConsent from '@/components/layout/CookieConsent'
 import AccessibilityMenu from '@/components/layout/AccessibilityMenu'
 import ServiceWorkerManager from '@/components/pwa/ServiceWorkerManager'
 import InstallPrompt from '@/components/pwa/InstallPrompt'
+import ClientDataGuard from '@/components/security/ClientDataGuard'
 
 export const metadata: Metadata = {
   title: 'פגישה חכמה - ABD Finance',
@@ -48,6 +49,7 @@ export default function RootLayout({
           <AccessibilityMenu />
           <ServiceWorkerManager />
           <InstallPrompt />
+          <ClientDataGuard />
         </Providers>
       </body>
     </html>
