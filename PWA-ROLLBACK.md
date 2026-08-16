@@ -21,8 +21,11 @@ already have.
    `public/sw.js` (or update the build so `public/sw.js` is generated *from*
    `sw-kill-switch.js` instead of `src/app/sw.ts`) and deploy normally.
 2. **Confirm the cache headers on `/sw.js` are still in effect** —
-   `Cache-Control: no-cache, no-store, must-revalidate` (set in
-   `next.config.ts`). This is what guarantees browsers re-fetch the file
+   `Cache-Control: no-cache, no-store, must-revalidate` (set via
+   `public/_headers` — `/sw.js` is served as a static asset directly by
+   Cloudflare's ASSETS binding, which bypasses next.config.ts's `headers()`
+   entirely; that's why this lives in `_headers` and not there). This is
+   what guarantees browsers re-fetch the file
    promptly instead of serving a stale cached copy of the *old* worker
    indefinitely. Without this, some clients could take far longer to pick
    up the kill switch.

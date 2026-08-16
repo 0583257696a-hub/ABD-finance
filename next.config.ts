@@ -63,13 +63,11 @@ const nextConfig: NextConfig = {
         source: '/:path*',
         headers: securityHeaders,
       },
-      {
-        // A broken/stale service worker cached at the CDN or browser layer
-        // can't be fixed by deploying a new one — it must always be re-fetched.
-        source: '/sw.js',
-        headers: [{ key: 'Cache-Control', value: 'no-cache, no-store, must-revalidate' }],
-      },
     ]
+    // Note: /sw.js's Cache-Control is set via public/_headers, not here —
+    // it's served as a static asset directly by Cloudflare's ASSETS binding,
+    // bypassing the Next.js request pipeline (and this headers() config)
+    // entirely. Confirmed live: this rule never actually applied to it.
   },
 };
 
