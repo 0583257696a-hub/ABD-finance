@@ -1,5 +1,6 @@
 import { getCloudflareEnv } from './system-db'
 import { writeEmailOutbox } from './system-db'
+import { sendViaGmail } from './gmail-send'
 
 type MailAttachment = {
   filename: string
@@ -51,6 +52,29 @@ export async function sendSystemEmail(input: MailInput) {
     env?.SYSTEM_EMAIL_REPLY_TO ||
     process.env.SYSTEM_EMAIL_REPLY_TO ||
     'support@abd-finance.co.il'
+
+  // Path 1 — the advisor's own Gmail via their connected Google account
+  // (gmail.send scope). The mail truly originates from their mailbox: real
+  // sender, their Sent folder, proper SPF/DKIM. Any failure (not connected,
+  // scope not granted yet, token revoked, API error) silently falls through
+  // to the platform mailer below.
+  if (senderEmail) {
+    try {
+      await sendViaGmail(senderEmail, {
+        to,
+        subject: input.subject,
+        html: input.html,
+        text: input.text,
+        senderName: senderName || undefined,
+        senderEmail,
+        attachments: input.attachments,
+      })
+      await writeEmailOutbox({ ...input, to, status: 'sent', error: 'via-gmail' })
+      return { ok: true, sentFrom: senderEmail, via: 'gmail' }
+    } catch {
+      // Fall through to the Cloudflare Email Service path.
+    }
+  }
 
   try {
     const binding = env?.EMAIL || env?.SEND_EMAIL || env?.MAIL || env?.SMART_MEETING_MAIL

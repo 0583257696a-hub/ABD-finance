@@ -15,8 +15,19 @@ const AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth'
 const TOKEN_URL = 'https://oauth2.googleapis.com/token'
 const API_BASE = 'https://www.googleapis.com/calendar/v3'
 
-/** Minimum scopes: read events, and write only so "schedule meeting" can create one. */
-export const GOOGLE_CALENDAR_SCOPES = ['https://www.googleapis.com/auth/calendar.events']
+/**
+ * Calendar events + Gmail send. gmail.send lets the app send meeting invites
+ * and questionnaires FROM the advisor's real Gmail mailbox (they appear in
+ * the advisor's Sent folder). Users who connected before this scope was
+ * added must reconnect Google to grant it — sends fall back to the system
+ * mailer until they do. Note: gmail.send is a Google "restricted" scope;
+ * in Testing mode it works for the app's registered test users, but full
+ * public verification requires Google's security assessment.
+ */
+export const GOOGLE_CALENDAR_SCOPES = [
+  'https://www.googleapis.com/auth/calendar.events',
+  'https://www.googleapis.com/auth/gmail.send',
+]
 
 async function credentials() {
   const env = await getCloudflareEnv()
@@ -51,7 +62,11 @@ export async function exchangeGoogleCode(code: string, redirectUri: string) {
   return await response.json() as { access_token: string; refresh_token?: string; expires_in: number; scope?: string }
 }
 
-/** Returns a valid access token, refreshing it first when expired. */
+/** Returns a valid access token, refreshing it first when expired. Exported for the Gmail-send integration. */
+export async function googleAccessToken(userEmail: string): Promise<string> {
+  return accessToken(userEmail)
+}
+
 async function accessToken(userEmail: string): Promise<string> {
   const connection = await getConnection(userEmail, 'google_calendar')
   if (!connection) throw new CalendarError('NOT_CONNECTED', 'Google Calendar is not connected.', 'google_calendar')
