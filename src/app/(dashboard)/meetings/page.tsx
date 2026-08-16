@@ -105,6 +105,7 @@ export default function MeetingsPage() {
     : searchParams.get('calendarError') || ''
 
   const activeClient = useWorkspaceStore(state => state.client)
+  const resetWorkspace = useWorkspaceStore(state => state.resetWorkspace)
   const [clientName, setClientName] = useState('')
   const [clientEmail, setClientEmail] = useState('')
   const [title, setTitle] = useState('פגישת ייעוץ פנסיוני')
@@ -203,9 +204,18 @@ export default function MeetingsPage() {
           clientEmail: event.participants.find(person => person.email)?.email,
         }),
       })
-      const data = await response.json() as { ok?: boolean; id?: string }
-      if (data.ok && data.id) router.push(`/meeting/${data.id}`)
-      else setStatus('פתיחת הפגישה נכשלה.')
+      const data = await response.json() as { ok?: boolean; id?: string; reused?: boolean }
+      if (data.ok && data.id) {
+        // A genuinely new meeting starts with a clean workspace — otherwise
+        // whatever client was previously loaded (possibly hours ago, a
+        // different client entirely) silently carries into this one.
+        // Re-entering an already-started meeting (reused: true) must NOT
+        // reset, or it would wipe work already done in that same session.
+        if (!data.reused) resetWorkspace()
+        router.push(`/meeting/${data.id}`)
+      } else {
+        setStatus('פתיחת הפגישה נכשלה.')
+      }
     } finally {
       setStarting(false)
     }
@@ -229,9 +239,13 @@ export default function MeetingsPage() {
           participants: [],
         }),
       })
-      const data = await response.json() as { ok?: boolean; id?: string }
-      if (data.ok && data.id) router.push(`/meeting/${data.id}`)
-      else setStatus('פתיחת הפגישה נכשלה.')
+      const data = await response.json() as { ok?: boolean; id?: string; reused?: boolean }
+      if (data.ok && data.id) {
+        if (!data.reused) resetWorkspace()
+        router.push(`/meeting/${data.id}`)
+      } else {
+        setStatus('פתיחת הפגישה נכשלה.')
+      }
     } finally {
       setStarting(false)
     }
