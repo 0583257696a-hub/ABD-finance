@@ -173,6 +173,7 @@ export async function POST(request: Request) {
       text: `שלום ${meeting.client_name},\n\nנקבעה פגישה: ${meeting.title}\nמועד: ${when}\n${meeting.location ? `מיקום: ${meeting.location}\n` : ''}\nלאישור הגעה: ${confirmUrl}\n\nהקובץ המצורף יוסיף את הפגישה ליומן שלך (Google / Outlook / Apple).\n\nבברכה,\n${session.user.name || 'ABD Finance'}`,
       html: `<div dir="rtl" style="font-family:Arial,sans-serif;line-height:1.7"><p>שלום ${meeting.client_name},</p><p>נקבעה פגישה: <strong>${meeting.title}</strong><br/>מועד: <strong>${when}</strong>${meeting.location ? `<br/>מיקום: ${meeting.location}` : ''}</p><p><a href="${confirmUrl}" style="display:inline-block;background:#059669;color:#fff;padding:12px 24px;border-radius:10px;text-decoration:none;font-weight:bold">אשר/י הגעה לפגישה</a></p><p>הקובץ המצורף יוסיף את הפגישה ליומן שלך (Google / Outlook / Apple).</p><p>בברכה,<br/>${session.user.name || 'ABD Finance'}</p></div>`,
       replyTo: userEmail,
+      sender: { name: session.user.name, email: userEmail },
       attachments: [{ filename: 'meeting.ics', contentType: 'text/calendar', base64: icsToBase64(ics) }],
     })
     if (result.ok) await markInviteSent(userEmail, meeting.id)

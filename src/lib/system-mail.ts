@@ -15,6 +15,16 @@ type MailInput = {
   text: string
   replyTo?: string
   attachments?: MailAttachment[]
+  /**
+   * The signed-in advisor on whose behalf the mail is sent. When their email
+   * domain is onboarded to Cloudflare Email Sending, the mail is sent FROM
+   * their actual address. For any other domain (gmail etc.) sending "from"
+   * it is impossible without failing SPF/DKIM (it would be spoofing, and
+   * providers reject it) — so the mail goes out from the system address but
+   * carries the advisor's display name, and Reply-To is always the advisor,
+   * so replies reach them directly either way.
+   */
+  sender?: { name?: string | null; email?: string | null }
 }
 
 function extractAddr(mailbox: string): string {
@@ -27,14 +37,17 @@ export async function sendSystemEmail(input: MailInput) {
   if (!to) return { ok: false, skipped: true, reason: 'missing-recipient' }
 
   const env = await getCloudflareEnv()
-  const from =
+  const systemFrom =
     env?.SYSTEM_EMAIL_FROM ||
     env?.EMAIL_FROM ||
     process.env.SYSTEM_EMAIL_FROM ||
     process.env.EMAIL_FROM ||
     'Smart Meeting <noreply@abd-finance.co.il>'
+  const senderEmail = String(input.sender?.email || '').trim()
+  const senderName = String(input.sender?.name || '').trim()
   const replyTo =
     input.replyTo ||
+    senderEmail ||
     env?.SYSTEM_EMAIL_REPLY_TO ||
     process.env.SYSTEM_EMAIL_REPLY_TO ||
     'support@abd-finance.co.il'
@@ -47,16 +60,14 @@ export async function sendSystemEmail(input: MailInput) {
     }
 
     // Modern Cloudflare Email Service API: the binding's send() accepts a plain
-    // message object directly — no EmailMessage, no hand-built MIME. The previous
-    // implementation dynamically imported "cloudflare:email" (a workerd builtin)
-    // with a runtime-computed specifier to dodge esbuild; that import fails at
-    // runtime inside the bundled OpenNext worker ("Cannot find module
-    // 'cloudflare:email'"), which is why no invite email was ever delivered.
-    // The object API needs no import at all, eliminating the problem outright.
-    const fromName = from.includes('<') ? from.slice(0, from.indexOf('<')).trim() : 'Smart Meeting'
-    await binding.send({
+    // message object directly — no EmailMessage, no hand-built MIME. (The old
+    // dynamic import of "cloudflare:email" failed at runtime in the bundled
+    // OpenNext worker, which is why no invite email was ever delivered.)
+    const systemFromName = systemFrom.includes('<') ? systemFrom.slice(0, systemFrom.indexOf('<')).trim() : 'Smart Meeting'
+    const displayName = senderName ? `${senderName} — Smart Meeting` : systemFromName
+    const message = (fromEmail: string) => ({
       to,
-      from: { email: extractAddr(from), name: fromName },
+      from: { email: fromEmail, name: displayName },
       replyTo: extractAddr(replyTo),
       subject: input.subject,
       html: input.html,
@@ -70,8 +81,26 @@ export async function sendSystemEmail(input: MailInput) {
         disposition: 'attachment' as const,
       })),
     })
+
+    // First attempt: the advisor's own address as the sender. Works only when
+    // their domain is onboarded to Email Sending; otherwise Cloudflare rejects
+    // with E_SENDER_NOT_VERIFIED / E_SENDER_DOMAIN_NOT_AVAILABLE and we fall
+    // back to the system address (still with the advisor's name + Reply-To).
+    if (senderEmail && senderEmail !== extractAddr(systemFrom)) {
+      try {
+        await binding.send(message(senderEmail))
+        await writeEmailOutbox({ ...input, to, status: 'sent' })
+        return { ok: true, sentFrom: senderEmail }
+      } catch (error) {
+        const code = (error as { code?: string })?.code || ''
+        if (!code.startsWith('E_SENDER')) throw error
+        // Sender domain not onboarded — expected for gmail etc.; fall through.
+      }
+    }
+
+    await binding.send(message(extractAddr(systemFrom)))
     await writeEmailOutbox({ ...input, to, status: 'sent' })
-    return { ok: true }
+    return { ok: true, sentFrom: extractAddr(systemFrom) }
   } catch (error) {
     await writeEmailOutbox({ ...input, to, status: 'error', error: error instanceof Error ? `${(error as { code?: string }).code || ''} ${error.message}`.trim() : String(error) })
     return { ok: false, error }

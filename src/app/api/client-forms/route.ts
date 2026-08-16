@@ -62,6 +62,7 @@ export async function POST(request: Request) {
     text: `שלום ${clientName},\n\nלקראת פגישת הייעוץ, נודה למילוי שאלון קצר:\n${formUrl}\n\nהמידע ישמש להכנת הפגישה בלבד.\n\nבברכה,\n${session.user.name || 'ABD Finance'}`,
     html: `<div dir="rtl" style="font-family:Arial,sans-serif;line-height:1.7"><p>שלום ${clientName},</p><p>לקראת פגישת הייעוץ, נודה למילוי שאלון קצר:</p><p><a href="${formUrl}" style="display:inline-block;background:#1F2937;color:#fff;padding:12px 22px;border-radius:10px;text-decoration:none;font-weight:bold">למילוי השאלון</a></p><p style="color:#6B7280;font-size:13px">${formUrl}</p><p>המידע ישמש להכנת הפגישה בלבד.</p><p>בברכה,<br/>${session.user.name || 'ABD Finance'}</p></div>`,
     replyTo: session.user.email,
+    sender: { name: session.user.name, email: session.user.email },
   })
 
   return NextResponse.json({ ok: true, token, formUrl, emailSent: mail.ok, emailQueued: 'queued' in mail ? mail.queued : false })
