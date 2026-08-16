@@ -5,26 +5,33 @@ import { useState, type CSSProperties } from 'react'
 type LogoConfig = {
   match: string[]
   src?: string
-  width?: number
-  height?: number
+  // Per-logo cap on width only — height is always uniform (see LOGO_HEIGHT)
+  // so every row in a manufacturer column is the same height regardless of
+  // which company's logo it holds. Without this, each logo's own hand-picked
+  // height (previously 34-50px, all different) made row height alternate
+  // depending on which manufacturer happened to be in that row.
+  maxWidth?: number
 }
 
+const LOGO_HEIGHT = 28
+const LOGO_HEIGHT_COMPACT = 22
+
 const LOGOS: LogoConfig[] = [
-  { match: ['הפניקס'], src: '/assets/fnx-logo.svg', width: 104, height: 36 },
-  { match: ['פניקס'], src: '/assets/fnx-logo.svg', width: 104, height: 36 },
-  { match: ['הראל'], src: '/assets/harel-logo.png', width: 64, height: 46 },
-  { match: ['אלטשולר'], src: '/assets/altshuler-logo.png', width: 132, height: 50 },
-  { match: ['שחם'], src: '/assets/altshuler-logo.png', width: 132, height: 50 },
-  { match: ['מגדל'], src: '/assets/migdal-logo.svg', width: 110, height: 38 },
-  { match: ['עמיתים'], src: '/assets/amitim-logo.svg', width: 104, height: 38 },
-  { match: ['קרן פנסיה לשכירים'], src: '/assets/amitim-logo.svg', width: 104, height: 38 },
-  { match: ['שכירים ועצמאיים'], src: '/assets/amitim-logo.svg', width: 104, height: 38 },
-  { match: ['מיטב'], src: '/assets/meitav-logo.svg', width: 112, height: 38 },
-  { match: ['הכשרה'], src: '/assets/hachshara-logo.png', width: 118, height: 40 },
-  { match: ['ילין', 'לפידות'], src: '/assets/yalin-logo.png', width: 108, height: 36 },
-  { match: ['מור'], src: '/assets/mor-logo.png', width: 104, height: 34 },
-  { match: ['מנורה'], src: '/assets/menora-logo.png', width: 118, height: 40 },
-  { match: ['איילון'], src: '/assets/ayalon-logo.png', width: 118, height: 40 },
+  { match: ['הפניקס'], src: '/assets/fnx-logo.svg', maxWidth: 104 },
+  { match: ['פניקס'], src: '/assets/fnx-logo.svg', maxWidth: 104 },
+  { match: ['הראל'], src: '/assets/harel-logo.png', maxWidth: 64 },
+  { match: ['אלטשולר'], src: '/assets/altshuler-logo.png', maxWidth: 132 },
+  { match: ['שחם'], src: '/assets/altshuler-logo.png', maxWidth: 132 },
+  { match: ['מגדל'], src: '/assets/migdal-logo.svg', maxWidth: 110 },
+  { match: ['עמיתים'], src: '/assets/amitim-logo.svg', maxWidth: 104 },
+  { match: ['קרן פנסיה לשכירים'], src: '/assets/amitim-logo.svg', maxWidth: 104 },
+  { match: ['שכירים ועצמאיים'], src: '/assets/amitim-logo.svg', maxWidth: 104 },
+  { match: ['מיטב'], src: '/assets/meitav-logo.svg', maxWidth: 112 },
+  { match: ['הכשרה'], src: '/assets/hachshara-logo.png', maxWidth: 118 },
+  { match: ['ילין', 'לפידות'], src: '/assets/yalin-logo.png', maxWidth: 108 },
+  { match: ['מור'], src: '/assets/mor-logo.png', maxWidth: 104 },
+  { match: ['מנורה'], src: '/assets/menora-logo.png', maxWidth: 118 },
+  { match: ['איילון'], src: '/assets/ayalon-logo.png', maxWidth: 118 },
 ]
 
 export function ManufacturerLogo({ name, compact = false }: { name?: string; compact?: boolean }) {
@@ -48,16 +55,18 @@ export function ManufacturerLogo({ name, compact = false }: { name?: string; com
 
   const logo = LOGOS.find(item => item.match.every(part => value.includes(part)))
   if (logo?.src && !imageFailed) {
+    const height = compact ? LOGO_HEIGHT_COMPACT : LOGO_HEIGHT
     return (
-      <span style={wrapStyle} title={value}>
+      <span style={{ ...wrapStyle, height }} title={value}>
         <img
           src={logo.src}
           alt={value}
           onError={() => setImageFailed(true)}
           style={{
             ...imageStyle,
-            width: compact ? Math.round((logo.width || 96) * 0.86) : logo.width,
-            height: compact ? Math.round((logo.height || 34) * 0.9) : logo.height,
+            height,
+            width: 'auto',
+            maxWidth: logo.maxWidth || 96,
           }}
         />
       </span>
@@ -83,6 +92,9 @@ const imageStyle: CSSProperties = {
 }
 
 const fallbackStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  minHeight: LOGO_HEIGHT,
   color: 'var(--abd-primary)',
   fontWeight: 900,
 }
