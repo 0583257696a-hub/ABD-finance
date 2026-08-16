@@ -1,8 +1,9 @@
 import type { NextAuthOptions } from 'next-auth'
 import CredentialsProvider from 'next-auth/providers/credentials'
+import GoogleProvider from 'next-auth/providers/google'
 import bcrypt from 'bcryptjs'
 import { rateLimit } from './security'
-import { writeAuditEvent } from './system-db'
+import { getCloudflareEnv, writeAuditEvent } from './system-db'
 
 type AppRole = 'admin' | 'advisor'
 
@@ -140,10 +141,34 @@ export const authOptions: NextAuthOptions = {
   },
   secret: AUTH_SECRET,
   callbacks: {
-    jwt({ token, user }) {
+    /**
+     * Google sign-in is an AUTHENTICATION method, not a registration path:
+     * only emails that already exist in the system (static admin/advisor or
+     * an approved D1 user) get in. Anyone else is bounced to the login page
+     * with a no-account error and pointed at the registration flow.
+     */
+    async signIn({ user, account }) {
+      if (account?.provider !== 'google') return true
+      const resolved = await resolveExistingUser(user.email)
+      if (resolved) {
+        await writeAuditEvent({ actorEmail: normalizeEmail(user.email), action: 'auth.login.google.success', targetId: normalizeEmail(user.email) })
+        return true
+      }
+      await writeAuditEvent({ actorEmail: normalizeEmail(user.email), action: 'auth.login.google.no_account', targetId: normalizeEmail(user.email) })
+      return '/login?error=no-account'
+    },
+    async jwt({ token, user, account }) {
       if (user) {
         token.id = user.id
         token.role = user.role
+        // Google profiles carry no app role/id — resolve from our own records.
+        if (account?.provider === 'google') {
+          const resolved = await resolveExistingUser(user.email)
+          if (resolved) {
+            token.id = resolved.id
+            token.role = resolved.role
+          }
+        }
       }
       return token
     },
@@ -155,4 +180,42 @@ export const authOptions: NextAuthOptions = {
       return session
     },
   },
+}
+
+/** Maps a Google-authenticated email to an existing app user (static or D1, active only). */
+async function resolveExistingUser(email?: string | null): Promise<{ id: string; role: AppRole } | null> {
+  const normalized = normalizeEmail(email)
+  if (!normalized) return null
+  if (normalized === normalizeEmail(ADMIN_EMAIL)) return { id: 'admin-static', role: 'admin' }
+  if (normalized === normalizeEmail(ADVISOR_EMAIL)) return { id: 'advisor-static', role: 'advisor' }
+  try {
+    const { findD1UserByEmail } = await import('./system-db')
+    const d1User = await findD1UserByEmail(normalized)
+    if (d1User && ['active', 'trial_active'].includes(d1User.status)) {
+      return { id: d1User.id, role: d1User.role === 'admin' ? 'admin' : 'advisor' }
+    }
+  } catch { /* D1 unavailable — deny rather than guess */ }
+  return null
+}
+
+/**
+ * Runtime auth options for the [...nextauth] route handler: adds the Google
+ * provider with credentials read from the Cloudflare env at request time.
+ * The static `authOptions` above stays provider-light because Cloudflare
+ * secrets aren't reliably on process.env at module-init — and every
+ * getServerSession(authOptions) caller only needs secret/cookies/callbacks
+ * for JWT validation anyway, not the provider list.
+ */
+export async function buildRuntimeAuthOptions(): Promise<NextAuthOptions> {
+  const env = await getCloudflareEnv()
+  const clientId = String(env?.GOOGLE_CLIENT_ID || process.env.GOOGLE_CLIENT_ID || '')
+  const clientSecret = String(env?.GOOGLE_CLIENT_SECRET || process.env.GOOGLE_CLIENT_SECRET || '')
+  if (!clientId || !clientSecret) return authOptions
+  return {
+    ...authOptions,
+    providers: [
+      ...authOptions.providers,
+      GoogleProvider({ clientId, clientSecret }),
+    ],
+  }
 }
