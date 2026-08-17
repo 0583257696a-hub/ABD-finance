@@ -39,13 +39,27 @@ function isExcludedFromPrecache(entry: PrecacheEntry | string): boolean {
   return false
 }
 
+/**
+ * Bump this whenever a deploy MUST reach every user immediately. Old
+ * clients keep serving whatever their installed worker cached; a new
+ * worker only replaces it once it activates. On activate we purge every
+ * cache belonging to a different version, then reload open clients — so a
+ * user on a stale build is pulled forward automatically on their next
+ * navigation, with no "update now" prompt they'd have to notice.
+ */
+const APP_CACHE_VERSION = '2026-08-17-1'
+
 const serwist = new Serwist({
   precacheEntries: self.__SW_MANIFEST?.filter(entry => !isExcludedFromPrecache(entry)),
-  // Phase 9 (update strategy): the app controls activation via a user-confirmed
-  // prompt — a newly installed worker must never take over automatically.
-  skipWaiting: false,
+  // A newly installed worker takes over immediately. The earlier
+  // "wait for user confirmation" model (skipWaiting: false + update banner)
+  // left users stranded on stale builds indefinitely — old cached pages
+  // don't even run the new banner code, so nobody ever saw the prompt.
+  // Any deploy in a live-in-use app must reach everyone on their next load.
+  skipWaiting: true,
   clientsClaim: true,
   navigationPreload: true,
+  cacheId: `smart-meeting-${APP_CACHE_VERSION}`,
   runtimeCaching: [
     // Every /api/* route in this app is either authenticated/personal (funds,
     // meetings, calendar status, meeting-summaries, AI drafts) or mutating.
@@ -68,6 +82,30 @@ const serwist = new Serwist({
       },
     ],
   },
+})
+
+// On activation: delete every cache that isn't ours for THIS version — that
+// covers Serwist's default-named caches from earlier builds, the old
+// un-namespaced precache, and anything a previous worker left behind — then
+// reload every open tab so it comes up on the fresh build. Must run before
+// Serwist's own activate handler (which only cleans its own precache).
+self.addEventListener('activate', event => {
+  event.waitUntil((async () => {
+    const keep = `smart-meeting-${APP_CACHE_VERSION}`
+    const names = await caches.keys()
+    await Promise.all(names.filter(name => !name.includes(keep)).map(name => caches.delete(name)))
+    const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+    for (const client of clients) {
+      // navigate() re-requests the page from the network through the new
+      // worker; falls back to a plain reload message for clients that
+      // don't support it.
+      if ('navigate' in client && typeof (client as WindowClient).navigate === 'function') {
+        await (client as WindowClient).navigate(client.url).catch(() => client.postMessage({ type: 'RELOAD_FOR_UPDATE' }))
+      } else {
+        client.postMessage({ type: 'RELOAD_FOR_UPDATE' })
+      }
+    }
+  })())
 })
 
 serwist.addEventListeners()

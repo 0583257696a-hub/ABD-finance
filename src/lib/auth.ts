@@ -33,10 +33,20 @@ const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@abd-finance.co.il'
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'AbdAdmin2026!'
 const ADVISOR_EMAIL = process.env.APP_USER_EMAIL || 'advisor@abd-finance.co.il'
 const ADVISOR_PASSWORD = process.env.APP_USER_PASSWORD || 'AbdUser2026!'
-const AUTH_SECRET =
+/**
+ * Session cutover generation. Bumping this invalidates EVERY existing
+ * session cookie at once (old JWTs no longer verify against the derived
+ * secret) — used to force all users onto a fresh login after a deploy that
+ * must reach everyone, e.g. when stale clients were stranded on an old
+ * cached build. Users just see the login page and sign in again.
+ */
+const SESSION_GENERATION = '2'
+
+const AUTH_SECRET = `${
   process.env.NEXTAUTH_SECRET ||
   process.env.AUTH_SECRET ||
   'abd-finance-static-auth-secret-change-in-cloudflare'
+}#gen${SESSION_GENERATION}`
 
 function normalizeEmail(email?: string | null) {
   return String(email || '').trim().toLowerCase()
