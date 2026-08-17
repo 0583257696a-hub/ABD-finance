@@ -959,7 +959,9 @@ function isInsuranceLikeCoverageName(coverageName: string, planName: string) {
 
 function formatFee(value: number) {
   if (!Number.isFinite(value)) return ''
-  return `${String(value.toFixed(5)).replace(/\.?0+$/, '')}%`
+  // 3 decimals: fee schedules are quoted to at most 0.001%; anything finer is
+  // a precision artifact of the source (מסלקה reports 2% as 1.9998).
+  return `${String(value.toFixed(3)).replace(/\.?0+$/, '')}%`
 }
 
 function directTagText(root: Element | null | undefined, names: string[]) {
@@ -1031,31 +1033,61 @@ function firstMeaningfulFeeNumber(...values: number[]): number {
   return Number.isFinite(positiveValue) ? Number(positiveValue) : finiteValues[0] ?? NaN
 }
 
+/**
+ * Management fees from a מסלקה policy node. Source priority (verified
+ * against real files 2026-08-18):
+ *   1. the rate actually charged on the investment track
+ *      (SHEUR-DMEI-NIHUL-HAFKADA / -HISACHON on each track) — this is what
+ *      the client really pays; e.g. מגדל 45122157 charges 0.57% while the
+ *      contractual structure says 0.65%;
+ *   2. the track's structure rate (-MIVNE);
+ *   3. the policy's fee structure (PerutMivneDmeiNihul, SUG-HOTZAA 1 =
+ *      balance, 2/3 = deposit) — the only source for insurer policies that
+ *      have no track nodes;
+ *   4. actual expenses last month (HotzaotBafoalLehodeshDivoach), with the
+ *      monthly accumulation rate annualised.
+ * `firstMeaningfulFeeNumber` picks the first POSITIVE candidate in that
+ * order, so a zero placeholder never masks a real rate further down.
+ * When the structure lists several distinct balance components (הראל
+ * 6504385: 0.60% and 0.36% for different fee-track types) the text shows
+ * all of them; the numeric value stays the primary one.
+ */
 function buildClearinghouseManagementFees(policyNode: Element, trackNodes: Element[]) {
   const tracks = Array.isArray(trackNodes) ? trackNodes : []
   const expensesNode = firstXmlNode(policyNode, 'HotzaotBafoalLehodeshDivoach')
+  const structureDeposit = xmlFeeStructureValues(policyNode, 'deposit')
+  const structureBalance = xmlFeeStructureValues(policyNode, 'balance')
   const depositFee = firstMeaningfulFeeNumber(
-    ...xmlFeeStructureValues(policyNode, 'deposit'),
     ...tracks.map(track => directXmlPercent(track, ['SHEUR-DMEI-NIHUL-HAFKADA'], 'deposit')),
     ...tracks.map(track => directXmlPercent(track, ['SHEUR-DMEI-NIHUL-HAFKADA-MIVNE'], 'deposit')),
+    ...structureDeposit,
     directXmlPercent(expensesNode, ['SHEUR-DMEI-NIHUL-HAFKADA'], 'deposit'),
     directXmlPercent(expensesNode, ['MEMOTZA-SHEUR-DMEI-NIHUL-HAFKADA'], 'deposit'),
   )
   const balanceFee = firstMeaningfulFeeNumber(
-    ...xmlFeeStructureValues(policyNode, 'balance'),
     ...tracks.map(track => directXmlPercent(track, ['SHEUR-DMEI-NIHUL-HISACHON'], 'balance')),
     ...tracks.map(track => directXmlPercent(track, ['SHEUR-DMEI-NIHUL-HISACHON-MIVNE'], 'balance')),
+    ...structureBalance,
     directXmlPercent(expensesNode, ['SHEUR-DMEI-NIHUL-HISACHON'], 'balance'),
     monthlyXmlPercentAsAnnual(expensesNode || policyNode, ['SHEUR-DMEI-NIHUL-TZVIRA']),
   )
+  const distinctPositive = (values: number[]) => Array.from(new Set(values.filter(value => Number.isFinite(value) && value > 0.00001).map(value => round(value, 5))))
+  const feeLabel = (primary: number, structure: number[]) => {
+    if (!Number.isFinite(primary)) return ''
+    const components = distinctPositive(structure)
+    // Only when the primary itself came from a multi-component structure do we list the components.
+    return components.length > 1 && components.includes(round(primary, 5)) ? components.map(formatFee).join(' / ') : formatFee(primary)
+  }
+  const depositFeeText = feeLabel(depositFee, structureDeposit)
+  const balanceFeeText = feeLabel(balanceFee, structureBalance)
   return {
     depositFee,
     balanceFee,
-    depositFeeText: formatFee(depositFee),
-    balanceFeeText: formatFee(balanceFee),
+    depositFeeText,
+    balanceFeeText,
     managementFeeText: [
-      Number.isFinite(depositFee) ? `מהפקדה ${formatFee(depositFee)}` : '',
-      Number.isFinite(balanceFee) ? `מצבירה ${formatFee(balanceFee)}` : '',
+      depositFeeText ? `מהפקדה ${depositFeeText}` : '',
+      balanceFeeText ? `מצבירה ${balanceFeeText}` : '',
     ].filter(Boolean).join(' | ') || 'אין נתון',
   }
 }

@@ -371,17 +371,18 @@ export function getClearinghouseProductType(entryName, planName, policyNode) {
 export function getClearinghouseManagementFees(policyNode, trackNodes) {
     const tracks = Array.isArray(trackNodes) ? trackNodes : [];
     const expensesNode = firstXmlNode(policyNode, "HotzaotBafoalLehodeshDivoach");
+    // Mirrors client-importers.ts (the live path): the rate actually charged on the track first, then the structure.
     const depositFee = firstMeaningfulFeeNumber(
-      ...getXmlFeeStructureValues(policyNode, "deposit"),
       ...tracks.map((trackNode) => getDirectXmlPercent(trackNode, ["SHEUR-DMEI-NIHUL-HAFKADA"], "deposit")),
       ...tracks.map((trackNode) => getDirectXmlPercent(trackNode, ["SHEUR-DMEI-NIHUL-HAFKADA-MIVNE"], "deposit")),
+      ...getXmlFeeStructureValues(policyNode, "deposit"),
       getDirectXmlPercent(expensesNode, ["SHEUR-DMEI-NIHUL-HAFKADA"], "deposit"),
       getDirectXmlPercent(expensesNode, ["MEMOTZA-SHEUR-DMEI-NIHUL-HAFKADA"], "deposit")
     );
     const balanceFee = firstMeaningfulFeeNumber(
-      ...getXmlFeeStructureValues(policyNode, "balance"),
       ...tracks.map((trackNode) => getDirectXmlPercent(trackNode, ["SHEUR-DMEI-NIHUL-HISACHON"], "balance")),
       ...tracks.map((trackNode) => getDirectXmlPercent(trackNode, ["SHEUR-DMEI-NIHUL-HISACHON-MIVNE"], "balance")),
+      ...getXmlFeeStructureValues(policyNode, "balance"),
       getDirectXmlPercent(expensesNode, ["SHEUR-DMEI-NIHUL-HISACHON"], "balance"),
       getMonthlyXmlPercentAsAnnual(expensesNode || policyNode, ["SHEUR-DMEI-NIHUL-TZVIRA"])
     );
