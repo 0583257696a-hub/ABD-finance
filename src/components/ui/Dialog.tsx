@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react'
 import { Button } from './Button'
+import { createPortal } from 'react-dom'
 
 /**
  * Blocking confirm dialog. Use ONLY for genuinely interrupting/destructive
@@ -38,7 +39,13 @@ export function Dialog({
 
   if (!open) return null
 
-  return (
+  // Rendered into <body> via portal: overlays are position:fixed, and a fixed
+  // element is positioned against its nearest TRANSFORMED ancestor, not the
+  // viewport. Page-enter animations (main/section) carry transforms, so an
+  // in-tree overlay would be sized/clipped to that ancestor — the archive-sheet
+  // bug. Portaling makes the overlay immune to any ancestor transform.
+  if (typeof document === 'undefined') return null
+  return createPortal(
     <div
       onClick={onCancel}
       style={{
@@ -76,5 +83,5 @@ export function Dialog({
         </div>
       </div>
     </div>
-  )
+  , document.body)
 }

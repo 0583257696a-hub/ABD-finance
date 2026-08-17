@@ -18,6 +18,7 @@ import {
 } from '@/lib/meetings-db'
 import { buildIcsInvite, icsToBase64 } from '@/lib/meetings-ics'
 import { sendSystemEmail } from '@/lib/system-mail'
+import { clientNameFromSummary } from '@/lib/meeting-summary-doc'
 
 export async function GET() {
   const session = await getServerSession(authOptions)
@@ -108,12 +109,20 @@ export async function POST(request: Request) {
     let summaryId: string | null = null
     if (body.summary) {
       summaryId = crypto.randomUUID()
+      // The archive list is scanned by client name, so never save it blank when
+      // the meeting record has none (spontaneous meetings often don't): fall
+      // back to the name the advisor loaded in the workspace, then to the
+      // "עבור <name> ת.ז …" line of the summary document itself.
+      const clientName =
+        meeting.client_name ||
+        sanitizeText(body.clientName, 160) ||
+        sanitizeText(clientNameFromSummary(body.summary), 160)
       const saved = await saveMeetingSummary({
         id: summaryId,
         user_email: userEmail,
         meeting_id: meeting.id,
         title: meeting.title || 'סיכום פגישה',
-        client_name: meeting.client_name || '',
+        client_name: clientName,
         summary_json: JSON.stringify(body.summary).slice(0, 400_000),
         source: meeting.source || 'spontaneous',
         external_event_id: meeting.external_event_id ?? null,

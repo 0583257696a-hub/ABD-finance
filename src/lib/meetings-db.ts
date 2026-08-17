@@ -275,11 +275,32 @@ export async function saveMeetingSummary(summary: Omit<MeetingSummaryRecord, 'cr
 export async function listMeetingSummaries(userEmail: string): Promise<Array<Omit<MeetingSummaryRecord, 'summary_json'>>> {
   const db = await getDb()
   if (!db) return []
-  // Deliberately omits summary_json — the list view never needs the full document.
+  // Deliberately omits summary_json — the list view never needs the full
+  // document. Rows archived before client_name was reliably filled fall back
+  // to the document's own "עבור <name>" line (json_extract stays in SQL so we
+  // still don't ship 400KB documents to the list); the caller trims it to
+  // just the name.
   const result = await db.prepare(
-    'SELECT id, user_email, meeting_id, title, client_name, source, external_event_id, meeting_started_at, meeting_ended_at, created_at FROM meeting_summaries WHERE user_email = ? ORDER BY created_at DESC LIMIT 200'
+    `SELECT id, user_email, meeting_id, title,
+       CASE
+         WHEN client_name IS NOT NULL AND client_name <> '' THEN client_name
+         WHEN json_valid(summary_json) THEN COALESCE(json_extract(summary_json, '$.clientLine'), '')
+         ELSE ''
+       END AS client_name,
+       source, external_event_id, meeting_started_at, meeting_ended_at, created_at
+     FROM meeting_summaries WHERE user_email = ? ORDER BY created_at DESC LIMIT 200`
   ).bind(userEmail).all<Omit<MeetingSummaryRecord, 'summary_json'>>()
   return result?.results || []
+}
+
+/** Removes an archived summary; the meeting keeps its own row (only the summary_id link is cleared). */
+export async function deleteMeetingSummary(userEmail: string, id: string): Promise<boolean> {
+  const db = await getDb()
+  if (!db) return false
+  await db.prepare('UPDATE meetings SET summary_id = NULL WHERE summary_id = ? AND user_email = ?').bind(id, userEmail).run().catch(() => {})
+  await db.prepare('DELETE FROM meeting_summaries WHERE id = ? AND user_email = ?').bind(id, userEmail).run()
+  const remaining = await db.prepare('SELECT id FROM meeting_summaries WHERE id = ? AND user_email = ?').bind(id, userEmail).first<{ id: string }>()
+  return !remaining
 }
 
 export async function getMeetingSummary(userEmail: string, id: string): Promise<MeetingSummaryRecord | null> {

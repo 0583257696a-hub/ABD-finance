@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react'
 import type { ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 
 /**
  * Small anchored popup positioned at explicit viewport coordinates (already
@@ -43,7 +44,13 @@ export function Popover({
 
   if (!open) return null
 
-  return (
+  // Rendered into <body> via portal: overlays are position:fixed, and a fixed
+  // element is positioned against its nearest TRANSFORMED ancestor, not the
+  // viewport. Page-enter animations (main/section) carry transforms, so an
+  // in-tree overlay would be sized/clipped to that ancestor — the archive-sheet
+  // bug. Portaling makes the overlay immune to any ancestor transform.
+  if (typeof document === 'undefined') return null
+  return createPortal(
     <div
       ref={ref}
       style={{
@@ -62,5 +69,5 @@ export function Popover({
     >
       {children}
     </div>
-  )
+  , document.body)
 }

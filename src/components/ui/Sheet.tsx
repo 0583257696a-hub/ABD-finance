@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react'
 import type { ReactNode } from 'react'
 import { X } from 'lucide-react'
 import { IconButton } from './Button'
+import { createPortal } from 'react-dom'
 
 type SheetPlacement = 'side' | 'bottom' | 'center'
 
@@ -78,7 +79,13 @@ export function Sheet({
 
   if (!open) return null
 
-  return (
+  // Rendered into <body> via portal: overlays are position:fixed, and a fixed
+  // element is positioned against its nearest TRANSFORMED ancestor, not the
+  // viewport. Page-enter animations (main/section) carry transforms, so an
+  // in-tree overlay would be sized/clipped to that ancestor — the archive-sheet
+  // bug. Portaling makes the overlay immune to any ancestor transform.
+  if (typeof document === 'undefined') return null
+  return createPortal(
     <div
       onMouseDown={event => { pressStartedOnBackdrop.current = event.target === event.currentTarget }}
       onClick={event => {
@@ -140,5 +147,5 @@ export function Sheet({
         )}
       </div>
     </div>
-  )
+  , document.body)
 }

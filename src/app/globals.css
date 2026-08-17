@@ -72,17 +72,17 @@ body[data-animations="off"] *::after {
 
 @keyframes abd-screen-settle {
   from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  to { opacity: 1; transform: none; }
 }
 
 @keyframes abd-row-settle {
   from { opacity: 0; transform: translateX(-5px); }
-  to { opacity: 1; transform: translateX(0); }
+  to { opacity: 1; transform: none; }
 }
 
 @keyframes abd-panel-rise {
   from { opacity: 0; transform: translateY(8px) scale(.992); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
+  to { opacity: 1; transform: none; }
 }
 
 @keyframes abd-focus-pulse {
@@ -90,8 +90,19 @@ body[data-animations="off"] *::after {
   100% { box-shadow: 0 0 0 8px transparent; }
 }
 
+/*
+ * Fill-mode is "backwards", NOT "both", on every layout-level entrance
+ * animation below. "both" keeps the final keyframe (transform: translateY(0))
+ * applied forever, and ANY non-none transform on an ancestor turns it into
+ * the containing block for position:fixed descendants. That was the
+ * summaries-archive bug: <main> kept its transform, so the Sheet overlay
+ * (fixed, inset:0) was sized to <main> instead of the viewport — the panel
+ * rendered inside the content column, clipped, with the sidebar unblurred.
+ * "backwards" only holds the *from* state during any delay and releases the
+ * element to its natural styles (no transform) once the animation ends.
+ */
 body[data-animations="on"] main {
-  animation: abd-screen-settle .28s cubic-bezier(.2, .72, .22, 1) both;
+  animation: abd-screen-settle .28s cubic-bezier(.2, .72, .22, 1) backwards;
 }
 
 /*
@@ -105,11 +116,11 @@ body[data-animations="on"] main {
  */
 body[data-animations="on"] section,
 body[data-animations="on"] aside:not([data-app-sidebar]):not([data-ui-sheet]) {
-  animation: abd-panel-rise .24s cubic-bezier(.2, .72, .22, 1) both;
+  animation: abd-panel-rise .24s cubic-bezier(.2, .72, .22, 1) backwards;
 }
 
 body[data-animations="on"] table tbody tr {
-  animation: abd-row-settle .18s cubic-bezier(.2, .72, .22, 1) both;
+  animation: abd-row-settle .18s cubic-bezier(.2, .72, .22, 1) backwards;
 }
 
 body[data-animations="on"] table tbody tr:nth-child(2) { animation-delay: 18ms; }

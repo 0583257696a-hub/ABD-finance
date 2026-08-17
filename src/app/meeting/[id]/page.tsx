@@ -97,6 +97,8 @@ export default function MeetingWorkspacePage({ params }: { params: Promise<{ id:
   const [ending, setEnding] = useState(false)
 
   const meetingSummary = useWorkspaceStore(state => state.meetingSummary)
+  const workspaceClient = useWorkspaceStore(state => state.client)
+  const workspaceClientName = workspaceClient?.fullName || [workspaceClient?.firstName, workspaceClient?.lastName].filter(Boolean).join(' ') || ''
 
   useEffect(() => {
     let cancelled = false
@@ -134,7 +136,7 @@ export default function MeetingWorkspacePage({ params }: { params: Promise<{ id:
       const response = await fetch('/api/meetings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'end-session', id: meeting.id, summary: meetingSummary }),
+        body: JSON.stringify({ action: 'end-session', id: meeting.id, summary: meetingSummary, clientName: workspaceClientName }),
       })
       const data = await response.json() as { ok?: boolean; summaryId?: string }
       if (data.ok) {
