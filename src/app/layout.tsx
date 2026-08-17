@@ -7,6 +7,7 @@ import AccessibilityMenu from '@/components/layout/AccessibilityMenu'
 import ServiceWorkerManager from '@/components/pwa/ServiceWorkerManager'
 import InstallPrompt from '@/components/pwa/InstallPrompt'
 import ClientDataGuard from '@/components/security/ClientDataGuard'
+import SessionGuard from '@/components/security/SessionGuard'
 
 export const metadata: Metadata = {
   title: 'פגישה חכמה - ABD Finance',
@@ -50,6 +51,7 @@ export default function RootLayout({
           <ServiceWorkerManager />
           <InstallPrompt />
           <ClientDataGuard />
+          <SessionGuard />
         </Providers>
       </body>
     </html>

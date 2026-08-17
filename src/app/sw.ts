@@ -47,7 +47,7 @@ function isExcludedFromPrecache(entry: PrecacheEntry | string): boolean {
  * user on a stale build is pulled forward automatically on their next
  * navigation, with no "update now" prompt they'd have to notice.
  */
-const APP_CACHE_VERSION = '2026-08-17-1'
+const APP_CACHE_VERSION = '2026-08-17-2'
 
 const serwist = new Serwist({
   precacheEntries: self.__SW_MANIFEST?.filter(entry => !isExcludedFromPrecache(entry)),
@@ -70,6 +70,18 @@ const serwist = new Serwist({
     // to leave it uncached too.
     {
       matcher: ({ sameOrigin, url: { pathname } }) => sameOrigin && pathname.startsWith('/api/'),
+      handler: new NetworkOnly(),
+    },
+    // Authenticated HTML shell — never serve from cache. defaultCache's
+    // NetworkFirst-with-cache-fallback for HTML meant a user whose session
+    // was dead (expired, logged out elsewhere, or a session cutover) still
+    // got the cached authenticated chrome rendered, with every API call
+    // underneath it 401ing. Navigations for app pages must always reach the
+    // server so its auth redirect actually runs; the /offline fallback
+    // (precached) still covers the genuinely-offline case via `fallbacks`.
+    {
+      matcher: ({ request, sameOrigin, url: { pathname } }) =>
+        sameOrigin && request.mode === 'navigate' && !pathname.startsWith('/client-form/') && pathname !== '/offline',
       handler: new NetworkOnly(),
     },
     ...defaultCache,

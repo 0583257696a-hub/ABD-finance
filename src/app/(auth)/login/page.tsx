@@ -28,6 +28,8 @@ function LoginPageInner() {
     const errorParam = searchParams.get('error')
     if (errorParam === 'no-account') {
       setError('חשבון Google זה אינו רשום במערכת. יש להירשם תחילה או להתחבר עם אימייל וסיסמה.')
+    } else if (errorParam === 'session-expired') {
+      setError('ההתחברות פגה — נא להתחבר מחדש.')
     } else if (errorParam) {
       setError('ההתחברות נכשלה — נסה שוב.')
     }
