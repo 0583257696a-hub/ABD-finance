@@ -6,13 +6,13 @@ import { useEffect } from 'react'
  * Registers the service worker (production only) and keeps every client on
  * the current build.
  *
- * Model: a new worker activates immediately (skipWaiting in sw.ts), purges
- * old caches, and reloads open tabs itself. This component's job is just to
- * register, keep checking for updates while the tab stays open, and honor
- * an explicit reload request from the worker. There is deliberately no
- * "update now / later" prompt anymore — the earlier prompt-based model left
- * users stranded on stale builds indefinitely, because a stale cached page
- * never runs the new prompt code in the first place.
+ * Model: a new worker activates immediately (skipWaiting in sw.ts) and
+ * purges old caches. This component reloads the tab ONCE when a new worker
+ * takes over — and only for a genuine upgrade. It must never reload on the
+ * very first install: `clientsClaim` on a fresh page fires `controllerchange`
+ * too (controller goes from null → the new worker), and reloading on that
+ * produced a reload loop. So we only reload if there was already a
+ * controller before the change (i.e. an old build was in charge).
  */
 export default function ServiceWorkerManager() {
   useEffect(() => {
@@ -21,18 +21,16 @@ export default function ServiceWorkerManager() {
 
     let cancelled = false
     let registration: ServiceWorkerRegistration | undefined
+    let interval: ReturnType<typeof setInterval> | undefined
 
-    function onMessage(event: MessageEvent) {
-      if (event.data?.type === 'RELOAD_FOR_UPDATE') window.location.reload()
-    }
-    navigator.serviceWorker.addEventListener('message', onMessage)
+    // Snapshot whether a worker was already controlling this page BEFORE we
+    // register. Only that case is a real upgrade worth reloading for.
+    const hadControllerAtLoad = Boolean(navigator.serviceWorker.controller)
+    let reloaded = false
 
-    // Belt-and-braces: when the controlling worker changes (a new build took
-    // over), reload once so this tab is running the fresh assets.
-    let refreshing = false
     function onControllerChange() {
-      if (refreshing) return
-      refreshing = true
+      if (reloaded || !hadControllerAtLoad) return
+      reloaded = true
       window.location.reload()
     }
     navigator.serviceWorker.addEventListener('controllerchange', onControllerChange)
@@ -43,13 +41,13 @@ export default function ServiceWorkerManager() {
       registration = await serwist.register()
       // Re-check for a newer worker periodically while the tab stays open,
       // so long-lived tabs don't sit on an old build until a full reload.
-      const interval = setInterval(() => void registration?.update(), 60 * 60 * 1000)
+      interval = setInterval(() => void registration?.update(), 60 * 60 * 1000)
       if (cancelled) clearInterval(interval)
     })
 
     return () => {
       cancelled = true
-      navigator.serviceWorker.removeEventListener('message', onMessage)
+      if (interval) clearInterval(interval)
       navigator.serviceWorker.removeEventListener('controllerchange', onControllerChange)
     }
   }, [])

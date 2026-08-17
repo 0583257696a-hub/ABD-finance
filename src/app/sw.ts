@@ -47,7 +47,7 @@ function isExcludedFromPrecache(entry: PrecacheEntry | string): boolean {
  * user on a stale build is pulled forward automatically on their next
  * navigation, with no "update now" prompt they'd have to notice.
  */
-const APP_CACHE_VERSION = '2026-08-17-2'
+const APP_CACHE_VERSION = '2026-08-17-3'
 
 const serwist = new Serwist({
   precacheEntries: self.__SW_MANIFEST?.filter(entry => !isExcludedFromPrecache(entry)),
@@ -98,25 +98,18 @@ const serwist = new Serwist({
 
 // On activation: delete every cache that isn't ours for THIS version — that
 // covers Serwist's default-named caches from earlier builds, the old
-// un-namespaced precache, and anything a previous worker left behind — then
-// reload every open tab so it comes up on the fresh build. Must run before
-// Serwist's own activate handler (which only cleans its own precache).
+// un-namespaced precache, and anything a previous worker left behind.
+//
+// Deliberately does NOT reload/navigate clients from here. The page reloads
+// itself exactly once on `controllerchange` (ServiceWorkerManager); having
+// the worker ALSO navigate clients produced a reload loop — worker navigates
+// → fresh page's controllerchange reloads again → clientsClaim on that load
+// fires controllerchange once more → …  One reload source only.
 self.addEventListener('activate', event => {
   event.waitUntil((async () => {
     const keep = `smart-meeting-${APP_CACHE_VERSION}`
     const names = await caches.keys()
     await Promise.all(names.filter(name => !name.includes(keep)).map(name => caches.delete(name)))
-    const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
-    for (const client of clients) {
-      // navigate() re-requests the page from the network through the new
-      // worker; falls back to a plain reload message for clients that
-      // don't support it.
-      if ('navigate' in client && typeof (client as WindowClient).navigate === 'function') {
-        await (client as WindowClient).navigate(client.url).catch(() => client.postMessage({ type: 'RELOAD_FOR_UPDATE' }))
-      } else {
-        client.postMessage({ type: 'RELOAD_FOR_UPDATE' })
-      }
-    }
   })())
 })
 
