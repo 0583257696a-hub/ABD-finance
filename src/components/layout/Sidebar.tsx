@@ -134,17 +134,17 @@ export default function Sidebar() {
           <Settings size={18} />
           {!collapsed && <span>הגדרות</span>}
         </Link>
+        {session?.user && (
+          <button type="button" onClick={logout} title="התנתק" style={{ ...navItemStyle, ...logoutItemStyle, justifyContent: collapsed ? 'center' : 'flex-start' }}>
+            <LogOut size={18} />
+            {!collapsed && <span>התנתק</span>}
+          </button>
+        )}
         {isAdmin && (
           <Link href="/admin-panel" title="ניהול מערכת" style={{ ...navItemStyle, justifyContent: collapsed ? 'center' : 'flex-start', color: 'var(--text-muted)' }}>
             <ShieldCheck size={18} />
             {!collapsed && <span>ניהול מערכת</span>}
           </Link>
-        )}
-        {session?.user && (
-          <button type="button" onClick={logout} title="יציאה" style={{ ...navItemStyle, justifyContent: collapsed ? 'center' : 'flex-start', color: 'var(--text-muted)', cursor: 'pointer', border: 0, background: 'transparent', fontFamily: 'var(--font-main)' }}>
-            <LogOut size={18} />
-            {!collapsed && <span>יציאה</span>}
-          </button>
         )}
       </div>
     </aside>
@@ -163,11 +163,14 @@ const sidebarStyle: React.CSSProperties = {
   position: 'fixed',
   top: 0,
   right: 0,
+  bottom: 0,
   zIndex: 50,
-  height: '100vh',
+  // top+bottom:0 (not height:100vh) — 100vh overshoots the truly visible
+  // area on any screen with browser chrome/taskbar, which is exactly what
+  // was pushing the bottom items (הגדרות/התנתק) below the fold.
   display: 'flex',
   flexDirection: 'column',
-  padding: '14px 10px',
+  padding: '14px 10px calc(14px + env(safe-area-inset-bottom, 0px))',
   background: 'var(--bg-sidebar)',
   borderLeft: '1px solid var(--separator)',
   boxShadow: 'var(--shadow-2)',
@@ -259,4 +262,13 @@ const bottomStyle: React.CSSProperties = {
   gap: 2,
   paddingTop: 10,
   borderTop: '1px solid var(--separator)',
+}
+
+const logoutItemStyle: React.CSSProperties = {
+  color: 'var(--destructive-text, #991B1B)',
+  background: 'var(--destructive-bg, #FEF2F2)',
+  border: '1px solid var(--destructive-border, #FECACA)',
+  cursor: 'pointer',
+  fontFamily: 'var(--font-main)',
+  fontWeight: 700,
 }
