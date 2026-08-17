@@ -9,5 +9,7 @@ export type Client = {
   phone?: string
   address?: string
   gender?: string
+  /** Free text or מסלקה code (see lib/phoenix/autofill normalizeMaritalStatus). */
+  maritalStatus?: string
   age?: number | null
 }

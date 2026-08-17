@@ -1,6 +1,6 @@
 ﻿'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   CategoryScale,
   Chart as ChartJS,
@@ -31,6 +31,8 @@ import {
   type TaxType,
 } from '@/lib/compound-calculator'
 import { phoenixAgeAt, phoenixConversionFactor, phoenixMaxGuaranteeMonths, PHOENIX_REGULATIONS_EDITION } from '@/lib/phoenix/factor-engine'
+import { buildPhoenixAutofill } from '@/lib/phoenix/autofill'
+import { useWorkspaceStore } from '@/lib/store/workspaceStore'
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Filler, Tooltip, ChartLegend)
 
@@ -121,6 +123,7 @@ function guaranteeColumnLabel(option: number, maxGuarantee?: number) {
   return `${option} → ${Math.floor(maxGuarantee)} חודשים (מקסימום לגיל)`
 }
 const PHOENIX_INPUTS_KEY = 'abd_next_phoenix_inputs'
+const PHOENIX_AUTOFILL_SIG_KEY = 'abd_next_phoenix_autofill_sig'
 const PHOENIX_SELECTION_KEY = 'abd_next_phoenix_selected_parts'
 
 const phoenixSelectionParts: PhoenixSelectionPart[] = [
@@ -697,6 +700,37 @@ function PhoenixView({ funds }: { funds: Fund[] }) {
   })
   const [openFundIds, setOpenFundIds] = useState<string[]>([])
   const selectionRows = useMemo(() => buildInfrastructureRows(funds), [funds])
+
+  // --- Auto-fill from the client file (מסלקה / בירור צרכים / שאלון) -------
+  // The workspace store is the source of truth for client + needs assessment.
+  const storeHydrated = useWorkspaceStore(state => state.hydrated)
+  const hydrateStore = useWorkspaceStore(state => state.hydrate)
+  const storeClient = useWorkspaceStore(state => state.client)
+  const storeNeeds = useWorkspaceStore(state => state.needsAssessment)
+  useEffect(() => { if (!storeHydrated) hydrateStore() }, [hydrateStore, storeHydrated])
+  const autofill = useMemo(() => buildPhoenixAutofill({ client: storeClient, needs: storeNeeds }), [storeClient, storeNeeds])
+  const [autofillNotice, setAutofillNotice] = useState<'applied' | 'refreshed' | null>(null)
+
+  const applyAutofill = useCallback((mode: 'auto' | 'manual') => {
+    if (!Object.keys(autofill.patch).length) return
+    setInputs(prev => ({ ...prev, ...autofill.patch }))
+    // Pre-select every pension-relevant fund for the accumulation when nothing is selected yet.
+    setSelectedPartIds(prev => prev.length || !selectionRows.length ? prev : selectionRows.map(row => phoenixSelectionId(row.id, 'total')))
+    localStorage.setItem(PHOENIX_AUTOFILL_SIG_KEY, autofill.signature)
+    setAutofillNotice(mode === 'auto' ? 'applied' : 'refreshed')
+  }, [autofill, selectionRows])
+
+  // Apply once per client-data signature: a new/changed client file overwrites
+  // the calculator inputs; the advisor's own tweaks survive otherwise.
+  useEffect(() => {
+    if (!storeHydrated) return
+    if (!Object.keys(autofill.patch).length) return
+    const applied = localStorage.getItem(PHOENIX_AUTOFILL_SIG_KEY)
+    if (applied === autofill.signature) return
+    // Deferred: applying inside the effect body would be a sync setState-in-effect.
+    const handle = window.setTimeout(() => applyAutofill('auto'), 0)
+    return () => window.clearTimeout(handle)
+  }, [applyAutofill, autofill, storeHydrated])
   const selectedCapital = useMemo(() => {
     return selectionRows.reduce((sum, row) => {
       const totalId = phoenixSelectionId(row.id, 'total')
@@ -787,6 +821,27 @@ function PhoenixView({ funds }: { funds: Fund[] }) {
           <button type="button" onClick={() => update('fund', 'general')} style={inputs.fund === 'general' ? activeChipStyle : chipStyle}>כללית</button>
         </div>
       </section>
+
+      {(autofill.profile.name || autofill.profile.idNumber || autofill.filled.length > 0) && (
+        <section style={phoenixClientCardStyle} aria-label="נתוני הלקוח שנטענו למחשבון">
+          <div style={{ minWidth: 0, display: 'grid', gap: 4 }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
+              <strong style={{ color: 'var(--text-heading)', fontSize: 16 }}>{autofill.profile.name || 'לקוח ללא שם'}</strong>
+              {autofill.profile.idNumber && <span style={softTextStyle}>ת.ז {autofill.profile.idNumber}</span>}
+              {autofill.profile.birthDate && <span style={softTextStyle}>נולד/ה {autofill.profile.birthDate.split('-').reverse().join('.')}</span>}
+            </div>
+            <div style={{ ...softTextStyle, fontSize: 12.5 }}>
+              {autofill.filled.length
+                ? <>נטען אוטומטית: {autofill.filled.map(item => `${item.field} (${item.source})`).join(' · ')}{selectedCapital > 0 ? ' · צבירה מהקופות שסומנו' : ''}</>
+                : 'לא נמצאו נתונים רלוונטיים למחשבון בתיק הלקוח.'}
+              {autofillNotice === 'refreshed' && <strong style={{ color: 'var(--success)', marginInlineStart: 8 }}>עודכן מהתיק ✓</strong>}
+            </div>
+          </div>
+          <button type="button" onClick={() => applyAutofill('manual')} disabled={!autofill.filled.length} style={chipStyle} title="דריסת השדות במחשבון בנתונים העדכניים מתיק הלקוח">
+            טען מחדש מתיק הלקוח
+          </button>
+        </section>
+      )}
 
       <section style={phoenixCalculatorLayoutStyle}>
         <div style={cardStyle}>
@@ -1180,6 +1235,7 @@ const selectStyle: React.CSSProperties = { minHeight: 42, border: '1px solid var
 const labelStyle: React.CSSProperties = { color: 'var(--abd-primary)', fontWeight: 800 }
 const dateInputStyle: React.CSSProperties = { ...selectStyle, direction: 'ltr', textAlign: 'right' }
 const warningStyle: React.CSSProperties = { marginTop: 14, border: '1px solid var(--destructive)', background: 'var(--destructive-bg)', color: 'var(--destructive-text)', borderRadius: 14, padding: 12, fontWeight: 800 }
+const phoenixClientCardStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, background: 'var(--bg-surface)', border: '1px solid var(--separator)', borderRadius: 'var(--radius-lg)', padding: '12px 16px', marginBottom: 14 }
 const phoenixHeroStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, background: 'var(--bg-surface)', border: '1px solid var(--separator)', borderRadius: 18, padding: 20, boxShadow: 'var(--shadow-card)', marginBottom: 18 }
 const phoenixFundToggleStyle: React.CSSProperties = { display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }
 const phoenixFundsListStyle: React.CSSProperties = { display: 'grid', gap: 10, maxHeight: 520, overflowY: 'auto', paddingInlineEnd: 4 }

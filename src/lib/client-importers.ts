@@ -757,6 +757,14 @@ function classifyHarHabituachPolicy(mainBranch: string, productType: string, cla
   return 'פוליסת ביטוח'
 }
 
+function clearinghouseGender(code: string) {
+  return code === '1' ? 'זכר' : code === '2' ? 'נקבה' : ''
+}
+
+function clearinghouseMaritalStatus(code: string) {
+  return ({ '1': 'רווק/ה', '2': 'נשוי/אה', '3': 'גרוש/ה', '4': 'אלמן/ה', '5': 'ידוע/ה בציבור' } as Record<string, string>)[code] || ''
+}
+
 function tagText(root: Element | Document, names: string[]) {
   for (const name of names) {
     const node = root.getElementsByTagName(name)[0]

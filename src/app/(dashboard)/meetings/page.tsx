@@ -179,6 +179,7 @@ export default function MeetingsPage() {
           email: answers.clientEmail || latest.client_email,
           phone: answers.clientPhone || answers.phone || '',
           birthDate: answers.clientBirthDate || '',
+          maritalStatus: answers.maritalStatus || undefined,
         },
       })
       setNeedsAssessment(answers)

@@ -256,6 +256,12 @@ export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
         LEGACY_NEEDS_KEY,
         LEGACY_RECOMMENDATIONS_KEY,
         LEGACY_INFRASTRUCTURE_IDS_KEY,
+        // Calculator inputs derived from the client (Phoenix/compound) — a new
+        // client must not inherit the previous one's birth date or accumulation.
+        'abd_next_phoenix_inputs',
+        'abd_next_phoenix_selected_parts',
+        'abd_next_phoenix_autofill_sig',
+        'abd_next_simulations_compound_inputs',
       ].forEach(key => localStorage.removeItem(key))
     }
     set({ ...initialState, hydrated: true })
