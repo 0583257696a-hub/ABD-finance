@@ -63,9 +63,21 @@ function compact(value: unknown) {
     .trim()
 }
 
+/**
+ * True when `name` appears in `text` as a whole word (Hebrew-aware). A plain
+ * substring test classified "קרנות השתלמות למורים" (teachers' funds) as the
+ * manufacturer "מור", which then needed a startsWith hack downstream that
+ * dropped every real מור gemel track ("אלפא מור תגמולים…").
+ */
+function containsWord(text: string, name: string) {
+  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  return new RegExp(`(^|[^\\u0590-\\u05FFa-zA-Z])${escaped}([^\\u0590-\\u05FFa-zA-Z]|$)`).test(text)
+}
+
 export function normalizeManufacturerName(value: unknown) {
   const text = compact(value)
-  return MANUFACTURERS.find(name => text.includes(name) || name.includes(text)) || text
+  if (!text) return text
+  return MANUFACTURERS.find(name => text === name || containsWord(text, name)) || text
 }
 
 export function isAllowedAbdReturnManufacturer(value: unknown) {
@@ -131,10 +143,7 @@ export function getTracksByProductAndManufacturer(productType: string, manufactu
   const normalizedManufacturer = normalizeManufacturerName(manufacturer)
   return getAllAbdTracks()
     .filter(track => !normalizedType || track.productType === normalizedType)
-    .filter(track => {
-      if (!normalizedManufacturer) return true
-      return track.manufacturer === normalizedManufacturer && track.trackName.startsWith(normalizedManufacturer)
-    })
+    .filter(track => !normalizedManufacturer || track.manufacturer === normalizedManufacturer)
     .sort((a, b) => Number(b.returns?.annual5 ?? -999) - Number(a.returns?.annual5 ?? -999))
 }
 
