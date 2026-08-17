@@ -16,6 +16,8 @@ export type RegistrationProfile = {
   blockedBy?: string
   trialExtendedAt?: string
   trialEndsAt?: string
+  /** Set once the admin data layer has processed this user's agency request (see admin-db linkUserToAgencyFromRegistration). */
+  agencyLinkedAt?: string
   business?: {
     name: string
     id: string

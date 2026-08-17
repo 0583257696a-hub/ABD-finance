@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
-import { adminInfrastructureDefaults } from '@/lib/admin/defaults'
+import { getRegistrationRules } from '@/lib/admin/infrastructure'
+import type { adminInfrastructureDefaults } from '@/lib/admin/defaults'
+
+type RegistrationRules = typeof adminInfrastructureDefaults.registration
 import {
   normalizeRegistrationEmail,
   type RegistrationProfile,
@@ -51,7 +54,7 @@ function isAllowedUserType(value: unknown): value is RegistrationUserType {
   return value === 'independent_advisor' || value === 'agency_manager' || value === 'agency_employee'
 }
 
-function validateRegistration(body: RegisterBody) {
+function validateRegistration(body: RegisterBody, rules: RegistrationRules) {
   const errors: string[] = []
   const userType = isAllowedUserType(body.userType) ? body.userType : 'independent_advisor'
   const fullName = clean(body.fullName)
@@ -61,7 +64,7 @@ function validateRegistration(body: RegisterBody) {
   const confirmPassword = String(body.confirmPassword || '')
   const passwordPolicy = checkPasswordPolicy(password)
 
-  if (!adminInfrastructureDefaults.registration.registrationOpen) errors.push('ההרשמה סגורה כרגע.')
+  if (!rules.registrationOpen) errors.push('ההרשמה סגורה כרגע.')
   if (!fullName) errors.push('חסר שם מלא.')
   if (!email || !email.includes('@')) errors.push('חסר אימייל תקין.')
   if (!phone) errors.push('חסר טלפון.')
@@ -97,8 +100,11 @@ export async function POST(request: Request) {
   if (!body) {
     return NextResponse.json({ error: 'בקשת הרשמה לא תקינה.' }, { status: 400 })
   }
+  // Registration rules come from the admin panel's stored settings (open/closed,
+  // manual approval, trial length, message) — not from code defaults.
+  const rules = await getRegistrationRules()
 
-  const { errors, userType, fullName, email, phone, password } = validateRegistration(body)
+  const { errors, userType, fullName, email, phone, password } = validateRegistration(body, rules)
   if (errors.length) {
     return NextResponse.json({ error: errors.join(' ') }, { status: 400 })
   }
@@ -107,12 +113,12 @@ export async function POST(request: Request) {
     const now = new Date().toISOString()
     const planId = clean(body.planId) || 'trial'
     const registration: RegistrationProfile = {
-      status: adminInfrastructureDefaults.registration.manualApprovalRequired ? 'pending_approval' : 'active',
+      status: rules.manualApprovalRequired ? 'pending_approval' : 'active',
       userType,
       phone,
       roleTitle: clean(body.roleTitle),
       planId,
-      subscriptionStatus: adminInfrastructureDefaults.registration.manualApprovalRequired ? 'trial_pending' : 'trial_active',
+      subscriptionStatus: rules.manualApprovalRequired ? 'trial_pending' : 'trial_active',
       submittedAt: now,
       business: {
         name: clean(body.businessName),
@@ -139,7 +145,7 @@ export async function POST(request: Request) {
     const subscription = {
       status: registration.subscriptionStatus,
       planId,
-      trialDays: adminInfrastructureDefaults.registration.defaultTrialDays,
+      trialDays: rules.defaultTrialDays,
     }
 
     const hash = await bcrypt.hash(password, 10)
@@ -187,7 +193,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       ok: true,
       status: registration.status,
-      message: adminInfrastructureDefaults.registration.pendingApprovalMessage,
+      message: rules.pendingApprovalMessage,
     })
   } catch (error) {
     console.error('Registration failed', error)

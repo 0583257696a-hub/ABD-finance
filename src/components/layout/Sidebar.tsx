@@ -16,6 +16,7 @@ import {
 import { useSession } from 'next-auth/react'
 import { BRANDING_EVENT, readBrandingSettings, type BrandingSettings } from '@/lib/branding'
 import NotificationsBell from './NotificationsBell'
+import { SupportSheet } from '@/components/features/SupportSheet'
 
 type NavItem = { tab: string; icon: typeof CalendarClock; label: string }
 
@@ -43,6 +44,7 @@ export default function Sidebar() {
   const { data: session } = useSession()
   const [branding, setBranding] = useState<BrandingSettings | null>(null)
   const [collapsed, setCollapsed] = useState(false)
+  const [supportOpen, setSupportOpen] = useState(false)
   const isAdmin = session?.user?.role === 'admin'
 
   useEffect(() => {
@@ -147,15 +149,17 @@ export default function Sidebar() {
             {!collapsed && <span>ניהול מערכת</span>}
           </Link>
         )}
-        <a
-          href="mailto:support@abd-finance.co.il"
+        <button
+          type="button"
+          onClick={() => setSupportOpen(true)}
           title="יש לך בעיה? פנה למרכז התמיכה של ABD Finance — support@abd-finance.co.il"
-          style={{ ...navItemStyle, ...supportItemStyle, justifyContent: collapsed ? 'center' : 'flex-start' }}
+          style={{ ...navItemStyle, ...supportItemStyle, justifyContent: collapsed ? 'center' : 'flex-start', width: '100%', border: 0, background: 'transparent', cursor: 'pointer', fontFamily: 'inherit' }}
         >
           <LifeBuoy size={16} />
           {!collapsed && <span>תמיכה</span>}
-        </a>
+        </button>
       </div>
+      <SupportSheet open={supportOpen} onClose={() => setSupportOpen(false)} />
     </aside>
   )
 }

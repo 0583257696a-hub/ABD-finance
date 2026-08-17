@@ -1,2085 +1,235 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { signIn, useSession } from 'next-auth/react'
-import {
-  Activity,
-  BarChart3,
-  Bell,
-  BriefcaseBusiness,
-  Building2,
-  CheckCircle2,
-  Database,
-  FileText,
-  FileUp,
-  Flag,
-  Gauge,
-  Home,
-  KeyRound,
-  LayoutDashboard,
-  LifeBuoy,
-  Mail,
-  ScrollText,
-  Settings,
-  ShieldCheck,
-  SlidersHorizontal,
-  Users,
-  XCircle,
-} from 'lucide-react'
+import Link from 'next/link'
+import { ArrowRight, BriefcaseBusiness, Building2, LayoutDashboard, LifeBuoy, RefreshCw, ScrollText, Settings, ShieldCheck, Users } from 'lucide-react'
+import { Button } from '@/components/ui/Button'
+import { AdminDashboard } from '@/components/admin/AdminDashboard'
+import { AdminUsers } from '@/components/admin/AdminUsers'
+import { AdminAgencies } from '@/components/admin/AdminAgencies'
+import { AdminPlans } from '@/components/admin/AdminPlans'
+import { AdminSupport } from '@/components/admin/AdminSupport'
+import { AdminSecurity } from '@/components/admin/AdminSecurity'
+import { AdminSettings } from '@/components/admin/AdminSettings'
+import type { AdminUser, Agency, AuditEvent, Infrastructure, Stats, Ticket } from '@/components/admin/shared'
 
-type AdminUser = {
-  id: string
-  email: string
-  name?: string | null
-  phone?: string
-  approved?: boolean
-  status?: string
-  statusLabel?: string
-  userTypeLabel?: string
-  planId?: string
-  subscriptionStatus?: string
-  businessName?: string
-  agencyName?: string
-  passwordPreview?: string
-  createdAt: string
-}
+/**
+ * Admin panel shell. Seven tabs, each a focused component under
+ * src/components/admin/. This file only owns: the admin gate, tab nav, and
+ * loading/refreshing the shared data every tab reads. All mutations happen
+ * inside the tabs through /api/admin/* and call `refresh()` afterwards, so
+ * every list is always what the database says.
+ *
+ * Removed on purpose (were stubs with no backing data): leads/CRM (a
+ * duplicate of the users list), landing-page CMS, messages, templates,
+ * data-files, reports, workspace matrix, feature flags, roles matrix.
+ */
 
-type AdminRole = {
-  id: string
-  label: string
-  description: string
-  permissions: string[]
-}
+const ADMIN_PANEL_VERSION = 'admin-v3'
 
-type AdminPermission = {
-  id: string
-  label: string
-  description: string
-}
+type Tab = 'dashboard' | 'users' | 'agencies' | 'plans' | 'support' | 'security' | 'settings'
 
-type AdminInfrastructure = {
-  roles: AdminRole[]
-  permissions: AdminPermission[]
-  plans: Array<{
-    id: string
-    name: string
-    shortDescription?: string
-    status: string
-    monthlyPrice: number
-    annualPrice?: number
-    includedUsers: number
-    monthlyMeetings: number
-    clientLimit?: number
-    features?: Record<string, boolean>
-  }>
-  auditActions: Array<{ id: string; label: string; sensitive: boolean }>
-  registration?: {
-    registrationOpen: boolean
-    manualApprovalRequired: boolean
-    defaultTrialDays: number
-  }
-  emailTemplates?: Array<{
-    id: string
-    name: string
-    subject: string
-    body: string
-    variables?: string[]
-    active: boolean
-  }>
-  landingPageDraft?: {
-    status: string
-    title: string
-    metaDescription: string
-    slug: string
-    canonicalUrl?: string
-    openGraphImage?: string
-    sections?: Array<{
-      id: string
-      type: string
-      title: string
-      text: string
-      sortOrder: number
-      active: boolean
-      desktopVisible: boolean
-      mobileVisible: boolean
-      primaryButtonLabel?: string
-      primaryButtonHref?: string
-      secondaryButtonLabel?: string
-      secondaryButtonHref?: string
-    }>
-  }
-  dataImportKinds?: Array<{
-    id: string
-    label: string
-    requiredColumns: string[]
-    accepts: string[]
-  }>
-}
-
-type AuditEvent = {
-  id: string
-  time: string
-  action: string
-  entity: string
-  result: 'success' | 'failure' | 'info'
-  actor: string
-}
-
-type ReturnsUpload = {
-  id: string
-  fileName: string
-  uploadedAt: string
-  size: number
-}
-
-type AgencyOverride = {
-  taxId?: string
-  address?: string
-  logoUrl?: string
-  brandColor?: string
-  notes?: string
-  plan?: string
-  status?: string
-  trialEnds?: string
-}
-
-type AgencyRow = {
-  name: string
-  manager: string
-  email: string
-  phone: string
-  users: number
-  plan: string
-  status: string
-  createdAt: string
-  trialEnds: string
-  members: AdminUser[]
-  taxId?: string
-  address?: string
-  logoUrl?: string
-  brandColor?: string
-  notes?: string
-}
-
-type LeadStatus = 'open' | 'assigned' | 'emailed' | 'closed' | 'converted'
-
-type LeadOverride = {
-  status?: LeadStatus
-  owner?: string
-  updatedAt?: string
-}
-
-type AdminTab =
-  | 'dashboard'
-  | 'users'
-  | 'agencies'
-  | 'plans'
-  | 'leads'
-  | 'workspace'
-  | 'templates'
-  | 'data'
-  | 'landing'
-  | 'messages'
-  | 'support'
-  | 'reports'
-  | 'security'
-  | 'settings'
-
-const ADMIN_TABS: Array<{ id: AdminTab; label: string; icon: React.ElementType; stage: number }> = [
-  { id: 'dashboard', label: 'דשבורד ראשי', icon: LayoutDashboard, stage: 1 },
-  { id: 'users', label: 'משתמשים והרשאות', icon: Users, stage: 1 },
-  { id: 'agencies', label: 'סוכנויות / עסקים', icon: Building2, stage: 1 },
-  { id: 'plans', label: 'תוכניות ומנויים', icon: BriefcaseBusiness, stage: 2 },
-  { id: 'leads', label: 'לידים ולקוחות', icon: BarChart3, stage: 3 },
-  { id: 'workspace', label: 'ניהול פגישה חכמה', icon: Settings, stage: 2 },
-  { id: 'templates', label: 'תבניות וסיכומים', icon: FileText, stage: 5 },
-  { id: 'data', label: 'קבצי נתונים ותשואות', icon: Database, stage: 5 },
-  { id: 'landing', label: 'ניהול דף נחיתה', icon: Home, stage: 4 },
-  { id: 'messages', label: 'הודעות ומיילים', icon: Mail, stage: 3 },
-  { id: 'support', label: 'תמיכה ופניות', icon: LifeBuoy, stage: 6 },
-  { id: 'reports', label: 'דוחות וסטטיסטיקות', icon: Activity, stage: 6 },
-  { id: 'security', label: 'אבטחה ולוג פעילות', icon: ScrollText, stage: 1 },
-  { id: 'settings', label: 'הגדרות מערכת', icon: Flag, stage: 2 },
+const TABS: Array<{ id: Tab; label: string; icon: React.ElementType }> = [
+  { id: 'dashboard', label: 'דשבורד', icon: LayoutDashboard },
+  { id: 'users', label: 'משתמשים', icon: Users },
+  { id: 'agencies', label: 'סוכנויות', icon: Building2 },
+  { id: 'plans', label: 'תוכניות ומנויים', icon: BriefcaseBusiness },
+  { id: 'support', label: 'תמיכה ופניות', icon: LifeBuoy },
+  { id: 'security', label: 'לוג פעילות', icon: ScrollText },
+  { id: 'settings', label: 'הגדרות מערכת', icon: Settings },
 ]
 
-const STATUS_TEXT: Record<string, string> = {
-  active: 'פעיל',
-  pending_approval: 'ממתין לאישור',
-  blocked: 'חסום',
-  suspended: 'מוקפא',
-  trial: 'בתקופת ניסיון',
-  expired: 'מנוי פג',
-  archived: 'ארכיון',
+type PanelData = {
+  users: AdminUser[]
+  usersMode: 'd1' | 'static-auth'
+  agencies: Agency[]
+  infrastructure: Infrastructure | null
+  infraMode: 'd1' | 'defaults' | 'static-auth'
+  tickets: Ticket[]
+  events: AuditEvent[]
+  stats: Stats | null
 }
 
-const FEATURE_FLAGS = [
-  { id: 'meeting_summary', label: 'סיכום פגישה', plans: ['basic', 'professional', 'agency'] },
-  { id: 'retirement_simulator', label: 'סימולטור פרישה', plans: ['basic', 'professional', 'agency'] },
-  { id: 'smart_portfolio', label: 'ניתוח תיק חכם', plans: ['professional', 'agency'] },
-  { id: 'export_deals', label: 'ייצוא עסקאות', plans: ['professional', 'agency'] },
-  { id: 'export_risks', label: 'ייצוא סיכונים', plans: ['professional', 'agency'] },
-  { id: 'export_pdf', label: 'ייצוא PDF', plans: ['basic', 'professional', 'agency'] },
-  { id: 'export_excel', label: 'ייצוא Excel', plans: ['basic', 'professional', 'agency'] },
-  { id: 'email_templates', label: 'תבניות מיילים', plans: ['professional', 'agency'] },
-  { id: 'returns_files', label: 'קבצי תשואות', plans: ['basic', 'professional', 'agency'] },
-  { id: 'reports', label: 'דוחות', plans: ['agency'] },
-  { id: 'ai_future', label: 'AI עתידי', plans: [] },
-  { id: 'internal_chat_future', label: 'צ׳אט פנימי עתידי', plans: [] },
-]
-
-const ADMIN_PANEL_VERSION = 'admin-panel-v2-d96129e'
-const ADMIN_LEADS_STORAGE_KEY = 'abd-admin-leads-v1'
-const ADMIN_AGENCIES_STORAGE_KEY = 'abd-admin-agencies-v1'
-
-function leadStatusLabel(status: LeadStatus) {
-  if (status === 'converted') return 'הומר למשתמש'
-  if (status === 'assigned') return 'שויך ליועץ'
-  if (status === 'emailed') return 'נשלח מייל'
-  if (status === 'closed') return 'סגור'
-  return 'ממתין לטיפול'
-}
+const EMPTY: PanelData = { users: [], usersMode: 'd1', agencies: [], infrastructure: null, infraMode: 'defaults', tickets: [], events: [], stats: null }
 
 export default function AdminPanelPage() {
   const { data: session, status } = useSession()
   const [email, setEmail] = useState('admin@abd-finance.co.il')
   const [password, setPassword] = useState('')
   const [loginError, setLoginError] = useState('')
-  const [users, setUsers] = useState<AdminUser[]>([])
-  const [infrastructure, setInfrastructure] = useState<AdminInfrastructure | null>(null)
-  const [auditEvents, setAuditEvents] = useState<AuditEvent[]>([])
-  const [featureFlags, setFeatureFlags] = useState<Record<string, boolean>>(() => Object.fromEntries(FEATURE_FLAGS.map(flag => [flag.id, !flag.id.includes('future')])))
-  const [message, setMessage] = useState('')
-  const [activeTab, setActiveTab] = useState<AdminTab>('dashboard')
-  const [search, setSearch] = useState('')
-  const [loadingUsers, setLoadingUsers] = useState(false)
-  const [newPasswords, setNewPasswords] = useState<Record<string, string>>({})
-  const [returnsUploads, setReturnsUploads] = useState<ReturnsUpload[]>([])
-  const [activeRoleId, setActiveRoleId] = useState('super_admin')
-  const [selectedAgencyName, setSelectedAgencyName] = useState('')
-  const [agencyOverrides, setAgencyOverrides] = useState<Record<string, AgencyOverride>>(() => {
-    if (typeof window === 'undefined') return {}
-    try {
-      const stored = JSON.parse(localStorage.getItem(ADMIN_AGENCIES_STORAGE_KEY) || '{}')
-      return stored && typeof stored === 'object' ? stored : {}
-    } catch {
-      return {}
-    }
-  })
-  const [leadOverrides, setLeadOverrides] = useState<Record<string, LeadOverride>>(() => {
-    if (typeof window === 'undefined') return {}
-    try {
-      const stored = JSON.parse(localStorage.getItem(ADMIN_LEADS_STORAGE_KEY) || '{}')
-      return stored && typeof stored === 'object' ? stored : {}
-    } catch {
-      return {}
-    }
-  })
-  const returnsInputRef = useRef<HTMLInputElement>(null)
+  const [tab, setTab] = useState<Tab>('dashboard')
+  const [data, setData] = useState<PanelData>(EMPTY)
+  const [loadState, setLoadState] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle')
 
   const isAdmin = session?.user?.role === 'admin' || session?.user?.email === 'admin@abd-finance.co.il'
-  const actor = session?.user?.email || email
+  const adminEmail = session?.user?.email || ''
+
+  const refresh = useCallback(async () => {
+    const get = async <T,>(url: string): Promise<T | null> => {
+      try {
+        const response = await fetch(url, { cache: 'no-store' })
+        if (!response.ok) return null
+        return await response.json() as T
+      } catch { return null }
+    }
+    const [users, agencies, infra, tickets, events, stats] = await Promise.all([
+      get<{ users: AdminUser[]; mode: 'd1' | 'static-auth' }>('/api/admin/users'),
+      get<{ agencies: Agency[] }>('/api/admin/agencies'),
+      get<{ infrastructure: Infrastructure; mode: 'd1' | 'defaults' }>('/api/admin/infrastructure'),
+      get<{ tickets: Ticket[] }>('/api/admin/support'),
+      get<{ events: AuditEvent[] }>('/api/admin/audit'),
+      get<{ stats: Stats | null }>('/api/admin/stats'),
+    ])
+    if (!users && !infra) { setLoadState('error'); return }
+    setData({
+      users: users?.users || [],
+      usersMode: users?.mode || 'static-auth',
+      agencies: agencies?.agencies || [],
+      infrastructure: infra?.infrastructure || null,
+      infraMode: users?.mode === 'static-auth' ? 'static-auth' : (infra?.mode || 'defaults'),
+      tickets: tickets?.tickets || [],
+      events: events?.events || [],
+      stats: stats?.stats || null,
+    })
+    setLoadState('ready')
+  }, [])
 
   useEffect(() => {
     if (!isAdmin) return
-    void loadUsers()
-    void loadInfrastructure()
-    void loadLeadOverrides()
-    void loadAgencyOverrides()
-    addAudit('כניסה לפאנל Admin', 'admin-panel', 'success')
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAdmin])
-
-  useEffect(() => {
-    localStorage.setItem(ADMIN_LEADS_STORAGE_KEY, JSON.stringify(leadOverrides))
-  }, [leadOverrides])
-
-  useEffect(() => {
-    localStorage.setItem(ADMIN_AGENCIES_STORAGE_KEY, JSON.stringify(agencyOverrides))
-  }, [agencyOverrides])
-
-  const filteredUsers = useMemo(() => {
-    const q = search.trim().toLowerCase()
-    if (!q) return users
-    return users.filter(user => {
-      return [
-        user.name,
-        user.email,
-        user.phone,
-        user.userTypeLabel,
-        user.planId,
-        user.statusLabel,
-        user.businessName,
-        user.agencyName,
-      ].some(value => String(value || '').toLowerCase().includes(q))
-    })
-  }, [search, users])
-
-  const agencies = useMemo(() => {
-    const grouped = new Map<string, AgencyRow>()
-    users.forEach(user => {
-      const agencyName = user.businessName || user.agencyName
-      if (!agencyName) return
-      const existing = grouped.get(agencyName)
-      if (existing) {
-        existing.users += 1
-        existing.members.push(user)
-        if (String(user.userTypeLabel || '').includes('מנהל')) {
-          existing.manager = user.name || existing.manager
-          existing.email = user.email
-          existing.phone = user.phone || existing.phone
-        }
-        return
-      }
-      grouped.set(agencyName, {
-        name: agencyName,
-        manager: user.name || '-',
-        email: user.email,
-        phone: user.phone || '-',
-        users: 1,
-        plan: user.planId || '-',
-        status: user.subscriptionStatus || user.status || 'pending_approval',
-        createdAt: formatDate(user.createdAt),
-        trialEnds: 'אין נתון',
-        members: [user],
-      })
-    })
-    return Array.from(grouped.values()).map(agency => {
-      const override = agencyOverrides[agency.name] || {}
-      return {
-        ...agency,
-        ...override,
-        plan: override.plan || agency.plan,
-        status: override.status || agency.status,
-        trialEnds: override.trialEnds || agency.trialEnds,
-      }
-    })
-  }, [agencyOverrides, users])
-
-  const selectedAgency = useMemo(
-    () => agencies.find(agency => agency.name === selectedAgencyName) || agencies[0] || null,
-    [agencies, selectedAgencyName],
-  )
-
-  const leads = useMemo(() => {
-    return users.map(user => ({
-      id: user.id,
-      name: user.name || user.email,
-      email: user.email,
-      phone: user.phone || '-',
-      source: user.status === 'pending_approval' || !user.approved ? 'הרשמה חדשה' : 'משתמש קיים',
-      type: user.userTypeLabel || 'יועץ',
-      business: user.businessName || user.agencyName || '-',
-      plan: user.planId || 'trial',
-      statusCode: leadOverrides[user.id]?.status || (user.approved ? 'converted' : 'open'),
-      status: leadStatusLabel(leadOverrides[user.id]?.status || (user.approved ? 'converted' : 'open')),
-      owner: leadOverrides[user.id]?.owner || 'מנהל מערכת',
-      createdAt: user.createdAt,
-    }))
-  }, [leadOverrides, users])
-
-  const metrics = useMemo(() => {
-    const activeUsers = users.filter(user => user.status === 'active' || user.approved).length
-    const pendingUsers = users.filter(user => user.status === 'pending_approval' || !user.approved).length
-    const activeAgencies = agencies.filter(agency => agency.status === 'active' || agency.status === 'trial_active').length
-    const trialAgencies = agencies.filter(agency => String(agency.status).includes('trial')).length
-    const activeSubscriptions = users.filter(user => ['active', 'trial_active', 'trial'].includes(String(user.subscriptionStatus || user.status))).length
-    const expiredSubscriptions = users.filter(user => ['expired', 'blocked', 'suspended'].includes(String(user.subscriptionStatus || user.status))).length
-    const newLeads = leads.filter(lead => ['open', 'assigned', 'emailed'].includes(lead.statusCode)).length
-    const recentErrors = auditEvents.filter(event => event.result === 'failure').length
-
-    return [
-      { label: 'משתמשים פעילים', value: activeUsers, tone: 'green', note: 'מאושרים או פעילים' },
-      { label: 'משתמשים ממתינים לאישור', value: pendingUsers, tone: 'orange', note: 'נרשמים שדורשים אישור' },
-      { label: 'סוכנויות פעילות', value: activeAgencies, tone: 'blue', note: 'נגזר מפרטי הרשמה' },
-      { label: 'סוכנויות בתקופת ניסיון', value: trialAgencies, tone: 'blue', note: 'סטטוס trial' },
-      { label: 'מנויים פעילים', value: activeSubscriptions, tone: 'green', note: 'משתמשים פעילים / ניסיון' },
-      { label: 'מנויים שפג תוקפם', value: expiredSubscriptions, tone: 'red', note: 'פג / חסום / מוקפא' },
-      { label: 'לידים חדשים', value: newLeads, tone: 'orange', note: 'פתוחים, משויכים או נשלח מייל' },
-      { label: 'פגישות שנוצרו החודש', value: 0, tone: 'gray', note: 'ממתין לחיבור מקור נתונים' },
-      { label: 'סיכומי פגישה שיוצאו', value: 0, tone: 'gray', note: 'ממתין לחיבור מקור נתונים' },
-      { label: 'קבצי תשואות אחרונים', value: returnsUploads.length, tone: returnsUploads.length ? 'green' : 'gray', note: returnsUploads.length ? 'נקלטו בסשן הנוכחי' : 'לא הועלו בסשן' },
-      { label: 'שגיאות מערכת אחרונות', value: recentErrors, tone: recentErrors ? 'red' : 'green', note: 'לפי לוג פעילות במסך' },
-    ]
-  }, [agencies, auditEvents, leads, returnsUploads.length, users])
+    let cancelled = false
+    Promise.resolve().then(() => { if (!cancelled) { setLoadState('loading'); void refresh() } })
+    return () => { cancelled = true }
+  }, [isAdmin, refresh])
 
   async function login(event: React.FormEvent) {
     event.preventDefault()
     setLoginError('')
-    const res = await signIn('credentials', { email, password, redirect: false })
-    if (res?.error) setLoginError('פרטי מנהל מערכת שגויים')
+    const result = await signIn('credentials', { email, password, redirect: false })
+    if (result?.error) setLoginError('פרטי מנהל מערכת שגויים')
   }
 
-  async function loadUsers() {
-    setLoadingUsers(true)
-    const res = await fetch('/api/admin/users')
-    setLoadingUsers(false)
-
-    if (!res.ok) {
-      setMessage('אין הרשאה לטעון משתמשים')
-      addAudit('טעינת משתמשים', 'users', 'failure')
-      return
-    }
-
-    const data = await res.json()
-    setUsers(Array.isArray(data.users) ? data.users : [])
-    if (data.mode === 'static-auth') {
-      setMessage('המערכת פועלת כרגע במצב static-auth. ניהול משתמשים מלא דורש מסד נתונים פעיל.')
-    }
+  if (status === 'loading') {
+    return <main dir="rtl" style={loginPageStyle}><p style={{ color: 'var(--text-muted)' }}>טוען…</p></main>
   }
 
-  async function loadInfrastructure() {
-    const res = await fetch('/api/admin/infrastructure')
-    if (!res.ok) return
-    const data = await res.json()
-    setInfrastructure(data.infrastructure || null)
-  }
-
-  async function saveInfrastructure(nextInfrastructure: AdminInfrastructure, successMessage = 'ההגדרות נשמרו בהצלחה') {
-    setInfrastructure(nextInfrastructure)
-    const res = await fetch('/api/admin/infrastructure', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ infrastructure: nextInfrastructure }),
-    })
-    if (res.ok) {
-      setMessage(successMessage)
-      addAudit('שמירת תשתית ניהול', 'admin-infrastructure', 'success')
-      return true
-    }
-    setMessage('העדכון נשמר במסך בלבד. שמירה קבועה דורשת D1 פעיל.')
-    addAudit('שמירת תשתית ניהול', 'admin-infrastructure', 'failure')
-    return false
-  }
-
-  async function updatePlan(planId: string, patch: Partial<AdminInfrastructure['plans'][number]>) {
-    if (!infrastructure) return
-    const next = {
-      ...infrastructure,
-      plans: infrastructure.plans.map(plan => plan.id === planId ? { ...plan, ...patch } : plan),
-    }
-    await saveInfrastructure(next, 'התוכנית עודכנה בהצלחה')
-  }
-
-  async function updatePlanFeature(planId: string, featureKey: string, enabled: boolean) {
-    if (!infrastructure) return
-    const next = {
-      ...infrastructure,
-      plans: infrastructure.plans.map(plan => {
-        if (plan.id !== planId) return plan
-        return {
-          ...plan,
-          features: {
-            ...(plan.features || {}),
-            [featureKey]: enabled,
-          },
-        }
-      }),
-    }
-    await saveInfrastructure(next, 'יכולת התוכנית עודכנה בהצלחה')
-  }
-
-  async function clonePlan(planId: string) {
-    if (!infrastructure) return
-    const source = infrastructure.plans.find(plan => plan.id === planId)
-    if (!source) return
-    const nextPlan = {
-      ...source,
-      id: `${source.id}-copy-${Date.now()}`,
-      name: `${source.name} - עותק`,
-      status: 'draft',
-    }
-    await saveInfrastructure({ ...infrastructure, plans: [nextPlan, ...infrastructure.plans] }, 'התוכנית שוכפלה בהצלחה')
-  }
-
-  async function createPlan() {
-    if (!infrastructure) return
-    const nextPlan = {
-      id: `plan-${Date.now()}`,
-      name: 'תוכנית חדשה',
-      shortDescription: 'תיאור תוכנית חדש.',
-      monthlyPrice: 0,
-      annualPrice: 0,
-      includedUsers: 1,
-      monthlyMeetings: 10,
-      clientLimit: 50,
-      features: {},
-      status: 'draft',
-    }
-    await saveInfrastructure({ ...infrastructure, plans: [nextPlan, ...infrastructure.plans] }, 'נוצרה תוכנית חדשה')
-  }
-
-  async function loadLeadOverrides() {
-    const res = await fetch('/api/admin/leads')
-    if (!res.ok) return
-    const data = await res.json()
-    if (data.overrides && typeof data.overrides === 'object') {
-      setLeadOverrides(data.overrides)
-    }
-  }
-
-  async function loadAgencyOverrides() {
-    const res = await fetch('/api/admin/agencies')
-    if (!res.ok) return
-    const data = await res.json()
-    if (data.overrides && typeof data.overrides === 'object') {
-      setAgencyOverrides(data.overrides)
-    }
-  }
-
-  function addAudit(action: string, entity: string, result: AuditEvent['result']) {
-    setAuditEvents(prev => [
-      {
-        id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
-        time: new Date().toISOString(),
-        action,
-        entity,
-        result,
-        actor,
-      },
-      ...prev,
-    ].slice(0, 30))
-  }
-
-  async function patchUser(userId: string, body: Record<string, unknown>, successMessage: string, errorMessage: string, auditAction: string) {
-    const res = await fetch('/api/admin/users', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId, ...body }),
-    })
-    const ok = res.ok
-    setMessage(ok ? successMessage : errorMessage)
-    addAudit(auditAction, userId, ok ? 'success' : 'failure')
-    if (ok) await loadUsers()
-  }
-
-  async function setUserSubscription(userId: string, planId: string, subscriptionStatus: string) {
-    await patchUser(
-      userId,
-      { action: 'set_subscription', planId, subscriptionStatus },
-      'המנוי עודכן ידנית בהצלחה',
-      'עדכון המנוי נכשל',
-      'שינוי מנוי ידני',
-    )
-  }
-
-  async function resetPassword(userId: string) {
-    const nextPassword = newPasswords[userId]
-    if (!nextPassword) {
-      setMessage('יש להזין סיסמה חדשה')
-      return
-    }
-
-    await patchUser(userId, { action: 'reset_password', password: nextPassword }, 'הסיסמה עודכנה בהצלחה', 'עדכון הסיסמה נכשל', 'איפוס סיסמה')
-    setNewPasswords(prev => ({ ...prev, [userId]: '' }))
-  }
-
-  async function toggleRolePermission(roleId: string, permissionId: string, checked: boolean) {
-    if (!infrastructure) return
-    const next = {
-      ...infrastructure,
-      roles: infrastructure.roles.map(role => {
-        if (role.id !== roleId) return role
-        const permissions = checked
-          ? Array.from(new Set([...role.permissions, permissionId]))
-          : role.permissions.filter(id => id !== permissionId)
-        return { ...role, permissions }
-      }),
-    }
-    await saveInfrastructure(next, 'הרשאות התפקיד עודכנו בהצלחה')
-  }
-
-  function rolePermissionCount(roleId: string) {
-    return infrastructure?.roles.find(role => role.id === roleId)?.permissions.length || 0
-  }
-
-  function uploadReturns(files: FileList | null) {
-    if (!files?.length) return
-    const uploadedAt = new Date().toISOString()
-    setReturnsUploads(prev => [
-      ...Array.from(files).map(file => ({
-        id: `${uploadedAt}-${file.name}`,
-        fileName: file.name,
-        uploadedAt,
-        size: file.size,
-      })),
-      ...prev,
-    ].slice(0, 12))
-    setMessage(`${files.length} קבצי תשואות נקלטו בפאנל הניהול. שמירה מרכזית מלאה תחובר בשלב קבצי הנתונים.`)
-    addAudit('העלאת קובץ תשואות', 'data-imports', 'info')
-  }
-
-  async function quickCreatePlan() {
-    setActiveTab('plans')
-    await createPlan()
-  }
-
-  async function updateAgencyOverride(agencyName: string, patch: AgencyOverride, successMessage = 'פרטי הסוכנות עודכנו') {
-    setAgencyOverrides(prev => ({
-      ...prev,
-      [agencyName]: {
-        ...prev[agencyName],
-        ...patch,
-      },
-    }))
-    setMessage(successMessage)
-    addAudit('עדכון סוכנות', agencyName, 'success')
-
-    const res = await fetch('/api/admin/agencies', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ agencyName, override: patch }),
-    })
-    if (!res.ok) {
-      setMessage(`${successMessage} (מקומית בלבד — שמירה קבועה דורשת D1 פעיל).`)
-      addAudit('שמירת סוכנות נכשלה', agencyName, 'failure')
-    }
-  }
-
-  async function updateLeadStatus(leadId: string, nextStatus: LeadStatus) {
-    const nextOwner = nextStatus === 'assigned' ? (session?.user?.name || session?.user?.email || 'מנהל מערכת') : undefined
-    setLeadOverrides(prev => ({
-      ...prev,
-      [leadId]: {
-        ...prev[leadId],
-        status: nextStatus,
-        owner: nextOwner || prev[leadId]?.owner || 'מנהל מערכת',
-        updatedAt: new Date().toISOString(),
-      },
-    }))
-    setMessage(`הליד עודכן לסטטוס: ${leadStatusLabel(nextStatus)}`)
-    addAudit(`עדכון ליד: ${leadStatusLabel(nextStatus)}`, leadId, 'success')
-
-    const res = await fetch('/api/admin/leads', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ leadId, status: nextStatus, owner: nextOwner || 'מנהל מערכת' }),
-    })
-    if (!res.ok) {
-      setMessage(`הליד עודכן מקומית בלבד: ${leadStatusLabel(nextStatus)}. שמירה קבועה דורשת D1 פעיל.`)
-      addAudit(`שמירת ליד נכשלה: ${leadStatusLabel(nextStatus)}`, leadId, 'failure')
-    }
-  }
-
-  function validateDataImportKind(kind: NonNullable<AdminInfrastructure['dataImportKinds']>[number]) {
-    const required = kind.requiredColumns.join(', ')
-    const accepts = kind.accepts.join(', ')
-    const usage = kind.id.includes('returns') ? 'מסלולי תשואה ותשואות ABD' : 'נתוני עזר למערכת'
-    setMessage(`בדיקת ${kind.label}: פורמטים מותרים ${accepts}. עמודות חובה: ${required}. שימוש: ${usage}.`)
-    addAudit(`בדיקת קובץ ${kind.label}`, kind.id, 'success')
-  }
-
-  if (status !== 'loading' && !isAdmin) {
+  if (!isAdmin) {
     return (
       <main dir="rtl" style={loginPageStyle}>
         <form onSubmit={login} style={loginCardStyle}>
           <ShieldCheck size={34} color="var(--abd-accent)" />
-          <h1 style={loginTitleStyle}>Admin Panel</h1>
-          <p style={mutedStyle}>כניסה לפאנל מנהל מערכת בלבד.</p>
-          <input value={email} onChange={event => setEmail(event.target.value)} placeholder="אימייל מנהל" style={inputStyle} />
-          <input value={password} onChange={event => setPassword(event.target.value)} placeholder="סיסמת מנהל" type="password" style={inputStyle} />
-          {loginError && <p style={errorStyle}>{loginError}</p>}
-          <button type="submit" style={primaryButtonStyle}>כניסה לפאנל אדמין</button>
+          <h1 style={{ color: 'var(--text-heading)', fontSize: 24, fontWeight: 700, margin: 0 }}>פאנל ניהול</h1>
+          <p style={{ color: 'var(--text-muted)', lineHeight: 1.7, margin: 0 }}>{session?.user ? 'החשבון המחובר אינו מנהל מערכת. התחבר עם חשבון מנהל.' : 'כניסה למנהלי מערכת בלבד.'}</p>
+          <input value={email} onChange={event => setEmail(event.target.value)} placeholder="אימייל מנהל" style={inputStyle} autoComplete="username" dir="ltr" />
+          <input value={password} onChange={event => setPassword(event.target.value)} placeholder="סיסמה" type="password" style={inputStyle} autoComplete="current-password" dir="ltr" />
+          {loginError && <p style={{ color: 'var(--destructive)', fontWeight: 600, margin: 0 }}>{loginError}</p>}
+          <Button type="submit" variant="primary">כניסה</Button>
+          <Link href="/" style={{ color: 'var(--text-muted)', fontSize: 13, textAlign: 'center' }}>חזרה למערכת</Link>
         </form>
       </main>
     )
   }
 
+  const current = TABS.find(item => item.id === tab)!
+  const pendingCount = data.users.filter(user => user.status === 'pending_approval').length
+  const openTickets = data.tickets.filter(ticket => ticket.status !== 'closed').length
+  const badge = (id: Tab) => id === 'users' ? pendingCount : id === 'support' ? openTickets : 0
+
   return (
     <main dir="rtl" style={pageStyle}>
       <aside style={sidebarStyle}>
         <div style={brandStyle}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/assets/abd-finance-logo.png" alt="ABD Finance" style={logoStyle} />
           <div style={{ display: 'grid' }}>
             <strong style={{ fontSize: 14, fontWeight: 700 }}>ABD Admin</strong>
-            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>ניהול מערכת SaaS</span>
+            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>ניהול מערכת</span>
           </div>
         </div>
-        <nav style={navStyle}>
-          {ADMIN_TABS.map(tab => {
-            const Icon = tab.icon
-            const active = activeTab === tab.id
+        <nav style={{ display: 'grid', gap: 2 }} aria-label="לשוניות ניהול">
+          {TABS.map(item => {
+            const Icon = item.icon
+            const active = tab === item.id
+            const count = badge(item.id)
             return (
-              <button key={tab.id} type="button" onClick={() => setActiveTab(tab.id)} style={navButtonStyle(active)}>
-                <span style={navIconBadgeStyle(tab.id)}><Icon size={15} /></span>
-                <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tab.label}</span>
-                {tab.stage > 1 && <small style={{ color: 'var(--text-tertiary)', fontSize: 10.5 }}>שלב {tab.stage}</small>}
+              <button key={item.id} type="button" onClick={() => setTab(item.id)} style={navButtonStyle(active)} aria-current={active ? 'page' : undefined}>
+                <Icon size={16} />
+                <span style={{ flex: 1, textAlign: 'start' }}>{item.label}</span>
+                {count > 0 && <span style={countBadgeStyle}>{count}</span>}
               </button>
             )
           })}
         </nav>
+        <div style={{ marginTop: 'auto', display: 'grid', gap: 6, paddingTop: 16 }}>
+          <Link href="/" style={backLinkStyle}><ArrowRight size={14} /> חזרה למערכת</Link>
+          <span style={{ color: 'var(--text-muted)', fontSize: 11.5, padding: '0 10px', direction: 'ltr', textAlign: 'right' }}>{ADMIN_PANEL_VERSION}</span>
+        </div>
       </aside>
 
       <section style={contentStyle}>
         <header style={headerStyle}>
-          <h1 style={titleStyle}>{ADMIN_TABS.find(tab => tab.id === activeTab)?.label}</h1>
+          <div>
+            <h1 style={{ color: 'var(--text-heading)', fontSize: 24, fontWeight: 700, margin: 0 }}>{current.label}</h1>
+            <p style={{ color: 'var(--text-muted)', fontSize: 13, margin: '2px 0 0' }}>{SUBTITLES[tab]}</p>
+          </div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <span style={adminBadgeStyle}>System Admin</span>
-            <span style={versionBadgeStyle}>{ADMIN_PANEL_VERSION}</span>
+            <span style={adminBadgeStyle}>{session?.user?.name || adminEmail}</span>
+            <Button variant="secondary" size="sm" onClick={() => void refresh()} disabled={loadState === 'loading'} title="רענון נתונים"><RefreshCw size={14} /></Button>
           </div>
         </header>
 
-        {message && <div style={noticeStyle}>{message}</div>}
+        {loadState === 'error' && (
+          <div style={errorNoticeStyle}>
+            <span>טעינת נתוני הניהול נכשלה.</span>
+            <Button variant="secondary" size="sm" onClick={() => { setLoadState('loading'); void refresh() }}>נסה שוב</Button>
+          </div>
+        )}
+        {loadState === 'loading' && !data.infrastructure && <p style={{ color: 'var(--text-muted)' }}>טוען נתונים…</p>}
 
-        {activeTab === 'dashboard' && renderDashboard()}
-        {activeTab === 'users' && renderUsers()}
-        {activeTab === 'agencies' && renderAgencies()}
-        {activeTab === 'security' && renderAudit()}
-        {activeTab === 'plans' && renderPlans()}
-        {activeTab === 'leads' && renderLeads()}
-        {activeTab === 'messages' && renderMessages()}
-        {activeTab === 'landing' && renderLanding()}
-        {activeTab === 'templates' && renderTemplates()}
-        {activeTab === 'data' && renderDataFiles()}
-        {activeTab === 'settings' && renderSystemSettings()}
-        {activeTab === 'workspace' && renderUsageLimits()}
-        {activeTab !== 'dashboard' && activeTab !== 'users' && activeTab !== 'agencies' && activeTab !== 'security' && activeTab !== 'plans' && activeTab !== 'leads' && activeTab !== 'messages' && activeTab !== 'landing' && activeTab !== 'templates' && activeTab !== 'data' && activeTab !== 'settings' && activeTab !== 'workspace' && renderStagePlaceholder()}
+        {(loadState === 'ready' || data.infrastructure) && (
+          <>
+            {tab === 'dashboard' && <AdminDashboard stats={data.stats} users={data.users} tickets={data.tickets} onGo={setTab} />}
+            {tab === 'users' && <AdminUsers users={data.users} agencies={data.agencies} plans={data.infrastructure?.plans || []} currentAdminEmail={adminEmail} mode={data.usersMode} onChanged={refresh} />}
+            {tab === 'agencies' && <AdminAgencies agencies={data.agencies} users={data.users} plans={data.infrastructure?.plans || []} onChanged={refresh} />}
+            {tab === 'plans' && data.infrastructure && <AdminPlans infrastructure={data.infrastructure} users={data.users} onChanged={refresh} />}
+            {tab === 'support' && <AdminSupport tickets={data.tickets} onChanged={refresh} />}
+            {tab === 'security' && <AdminSecurity events={data.events} onChanged={refresh} />}
+            {tab === 'settings' && data.infrastructure && <AdminSettings key={JSON.stringify(data.infrastructure.registration)} infrastructure={data.infrastructure} mode={data.infraMode} appVersion={ADMIN_PANEL_VERSION} onChanged={refresh} />}
+          </>
+        )}
       </section>
     </main>
   )
-
-  function renderDashboard() {
-    return (
-      <div style={stackStyle}>
-        <section style={metricsGridStyle}>
-          {metrics.map(metric => (
-            <article key={metric.label} style={metricCardStyle(metric.tone)}>
-              <span>{metric.label}</span>
-              <strong>{metric.value}</strong>
-              <small>{metric.note}</small>
-            </article>
-          ))}
-        </section>
-
-        <section style={twoColumnStyle}>
-          <article style={cardStyle}>
-            <h2 style={sectionTitleStyle}>פעולות מהירות</h2>
-            <div style={quickActionsStyle}>
-              <button style={quickButtonStyle} type="button" onClick={() => { setActiveTab('users'); setMessage('עבור למסך משתמשים והרשאות כדי לאשר משתמשים או לאפס סיסמה. יצירת משתמש ידנית תחובר לאחר הרחבת בסיס הנתונים.') }}><Users size={18} /> הוסף משתמש</button>
-              <button style={quickButtonStyle} type="button" onClick={() => { setActiveTab('agencies'); setMessage('יצירת סוכנות ידנית תחובר לאחר הרחבת בסיס הנתונים. כרגע סוכנויות נגזרות מהרשמה.') }}><Building2 size={18} /> צור סוכנות</button>
-              <button style={quickButtonStyle} type="button" onClick={() => void quickCreatePlan()}><BriefcaseBusiness size={18} /> צור תוכנית</button>
-              <button style={quickButtonStyle} type="button" onClick={() => returnsInputRef.current?.click()}><FileUp size={18} /> העלה קובץ תשואות</button>
-              <button style={quickButtonStyle} type="button" onClick={() => setActiveTab('landing')}><Home size={18} /> ערוך דף נחיתה</button>
-              <button style={quickButtonStyle} type="button" onClick={() => setActiveTab('messages')}><Bell size={18} /> שלח הודעת מערכת</button>
-            </div>
-            <input ref={returnsInputRef} hidden multiple type="file" accept=".xlsx,.xls,.xml,.csv" onChange={event => uploadReturns(event.target.files)} />
-          </article>
-
-          <article style={cardStyle}>
-            <h2 style={sectionTitleStyle}>פעילות אחרונה</h2>
-            {auditEvents.length ? (
-              <div style={activityListStyle}>
-                {auditEvents.slice(0, 7).map(event => (
-                  <div key={event.id} style={activityRowStyle}>
-                    <span style={statusDotStyle(event.result)} />
-                    <strong>{event.action}</strong>
-                    <small>{formatTime(event.time)}</small>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <EmptyState title="אין פעילות להצגה" text="פעולות רגישות שתבצע בפאנל יופיעו כאן." />
-            )}
-          </article>
-        </section>
-
-        <section style={twoColumnStyle}>
-          <article style={cardStyle}>
-            <h2 style={sectionTitleStyle}>קבצי תשואות אחרונים</h2>
-            {returnsUploads.length ? (
-              <div style={activityListStyle}>
-                {returnsUploads.slice(0, 6).map(file => (
-                  <div key={file.id} style={activityRowStyle}>
-                    <span style={statusDotStyle('success')} />
-                    <strong>{file.fileName}</strong>
-                    <small>{formatBytes(file.size)} · {formatTime(file.uploadedAt)}</small>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <EmptyState title="לא הועלו קבצי תשואות בסשן הנוכחי" text="העלאה דרך הפעולות המהירות תעדכן כאן את הרשימה ותירשם בלוג פעילות." />
-            )}
-          </article>
-
-          <article style={cardStyle}>
-            <h2 style={sectionTitleStyle}>שגיאות מערכת אחרונות</h2>
-            {auditEvents.some(event => event.result === 'failure') ? (
-              <div style={activityListStyle}>
-                {auditEvents.filter(event => event.result === 'failure').slice(0, 6).map(event => (
-                  <div key={event.id} style={activityRowStyle}>
-                    <span style={statusDotStyle('failure')} />
-                    <strong>{event.action}</strong>
-                    <small>{event.entity} · {formatTime(event.time)}</small>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <EmptyState title="אין שגיאות פעילות" text="כישלונות טעינה או שמירה יופיעו כאן כדי לאפשר טיפול מהיר." />
-            )}
-          </article>
-        </section>
-      </div>
-    )
-  }
-
-  function renderUsers() {
-    return (
-      <div style={stackStyle}>
-        <section style={toolbarStyle}>
-          <input value={search} onChange={event => setSearch(event.target.value)} placeholder="חיפוש לפי שם, מייל, טלפון, תפקיד, תוכנית או סוכנות" style={searchInputStyle} />
-          <button type="button" style={primaryButtonStyle} onClick={() => setMessage('יצירת משתמש ידנית תחובר בשלב הבא. כרגע משתמשים נוצרים דרך מסך ההרשמה.')}>הוסף משתמש</button>
-        </section>
-
-        <section style={cardStyle}>
-          <h2 style={sectionTitleStyle}>טבלת משתמשים</h2>
-          <div style={tableWrapStyle}>
-            <table style={tableStyle}>
-              <thead>
-                <tr>
-                  <th style={thStyle}>שם מלא</th>
-                  <th style={thStyle}>מייל</th>
-                  <th style={thStyle}>טלפון</th>
-                  <th style={thStyle}>תפקיד</th>
-                  <th style={thStyle}>סוכנות</th>
-                  <th style={thStyle}>תוכנית</th>
-                  <th style={thStyle}>סטטוס</th>
-                  <th style={thStyle}>תאריך הרשמה</th>
-                  <th style={thStyle}>התחברות אחרונה</th>
-                  <th style={thStyle}>פעולות</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredUsers.map(user => (
-                  <tr key={user.id}>
-                    <td style={tdStyle}>{user.name || '-'}</td>
-                    <td style={tdStyle}>{user.email}</td>
-                    <td style={tdStyle}>{user.phone || 'לא הוזן'}</td>
-                    <td style={tdStyle}>{user.userTypeLabel || 'משתמש קיים'}</td>
-                    <td style={tdStyle}>{user.businessName || user.agencyName || '-'}</td>
-                    <td style={tdStyle}>{user.planId || '-'}</td>
-                    <td style={tdStyle}><span style={statusPillStyle(user.status)}>{user.statusLabel || STATUS_TEXT[user.status || ''] || '-'}</span></td>
-                    <td style={tdStyle}>{formatDate(user.createdAt)}</td>
-                    <td style={tdStyle}>אין נתון</td>
-                    <td style={tdStyle}>
-                      <div style={rowActionsStyle}>
-                        <button type="button" onClick={() => void patchUser(user.id, { action: 'approve' }, 'המשתמש אושר', 'אישור המשתמש נכשל', 'אישור משתמש')} style={smallButtonStyle}>אשר</button>
-                        <button type="button" onClick={() => void patchUser(user.id, { action: 'block' }, 'המשתמש נחסם', 'חסימת המשתמש נכשלה', 'חסימת משתמש')} style={dangerButtonStyle}>חסום</button>
-                        <input value={newPasswords[user.id] || ''} onChange={event => setNewPasswords(prev => ({ ...prev, [user.id]: event.target.value }))} placeholder="סיסמה חדשה" style={smallInputStyle} />
-                        <button type="button" onClick={() => void resetPassword(user.id)} style={smallButtonStyle}>אפס</button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-                {!filteredUsers.length && (
-                  <tr><td style={tdStyle} colSpan={10}>{loadingUsers ? 'טוען משתמשים...' : 'אין משתמשים להצגה.'}</td></tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </section>
-
-        <section style={twoColumnStyle}>
-          <article style={cardStyle}>
-            <h2 style={sectionTitleStyle}>Roles</h2>
-            <div style={cardsListStyle}>
-              {(infrastructure?.roles || []).map(role => (
-                <button
-                  key={role.id}
-                  type="button"
-                  onClick={() => setActiveRoleId(role.id)}
-                  style={activeRoleId === role.id ? activeRoleCardStyle : roleCardStyle}
-                >
-                  <strong>{role.label}</strong>
-                  <span>{role.description}</span>
-                  <small>{role.permissions.length} הרשאות</small>
-                </button>
-              ))}
-            </div>
-          </article>
-          <article style={cardStyle}>
-            <div style={sectionHeaderStyle}>
-              <div>
-                <h2 style={sectionTitleStyle}>עריכת הרשאות</h2>
-                <p style={mutedStyle}>
-                  {infrastructure?.roles.find(role => role.id === activeRoleId)?.label || 'בחר תפקיד'} · {rolePermissionCount(activeRoleId)} הרשאות פעילות
-                </p>
-              </div>
-              <KeyRound color="var(--abd-accent)" />
-            </div>
-            <div style={permissionEditorStyle}>
-              {(infrastructure?.permissions || []).map(permission => {
-                const activeRole = infrastructure?.roles.find(role => role.id === activeRoleId)
-                const checked = Boolean(activeRole?.permissions.includes(permission.id))
-                return (
-                  <label key={permission.id} style={permissionToggleStyle(checked)}>
-                    <input
-                      type="checkbox"
-                      checked={checked}
-                      onChange={event => void toggleRolePermission(activeRoleId, permission.id, event.target.checked)}
-                    />
-                    <span>
-                      <strong>{permission.label}</strong>
-                      <small>{permission.description}</small>
-                      <code>{permission.id}</code>
-                    </span>
-                  </label>
-                )
-              })}
-            </div>
-            <div style={userOverrideNoteStyle}>
-              החרגת הרשאות למשתמש ספציפי דורשת שדה קבוע במודל המשתמש. בשלב זה לא הוספתי מודל חדש כדי לא לשבור את בסיס הנתונים; זה השלב הבא אחרי אישור מבנה DB.
-            </div>
-          </article>
-        </section>
-      </div>
-    )
-  }
-
-  function renderAgencies() {
-    const selectedPlan = infrastructure?.plans.find(plan => plan.id === selectedAgency?.plan)
-
-    return (
-      <div style={stackStyle}>
-        <section style={metricsGridStyle}>
-          <article style={metricCardStyle('blue')}><span>סוכנויות / עסקים</span><strong>{agencies.length}</strong><small>נגזר מהרשמות קיימות</small></article>
-          <article style={metricCardStyle('green')}><span>משתמשים בסוכנויות</span><strong>{agencies.reduce((sum, agency) => sum + agency.users, 0)}</strong><small>כולל מנהלי סוכנות ועובדים</small></article>
-          <article style={metricCardStyle('orange')}><span>בתקופת ניסיון</span><strong>{agencies.filter(agency => String(agency.status).includes('trial')).length}</strong><small>לפי סטטוס מנוי</small></article>
-          <article style={metricCardStyle('red')}><span>מוקפאות / חסומות</span><strong>{agencies.filter(agency => ['blocked', 'suspended', 'archived'].includes(String(agency.status))).length}</strong><small>לפי עדכון מנהל</small></article>
-        </section>
-
-        <section style={cardStyle}>
-          <div style={sectionHeaderStyle}>
-            <div>
-              <h2 style={sectionTitleStyle}>סוכנויות / עסקים</h2>
-              <p style={mutedStyle}>הסוכנויות נגזרות כרגע מפרטי ההרשמה של המשתמשים. פרטי עסק נוספים נשמרים בפאנל עד חיבור טבלת agencies קבועה.</p>
-            </div>
-            <button type="button" style={primaryButtonStyle} onClick={() => setMessage('יצירת סוכנות ידנית דורשת טבלת agencies קבועה. כרגע סוכנויות נפתחות דרך הרשמת מנהל סוכנות.')}>צור סוכנות</button>
-          </div>
-          <div style={tableWrapStyle}>
-            <table style={tableStyle}>
-              <thead>
-                <tr>
-                  <th style={thStyle}>שם העסק</th>
-                  <th style={thStyle}>מנהל ראשי</th>
-                  <th style={thStyle}>מייל</th>
-                  <th style={thStyle}>טלפון</th>
-                  <th style={thStyle}>משתמשים</th>
-                  <th style={thStyle}>תוכנית</th>
-                  <th style={thStyle}>סטטוס מנוי</th>
-                  <th style={thStyle}>תאריך הצטרפות</th>
-                  <th style={thStyle}>סיום ניסיון</th>
-                  <th style={thStyle}>פעולות</th>
-                </tr>
-              </thead>
-              <tbody>
-                {agencies.map(agency => (
-                  <tr key={agency.name} style={selectedAgency?.name === agency.name ? selectedTableRowStyle : undefined}>
-                    <td style={tdStyle}>{agency.name}</td>
-                    <td style={tdStyle}>{agency.manager}</td>
-                    <td style={tdStyle}>{agency.email}</td>
-                    <td style={tdStyle}>{agency.phone}</td>
-                    <td style={tdStyle}>{agency.users}</td>
-                    <td style={tdStyle}>{agency.plan}</td>
-                    <td style={tdStyle}><span style={statusPillStyle(agency.status)}>{agency.status}</span></td>
-                    <td style={tdStyle}>{agency.createdAt}</td>
-                    <td style={tdStyle}>{agency.trialEnds}</td>
-                    <td style={tdStyle}><button type="button" style={smallButtonStyle} onClick={() => setSelectedAgencyName(agency.name)}>פתח</button></td>
-                  </tr>
-                ))}
-                {!agencies.length && <tr><td style={tdStyle} colSpan={10}>אין סוכנויות להצגה. סוכנות תופיע לאחר הרשמת מנהל סוכנות או עסק עצמאי.</td></tr>}
-              </tbody>
-            </table>
-          </div>
-        </section>
-
-        {selectedAgency && (
-          <section style={cardStyle}>
-            <div style={agencyDetailHeaderStyle}>
-              <div>
-                <h2 style={sectionTitleStyle}>עמוד סוכנות: {selectedAgency.name}</h2>
-                <p style={mutedStyle}>{selectedAgency.manager} · {selectedAgency.users} משתמשים · {selectedAgency.plan}</p>
-              </div>
-              <div style={agencyBrandPreviewStyle}>
-                {selectedAgency.logoUrl ? <img src={selectedAgency.logoUrl} alt={selectedAgency.name} style={agencyLogoStyle} /> : <Building2 size={28} />}
-                <span style={{ width: 28, height: 28, borderRadius: 999, border: '1px solid var(--separator)', background: selectedAgency.brandColor || '#64748B' }} />
-              </div>
-            </div>
-
-            <section style={twoColumnStyle}>
-              <article style={innerCardStyle}>
-                <h3 style={smallSectionTitleStyle}>פרטי עסק</h3>
-                <label style={adminFieldStyle}>ח.פ / עוסק
-                  <input style={inputStyle} value={selectedAgency.taxId || ''} onChange={event => updateAgencyOverride(selectedAgency.name, { taxId: event.target.value })} placeholder="מספר עסק" />
-                </label>
-                <label style={adminFieldStyle}>כתובת
-                  <input style={inputStyle} value={selectedAgency.address || ''} onChange={event => updateAgencyOverride(selectedAgency.name, { address: event.target.value })} placeholder="כתובת העסק" />
-                </label>
-                <label style={adminFieldStyle}>לוגו
-                  <input style={inputStyle} value={selectedAgency.logoUrl || ''} onChange={event => updateAgencyOverride(selectedAgency.name, { logoUrl: event.target.value })} placeholder="URL ללוגו" />
-                </label>
-                <label style={adminFieldStyle}>צבע מותג
-                  <input type="color" value={selectedAgency.brandColor || '#64748B'} onChange={event => updateAgencyOverride(selectedAgency.name, { brandColor: event.target.value })} style={colorInputStyle} />
-                </label>
-              </article>
-
-              <article style={innerCardStyle}>
-                <h3 style={smallSectionTitleStyle}>תוכנית ומנוי</h3>
-                <label style={adminFieldStyle}>תוכנית
-                  <select style={inputStyle} value={selectedAgency.plan} onChange={event => updateAgencyOverride(selectedAgency.name, { plan: event.target.value }, 'תוכנית הסוכנות עודכנה')}>
-                    {(infrastructure?.plans || []).map(plan => <option key={plan.id} value={plan.id}>{plan.name}</option>)}
-                    {!infrastructure?.plans?.some(plan => plan.id === selectedAgency.plan) && <option value={selectedAgency.plan}>{selectedAgency.plan}</option>}
-                  </select>
-                </label>
-                <label style={adminFieldStyle}>סטטוס מנוי
-                  <select style={inputStyle} value={selectedAgency.status} onChange={event => updateAgencyOverride(selectedAgency.name, { status: event.target.value }, 'סטטוס הסוכנות עודכן')}>
-                    <option value="active">פעיל</option>
-                    <option value="trial_active">בתקופת ניסיון</option>
-                    <option value="suspended">מוקפא</option>
-                    <option value="blocked">חסום</option>
-                    <option value="archived">ארכיון</option>
-                  </select>
-                </label>
-                <label style={adminFieldStyle}>סיום ניסיון
-                  <input type="date" style={inputStyle} value={selectedAgency.trialEnds === 'אין נתון' ? '' : selectedAgency.trialEnds} onChange={event => updateAgencyOverride(selectedAgency.name, { trialEnds: event.target.value }, 'תאריך סיום ניסיון עודכן')} />
-                </label>
-                <div style={rowActionsStyle}>
-                  <button type="button" style={smallButtonStyle} onClick={() => updateAgencyOverride(selectedAgency.name, { status: 'trial_active' }, 'תקופת הניסיון הוארכה/נפתחה')}>הארכת ניסיון</button>
-                  <button type="button" style={smallButtonStyle} onClick={() => updateAgencyOverride(selectedAgency.name, { status: 'suspended' }, 'הסוכנות הוקפאה')}>הקפאה</button>
-                  <button type="button" style={dangerButtonStyle} onClick={() => updateAgencyOverride(selectedAgency.name, { status: 'blocked' }, 'הסוכנות נחסמה')}>חסימה</button>
-                  <button type="button" style={dangerButtonStyle} onClick={() => updateAgencyOverride(selectedAgency.name, { status: 'archived' }, 'הסוכנות הועברה לארכיון')}>מחיקה רכה</button>
-                </div>
-              </article>
-            </section>
-
-            <section style={twoColumnStyle}>
-              <article style={innerCardStyle}>
-                <h3 style={smallSectionTitleStyle}>מגבלות שימוש</h3>
-                <div style={limitsGridStyle}>
-                  <Limit label="משתמשים כלולים" value={selectedPlan?.includedUsers || '-'} />
-                  <Limit label="פגישות חודשיות" value={selectedPlan?.monthlyMeetings || '-'} />
-                  <Limit label="לקוחות" value={selectedPlan?.clientLimit || '-'} />
-                  <Limit label="מיתוג אישי" value={yesNo(selectedPlan?.features?.customBranding)} />
-                </div>
-              </article>
-              <article style={innerCardStyle}>
-                <h3 style={smallSectionTitleStyle}>הערות פנימיות</h3>
-                <textarea
-                  style={notesTextAreaStyle}
-                  value={selectedAgency.notes || ''}
-                  onChange={event => updateAgencyOverride(selectedAgency.name, { notes: event.target.value })}
-                  placeholder="הערות פנימיות למנהל מערכת בלבד"
-                />
-              </article>
-            </section>
-
-            <section style={cardStyle}>
-              <div style={sectionHeaderStyle}>
-                <h3 style={smallSectionTitleStyle}>משתמשים בסוכנות</h3>
-                <button type="button" style={smallButtonStyle} onClick={() => setMessage('הוספת משתמש לסוכנות קיימת דורשת שיוך קבוע במודל המשתמש. כרגע ניתן לאשר/לחסום משתמשים קיימים.')}>הוסף משתמש</button>
-              </div>
-              <div style={tableWrapStyle}>
-                <table style={tableStyle}>
-                  <thead>
-                    <tr>
-                      <th style={thStyle}>שם</th>
-                      <th style={thStyle}>מייל</th>
-                      <th style={thStyle}>טלפון</th>
-                      <th style={thStyle}>תפקיד</th>
-                      <th style={thStyle}>סטטוס</th>
-                      <th style={thStyle}>פעולות</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {selectedAgency.members.map(member => (
-                      <tr key={member.id}>
-                        <td style={tdStyle}>{member.name || '-'}</td>
-                        <td style={tdStyle}>{member.email}</td>
-                        <td style={tdStyle}>{member.phone || 'לא הוזן'}</td>
-                        <td style={tdStyle}>{member.userTypeLabel || 'משתמש'}</td>
-                        <td style={tdStyle}><span style={statusPillStyle(member.status)}>{member.statusLabel || member.status || '-'}</span></td>
-                        <td style={tdStyle}>
-                          <div style={rowActionsStyle}>
-                            <button type="button" style={smallButtonStyle} onClick={() => void patchUser(member.id, { action: 'extend_trial' }, 'תקופת הניסיון הוארכה', 'הארכת ניסיון נכשלה', 'הארכת ניסיון')}>הארך ניסיון</button>
-                            <button type="button" style={smallButtonStyle} onClick={() => void patchUser(member.id, { action: 'approve' }, 'המשתמש אושר', 'אישור המשתמש נכשל', 'אישור משתמש')}>אשר</button>
-                            <button type="button" style={dangerButtonStyle} onClick={() => void patchUser(member.id, { action: 'block' }, 'המשתמש נחסם', 'חסימת המשתמש נכשלה', 'חסימת משתמש')}>חסום</button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </section>
-
-            <section style={twoColumnStyle}>
-              <article style={innerCardStyle}>
-                <h3 style={smallSectionTitleStyle}>תבניות פרטיות</h3>
-                <EmptyState title="אין תבניות פרטיות לסוכנות" text="התשתית תתחבר בשלב תבניות וסיכומי פגישה." />
-              </article>
-              <article style={innerCardStyle}>
-                <h3 style={smallSectionTitleStyle}>היסטוריית פעילות</h3>
-                <div style={activityListStyle}>
-                  {auditEvents.filter(event => event.entity === selectedAgency.name).slice(0, 6).map(event => (
-                    <div key={event.id} style={activityRowStyle}>
-                      <span style={statusDotStyle(event.result)} />
-                      <strong>{event.action}</strong>
-                      <small>{formatTime(event.time)}</small>
-                    </div>
-                  ))}
-                  {!auditEvents.some(event => event.entity === selectedAgency.name) && <EmptyState title="אין פעילות לסוכנות" text="פעולות שתבצע בעמוד הסוכנות יופיעו כאן." />}
-                </div>
-              </article>
-            </section>
-          </section>
-        )}
-      </div>
-    )
-  }
-
-  function renderAudit() {
-    return (
-      <section style={cardStyle}>
-        <h2 style={sectionTitleStyle}>אבטחה ולוג פעילות</h2>
-        <p style={mutedStyle}>לוג בסיסי לשלב 1. הוא מתעד פעולות רגישות שבוצעו במסך הנוכחי. שמירה קבועה למסד נתונים תתווסף במיגרציה של audit_logs.</p>
-        <div style={tableWrapStyle}>
-          <table style={tableStyle}>
-            <thead>
-              <tr>
-                <th style={thStyle}>תאריך</th>
-                <th style={thStyle}>משתמש</th>
-                <th style={thStyle}>פעולה</th>
-                <th style={thStyle}>יישות</th>
-                <th style={thStyle}>תוצאה</th>
-              </tr>
-            </thead>
-            <tbody>
-              {auditEvents.map(event => (
-                <tr key={event.id}>
-                  <td style={tdStyle}>{formatTime(event.time)}</td>
-                  <td style={tdStyle}>{event.actor}</td>
-                  <td style={tdStyle}>{event.action}</td>
-                  <td style={tdStyle}>{event.entity}</td>
-                  <td style={tdStyle}><span style={statusPillStyle(event.result === 'failure' ? 'blocked' : 'active')}>{event.result}</span></td>
-                </tr>
-              ))}
-              {!auditEvents.length && <tr><td style={tdStyle} colSpan={5}>אין פעולות בלוג.</td></tr>}
-            </tbody>
-          </table>
-        </div>
-      </section>
-    )
-  }
-
-  function renderStagePlaceholder() {
-    const tab = ADMIN_TABS.find(item => item.id === activeTab)
-    return (
-      <section style={cardStyle}>
-        <h2 style={sectionTitleStyle}>{tab?.label}</h2>
-        <EmptyState
-          title={`תשתית לשלב ${tab?.stage || 2}`}
-          text="המסך מופיע בתפריט כדי לשמור על מבנה הפאנל המלא. הפונקציונליות תחובר בשלבים הבאים לפי סדר הביצוע שהוגדר."
-        />
-      </section>
-    )
-  }
-
-  function renderPlans() {
-    const plans = infrastructure?.plans || []
-    const subscriptionRows = users.map(user => ({
-      id: user.id,
-      name: user.businessName || user.agencyName || user.name || user.email,
-      owner: user.name || '-',
-      plan: user.planId || 'legacy',
-      subscriptionStatus: user.subscriptionStatus || user.status || 'active',
-      users: user.businessName || user.agencyName ? users.filter(item => (item.businessName || item.agencyName) === (user.businessName || user.agencyName)).length : 1,
-      trialEnds: 'אין נתון',
-    }))
-
-    return (
-      <div style={stackStyle}>
-        <section style={metricsGridStyle}>
-          <article style={metricCardStyle('green')}><span>תוכניות פעילות</span><strong>{plans.filter(plan => plan.status === 'active').length}</strong></article>
-          <article style={metricCardStyle('orange')}><span>תוכניות טיוטה</span><strong>{plans.filter(plan => plan.status === 'draft').length}</strong></article>
-          <article style={metricCardStyle('blue')}><span>מנויי ניסיון</span><strong>{subscriptionRows.filter(row => String(row.subscriptionStatus).includes('trial')).length}</strong></article>
-          <article style={metricCardStyle('red')}><span>מנויים חסומים / פגים</span><strong>{subscriptionRows.filter(row => ['blocked', 'expired'].includes(String(row.subscriptionStatus))).length}</strong></article>
-        </section>
-
-        <section style={cardStyle}>
-          <div style={sectionHeaderStyle}>
-            <div>
-              <h2 style={sectionTitleStyle}>תוכניות שימוש</h2>
-              <p style={mutedStyle}>ניהול תוכניות שימוש ומגבלות. השינויים נשמרים בתשתית הניהול המרכזית כאשר D1 מחובר.</p>
-            </div>
-            <button type="button" style={primaryButtonStyle} onClick={() => void createPlan()}>צור תוכנית</button>
-          </div>
-          <div style={planCardsGridStyle}>
-            {plans.map(plan => (
-              <article key={plan.id} style={planCardStyle}>
-                <div style={sectionHeaderStyle}>
-                  <div>
-                    <input
-                      aria-label="שם תוכנית"
-                      value={plan.name}
-                      onChange={event => void updatePlan(plan.id, { name: event.target.value })}
-                      style={{ ...inputStyle, fontWeight: 900, fontSize: 18 }}
-                    />
-                    <input
-                      aria-label="תיאור תוכנית"
-                      value={plan.shortDescription || ''}
-                      onChange={event => void updatePlan(plan.id, { shortDescription: event.target.value })}
-                      style={inputStyle}
-                    />
-                  </div>
-                  <select value={plan.status} onChange={event => void updatePlan(plan.id, { status: event.target.value })} style={{ ...inputStyle, width: 130 }}>
-                    <option value="draft">טיוטה</option>
-                    <option value="active">פעיל</option>
-                    <option value="hidden">מוסתר</option>
-                    <option value="archived">ארכיון</option>
-                  </select>
-                </div>
-                <div style={planPriceStyle}>
-                  ₪
-                  <input
-                    aria-label="מחיר חודשי"
-                    type="number"
-                    value={plan.monthlyPrice}
-                    onChange={event => void updatePlan(plan.id, { monthlyPrice: Number(event.target.value) || 0 })}
-                    style={priceInputStyle}
-                  />
-                  <small> / חודש</small>
-                </div>
-                <div style={limitsGridStyle}>
-                  <PlanNumberInput label="משתמשים" value={plan.includedUsers} onChange={value => void updatePlan(plan.id, { includedUsers: value })} />
-                  <PlanNumberInput label="פגישות חודשיות" value={plan.monthlyMeetings} onChange={value => void updatePlan(plan.id, { monthlyMeetings: value })} />
-                  <PlanNumberInput label="לקוחות" value={plan.clientLimit || 0} onChange={value => void updatePlan(plan.id, { clientLimit: value })} />
-                  <PlanNumberInput label="מחיר שנתי" value={plan.annualPrice || 0} onChange={value => void updatePlan(plan.id, { annualPrice: value })} />
-                </div>
-                <div style={featureListStyle}>
-                  {Object.entries(plan.features || {}).map(([key, enabled]) => (
-                    <label key={key} style={featureItemStyle(enabled)}>
-                      <input
-                        type="checkbox"
-                        checked={Boolean(enabled)}
-                        onChange={event => void updatePlanFeature(plan.id, key, event.target.checked)}
-                      />
-                      {enabled ? <CheckCircle2 size={14} /> : <XCircle size={14} />}
-                      {featureLabel(key)}
-                    </label>
-                  ))}
-                </div>
-                <div style={rowActionsStyle}>
-                  <button type="button" style={smallButtonStyle} onClick={() => void updatePlan(plan.id, { status: 'active' })}>הפעל</button>
-                  <button type="button" style={smallButtonStyle} onClick={() => void clonePlan(plan.id)}>שכפל</button>
-                  <button type="button" style={dangerButtonStyle} onClick={() => void updatePlan(plan.id, { status: 'hidden' })}>הסתר</button>
-                </div>
-              </article>
-            ))}
-          </div>
-        </section>
-
-        <section style={cardStyle}>
-          <h2 style={sectionTitleStyle}>מנויים וסטטוס ניסיון</h2>
-          <div style={tableWrapStyle}>
-            <table style={tableStyle}>
-              <thead>
-                <tr>
-                  <th style={thStyle}>עסק / משתמש</th>
-                  <th style={thStyle}>מנהל</th>
-                  <th style={thStyle}>תוכנית</th>
-                  <th style={thStyle}>משתמשים</th>
-                  <th style={thStyle}>סטטוס מנוי</th>
-                  <th style={thStyle}>סיום ניסיון</th>
-                  <th style={thStyle}>פעולות</th>
-                </tr>
-              </thead>
-              <tbody>
-                {subscriptionRows.map(row => (
-                  <tr key={row.id}>
-                    <td style={tdStyle}>{row.name}</td>
-                    <td style={tdStyle}>{row.owner}</td>
-                    <td style={tdStyle}>
-                      <select
-                        value={row.plan}
-                        onChange={event => void setUserSubscription(row.id, event.target.value, row.subscriptionStatus)}
-                        style={smallSelectStyle}
-                      >
-                        {plans.map(plan => <option key={plan.id} value={plan.id}>{plan.name}</option>)}
-                        {!plans.some(plan => plan.id === row.plan) && <option value={row.plan}>{row.plan}</option>}
-                      </select>
-                    </td>
-                    <td style={tdStyle}>{row.users}</td>
-                    <td style={tdStyle}>
-                      <select
-                        value={row.subscriptionStatus}
-                        onChange={event => void setUserSubscription(row.id, row.plan, event.target.value)}
-                        style={smallSelectStyle}
-                      >
-                        <option value="trial_active">בתקופת ניסיון</option>
-                        <option value="active">פעיל</option>
-                        <option value="expired">מנוי פג</option>
-                        <option value="blocked">חסום</option>
-                        <option value="cancelled">בוטל</option>
-                      </select>
-                    </td>
-                    <td style={tdStyle}>{row.trialEnds}</td>
-                    <td style={tdStyle}>
-                      <div style={rowActionsStyle}>
-                        <button type="button" style={smallButtonStyle} onClick={() => void patchUser(row.id, { action: 'extend_trial' }, 'תקופת הניסיון הוארכה', 'הארכת ניסיון נכשלה', 'הארכת ניסיון')}>הארך ניסיון</button>
-                        <button type="button" style={smallButtonStyle} onClick={() => void patchUser(row.id, { action: 'approve' }, 'המנוי נפתח לשימוש', 'פתיחת מנוי נכשלה', 'פתיחה ידנית')}>פתח ידנית</button>
-                        <button type="button" style={dangerButtonStyle} onClick={() => void patchUser(row.id, { action: 'block' }, 'המנוי נחסם', 'חסימת מנוי נכשלה', 'חסימת שימוש')}>חסום</button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-                {!subscriptionRows.length && <tr><td style={tdStyle} colSpan={7}>אין מנויים להצגה.</td></tr>}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      </div>
-    )
-  }
-
-  function renderSystemSettings() {
-    return (
-      <div style={stackStyle}>
-        <section style={cardStyle}>
-          <div style={sectionHeaderStyle}>
-            <div>
-              <h2 style={sectionTitleStyle}>Feature Flags</h2>
-              <p style={mutedStyle}>הפעלה וכיבוי ברמת תשתית. בשלב זה ההגדרות מקומיות בפאנל; שמירה גלובלית תתווסף במודול admin_settings.</p>
-            </div>
-            <SlidersHorizontal color="var(--abd-accent)" />
-          </div>
-          <div style={flagsGridStyle}>
-            {FEATURE_FLAGS.map(flag => (
-              <label key={flag.id} style={flagCardStyle(featureFlags[flag.id])}>
-                <span>
-                  <strong>{flag.label}</strong>
-                  <small>{flag.plans.length ? `פתוח לתוכניות: ${flag.plans.join(', ')}` : 'חסום עד חיבור עתידי'}</small>
-                </span>
-                <input
-                  type="checkbox"
-                  checked={Boolean(featureFlags[flag.id])}
-                  onChange={event => {
-                    setFeatureFlags(prev => ({ ...prev, [flag.id]: event.target.checked }))
-                    addAudit(`שינוי Feature Flag: ${flag.label}`, flag.id, 'info')
-                  }}
-                />
-              </label>
-            ))}
-          </div>
-        </section>
-
-        <section style={twoColumnStyle}>
-          <article style={cardStyle}>
-            <h2 style={sectionTitleStyle}>הגדרות הרשמה</h2>
-            <SettingRow label="הרשמה פתוחה" value={infrastructure?.registration?.registrationOpen ? 'כן' : 'לא'} />
-            <SettingRow label="אישור ידני למשתמשים" value={infrastructure?.registration?.manualApprovalRequired ? 'כן' : 'לא'} />
-            <SettingRow label="תקופת ניסיון ברירת מחדל" value={`${infrastructure?.registration?.defaultTrialDays || 14} ימים`} />
-            <SettingRow label="אזור זמן" value="Asia/Jerusalem" />
-            <SettingRow label="שפה" value="עברית" />
-          </article>
-          <article style={cardStyle}>
-            <h2 style={sectionTitleStyle}>מצב תחזוקה והודעות</h2>
-            <label style={adminFieldStyle}>שם מערכת<input style={inputStyle} defaultValue="ABD Finance" /></label>
-            <label style={adminFieldStyle}>הודעת מערכת גלובלית<textarea style={{ ...inputStyle, minHeight: 94 }} placeholder="הודעה שתוצג למשתמשים בעתיד" /></label>
-            <button type="button" style={primaryButtonStyle} onClick={() => infrastructure && void saveInfrastructure(infrastructure, 'הגדרות המערכת נשמרו')}>שמור הגדרות</button>
-          </article>
-        </section>
-      </div>
-    )
-  }
-
-  function renderUsageLimits() {
-    return (
-      <section style={cardStyle}>
-        <div style={sectionHeaderStyle}>
-          <div>
-            <h2 style={sectionTitleStyle}>מגבלות שימוש לפי תוכנית</h2>
-            <p style={mutedStyle}>תצוגת ניהול למגבלות משתמשים, פגישות, לקוחות ויכולות. enforcement בפועל יבוצע לאחר חיבור שכבת subscription קבועה.</p>
-          </div>
-          <Gauge color="var(--abd-accent)" />
-        </div>
-        <div style={tableWrapStyle}>
-          <table style={tableStyle}>
-            <thead>
-              <tr>
-                <th style={thStyle}>תוכנית</th>
-                <th style={thStyle}>משתמשים</th>
-                <th style={thStyle}>פגישות חודשיות</th>
-                <th style={thStyle}>לקוחות</th>
-                <th style={thStyle}>PDF</th>
-                <th style={thStyle}>Excel</th>
-                <th style={thStyle}>סימולטורים</th>
-                <th style={thStyle}>ניתוח תיק</th>
-                <th style={thStyle}>מיתוג אישי</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(infrastructure?.plans || []).map(plan => (
-                <tr key={plan.id}>
-                  <td style={tdStyle}>{plan.name}</td>
-                  <td style={tdStyle}>{plan.includedUsers}</td>
-                  <td style={tdStyle}>{plan.monthlyMeetings}</td>
-                  <td style={tdStyle}>{plan.clientLimit || 0}</td>
-                  <td style={tdStyle}>{yesNo(plan.features?.pdfExport)}</td>
-                  <td style={tdStyle}>{yesNo(plan.features?.excelExport)}</td>
-                  <td style={tdStyle}>{yesNo(plan.features?.simulators)}</td>
-                  <td style={tdStyle}>{yesNo(plan.features?.portfolioAnalysis)}</td>
-                  <td style={tdStyle}>{yesNo(plan.features?.customBranding)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
-    )
-  }
-
-  function renderLanding() {
-    const draft = infrastructure?.landingPageDraft
-    const sections = [...(draft?.sections || [])].sort((a, b) => a.sortOrder - b.sortOrder)
-
-    return (
-      <div style={stackStyle}>
-        <section style={metricsGridStyle}>
-          <article style={metricCardStyle('blue')}><span>סטטוס דף</span><strong>{draft?.status || 'draft'}</strong></article>
-          <article style={metricCardStyle('green')}><span>מקטעים פעילים</span><strong>{sections.filter(section => section.active).length}</strong></article>
-          <article style={metricCardStyle('orange')}><span>מקטעים מוסתרים</span><strong>{sections.filter(section => !section.active).length}</strong></article>
-          <article style={metricCardStyle('gray')}><span>Slug</span><strong>{draft?.slug || '/'}</strong></article>
-        </section>
-
-        <section style={twoColumnStyle}>
-          <article style={cardStyle}>
-            <h2 style={sectionTitleStyle}>הגדרות דף נחיתה</h2>
-            <label style={adminFieldStyle}>כותרת ראשית
-              <input style={inputStyle} defaultValue={draft?.title || ''} />
-            </label>
-            <label style={adminFieldStyle}>Meta Description
-              <textarea style={{ ...inputStyle, minHeight: 92 }} defaultValue={draft?.metaDescription || ''} />
-            </label>
-            <label style={adminFieldStyle}>Canonical URL
-              <input style={inputStyle} defaultValue={draft?.canonicalUrl || ''} placeholder="https://..." />
-            </label>
-            <label style={adminFieldStyle}>Open Graph Image
-              <input style={inputStyle} defaultValue={draft?.openGraphImage || ''} placeholder="URL לתמונה" />
-            </label>
-            <div style={rowActionsStyle}>
-              <button type="button" style={primaryButtonStyle} onClick={() => stageAction('שמירת טיוטת דף נחיתה', 4)}>שמור טיוטה</button>
-              <button type="button" style={smallButtonStyle} onClick={() => stageAction('תצוגה מקדימה לדף נחיתה', 4)}>תצוגה מקדימה</button>
-              <button type="button" style={smallButtonStyle} onClick={() => stageAction('פרסום דף נחיתה', 4)}>פרסם</button>
-            </div>
-          </article>
-
-          <article style={cardStyle}>
-            <h2 style={sectionTitleStyle}>בדיקות לפני פרסום</h2>
-            <SettingRow label="RTL מלא" value="נדרש בכל מקטע" />
-            <SettingRow label="כפתור כניסה למערכת" value="/login" />
-            <SettingRow label="כפתור הרשמה" value="/register" />
-            <SettingRow label="חיבור לידים" value="תשתית מוכנה, לא מחובר לדף ציבורי" />
-            <SettingRow label="SEO" value="כותרת, תיאור ותמונת שיתוף" />
-          </article>
-        </section>
-
-        <section style={cardStyle}>
-          <div style={sectionHeaderStyle}>
-            <div>
-              <h2 style={sectionTitleStyle}>מקטעי הדף</h2>
-              <p style={mutedStyle}>ניהול תשתיתי של מקטעים. בשלב הזה שינויי עריכה מוצגים בפאנל בלבד ולא נשמרים למסד נתונים.</p>
-            </div>
-            <button type="button" style={primaryButtonStyle} onClick={() => stageAction('הוספת מקטע לדף נחיתה', 4)}>הוסף מקטע</button>
-          </div>
-          <div style={tableWrapStyle}>
-            <table style={tableStyle}>
-              <thead>
-                <tr>
-                  <th style={thStyle}>סדר</th>
-                  <th style={thStyle}>סוג</th>
-                  <th style={thStyle}>כותרת</th>
-                  <th style={thStyle}>טקסט</th>
-                  <th style={thStyle}>Desktop</th>
-                  <th style={thStyle}>Mobile</th>
-                  <th style={thStyle}>סטטוס</th>
-                  <th style={thStyle}>פעולות</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sections.map(section => (
-                  <tr key={section.id}>
-                    <td style={tdStyle}>{section.sortOrder}</td>
-                    <td style={tdStyle}>{section.type}</td>
-                    <td style={tdStyle}>{section.title}</td>
-                    <td style={tdStyle}>{section.text}</td>
-                    <td style={tdStyle}>{yesNo(section.desktopVisible)}</td>
-                    <td style={tdStyle}>{yesNo(section.mobileVisible)}</td>
-                    <td style={tdStyle}><span style={statusPillStyle(section.active ? 'active' : 'blocked')}>{section.active ? 'פעיל' : 'כבוי'}</span></td>
-                    <td style={tdStyle}>
-                      <div style={rowActionsStyle}>
-                        <button type="button" style={smallButtonStyle} onClick={() => stageAction(`עריכת מקטע ${section.id}`, 4)}>ערוך</button>
-                        <button type="button" style={smallButtonStyle} onClick={() => stageAction(`שכפול מקטע ${section.id}`, 4)}>שכפל</button>
-                        <button type="button" style={dangerButtonStyle} onClick={() => stageAction(`כיבוי מקטע ${section.id}`, 4)}>כבה</button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-                {!sections.length && <tr><td style={tdStyle} colSpan={8}>אין מקטעים להצגה.</td></tr>}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      </div>
-    )
-  }
-
-  function renderLeads() {
-    const openLeads = leads.filter(lead => lead.statusCode === 'open' || lead.statusCode === 'assigned' || lead.statusCode === 'emailed').length
-    const convertedLeads = leads.filter(lead => lead.statusCode === 'converted').length
-
-    return (
-      <div style={stackStyle}>
-        <section style={metricsGridStyle}>
-          <article style={metricCardStyle('blue')}><span>לידים במערכת</span><strong>{leads.length}</strong></article>
-          <article style={metricCardStyle('orange')}><span>ממתינים לטיפול</span><strong>{openLeads}</strong></article>
-          <article style={metricCardStyle('green')}><span>הומרו למשתמשים</span><strong>{convertedLeads}</strong></article>
-          <article style={metricCardStyle('gray')}><span>מקורות פעילים</span><strong>2</strong></article>
-        </section>
-
-        <section style={cardStyle}>
-          <div style={sectionHeaderStyle}>
-            <div>
-              <h2 style={sectionTitleStyle}>לידים ולקוחות</h2>
-              <p style={mutedStyle}>לידים שמגיעים מהרשמה ומדף נחיתה עתידי. הפעולות נשמרות מקומית בפאנל עד חיבור טבלת לידים ייעודית ב-D1.</p>
-            </div>
-            <button type="button" style={primaryButtonStyle} onClick={() => stageAction('פתיחת ליד ידני', 3)}>הוסף ליד</button>
-          </div>
-          <div style={tableWrapStyle}>
-            <table style={tableStyle}>
-              <thead>
-                <tr>
-                  <th style={thStyle}>שם</th>
-                  <th style={thStyle}>מייל</th>
-                  <th style={thStyle}>טלפון</th>
-                  <th style={thStyle}>מקור</th>
-                  <th style={thStyle}>סוג משתמש</th>
-                  <th style={thStyle}>עסק / סוכנות</th>
-                  <th style={thStyle}>תוכנית</th>
-                  <th style={thStyle}>סטטוס</th>
-                  <th style={thStyle}>אחראי</th>
-                  <th style={thStyle}>פעולות</th>
-                </tr>
-              </thead>
-              <tbody>
-                {leads.map(lead => (
-                  <tr key={lead.id}>
-                    <td style={tdStyle}>{lead.name}</td>
-                    <td style={tdStyle}>{lead.email}</td>
-                    <td style={tdStyle}>{lead.phone}</td>
-                    <td style={tdStyle}>{lead.source}</td>
-                    <td style={tdStyle}>{lead.type}</td>
-                    <td style={tdStyle}>{lead.business}</td>
-                    <td style={tdStyle}>{lead.plan}</td>
-                    <td style={tdStyle}><span style={statusPillStyle(lead.statusCode === 'converted' ? 'active' : lead.statusCode === 'closed' ? 'blocked' : 'pending_approval')}>{lead.status}</span></td>
-                    <td style={tdStyle}>{lead.owner}</td>
-                    <td style={tdStyle}>
-                      <div style={rowActionsStyle}>
-                        <button type="button" style={smallButtonStyle} onClick={() => updateLeadStatus(lead.id, 'assigned')}>שייך</button>
-                        <button type="button" style={smallButtonStyle} onClick={() => updateLeadStatus(lead.id, 'emailed')}>סמן מייל</button>
-                        <button type="button" style={dangerButtonStyle} onClick={() => updateLeadStatus(lead.id, 'closed')}>סגור</button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-                {!leads.length && <tr><td style={tdStyle} colSpan={10}>אין לידים להצגה.</td></tr>}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      </div>
-    )
-  }
-
-  function renderMessages() {
-    const templates = infrastructure?.emailTemplates || []
-
-    return (
-      <div style={stackStyle}>
-        <section style={twoColumnStyle}>
-          <article style={cardStyle}>
-            <h2 style={sectionTitleStyle}>הודעות מערכת</h2>
-            <label style={adminFieldStyle}>נמען
-              <select style={inputStyle} defaultValue="pending">
-                <option value="pending">נרשמים שממתינים לאישור</option>
-                <option value="active">משתמשים פעילים</option>
-                <option value="trial">משתמשים בתקופת ניסיון</option>
-              </select>
-            </label>
-            <label style={adminFieldStyle}>נושא
-              <input style={inputStyle} defaultValue="עדכון ממערכת ABD Finance" />
-            </label>
-            <label style={adminFieldStyle}>תוכן ההודעה
-              <textarea style={{ ...inputStyle, minHeight: 130 }} placeholder="כתוב הודעה שתישלח בעתיד דרך מודול מיילים." />
-            </label>
-            <div style={rowActionsStyle}>
-              <button type="button" style={primaryButtonStyle} onClick={() => stageAction('שמירת טיוטת הודעה', 3)}>שמור טיוטה</button>
-              <button type="button" style={smallButtonStyle} onClick={() => stageAction('שליחת הודעת מערכת', 3)}>שלח</button>
-            </div>
-          </article>
-
-          <article style={cardStyle}>
-            <h2 style={sectionTitleStyle}>סטטוס ערוצי שליחה</h2>
-            <SettingRow label="Email SMTP / API" value="תשתית מוכנה, טרם חובר ספק שליחה" />
-            <SettingRow label="WhatsApp" value="עתידי" />
-            <SettingRow label="התראות בתוך המערכת" value="תשתית מקומית" />
-            <SettingRow label="לוג שליחה" value="Audit מקומי בשלב זה" />
-          </article>
-        </section>
-
-        <section style={cardStyle}>
-          <div style={sectionHeaderStyle}>
-            <div>
-              <h2 style={sectionTitleStyle}>תבניות מייל</h2>
-              <p style={mutedStyle}>התבניות נטענות מתשתית האדמין הקיימת. עריכה קבועה תחובר בשלב תבניות וסיכומים.</p>
-            </div>
-            <button type="button" style={primaryButtonStyle} onClick={() => stageAction('יצירת תבנית מייל', 3)}>צור תבנית</button>
-          </div>
-          <div style={tableWrapStyle}>
-            <table style={tableStyle}>
-              <thead>
-                <tr>
-                  <th style={thStyle}>שם תבנית</th>
-                  <th style={thStyle}>נושא</th>
-                  <th style={thStyle}>משתנים</th>
-                  <th style={thStyle}>סטטוס</th>
-                  <th style={thStyle}>פעולות</th>
-                </tr>
-              </thead>
-              <tbody>
-                {templates.map(template => (
-                  <tr key={template.id}>
-                    <td style={tdStyle}>{template.name}</td>
-                    <td style={tdStyle}>{template.subject}</td>
-                    <td style={tdStyle}>{template.variables?.join(', ') || '-'}</td>
-                    <td style={tdStyle}><span style={statusPillStyle(template.active ? 'active' : 'blocked')}>{template.active ? 'פעילה' : 'כבויה'}</span></td>
-                    <td style={tdStyle}>
-                      <div style={rowActionsStyle}>
-                        <button type="button" style={smallButtonStyle} onClick={() => stageAction(`עריכת תבנית ${template.name}`, 3)}>ערוך</button>
-                        <button type="button" style={smallButtonStyle} onClick={() => stageAction(`בדיקת תבנית ${template.name}`, 3)}>בדוק</button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-                {!templates.length && <tr><td style={tdStyle} colSpan={5}>אין תבניות מייל להצגה.</td></tr>}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      </div>
-    )
-  }
-
-  function renderTemplates() {
-    const templates = infrastructure?.emailTemplates || []
-    const recommendationTemplates = [
-      { id: 'migration_new_product', name: 'ניוד למוצר חדש', category: 'המלצה', status: 'פעילה' },
-      { id: 'keep_existing', name: 'השארת מוצר קיים', category: 'המלצה', status: 'פעילה' },
-      { id: 'start_pension', name: 'התחלת קצבה', category: 'סיכום פגישה', status: 'פעילה' },
-      { id: 'cash_withdrawal', name: 'פדיון כספים', category: 'סיכום פגישה', status: 'פעילה' },
-      { id: 'ongoing_service', name: 'טיפול שוטף', category: 'משימה', status: 'פעילה' },
-    ]
-
-    return (
-      <div style={stackStyle}>
-        <section style={metricsGridStyle}>
-          <article style={metricCardStyle('blue')}><span>תבניות המלצה</span><strong>{recommendationTemplates.length}</strong></article>
-          <article style={metricCardStyle('green')}><span>תבניות מייל</span><strong>{templates.length}</strong></article>
-          <article style={metricCardStyle('orange')}><span>קטגוריות</span><strong>4</strong></article>
-          <article style={metricCardStyle('gray')}><span>שמירה קבועה</span><strong>עתידי</strong></article>
-        </section>
-
-        <section style={cardStyle}>
-          <div style={sectionHeaderStyle}>
-            <div>
-              <h2 style={sectionTitleStyle}>תבניות המלצה וסיכום</h2>
-              <p style={mutedStyle}>תשתית ניהול לתבניות שישמשו את פופאפ הקופה, מודול ההמלצות וסיכום הפגישה.</p>
-            </div>
-            <button type="button" style={primaryButtonStyle} onClick={() => stageAction('יצירת תבנית המלצה', 5)}>צור תבנית</button>
-          </div>
-          <div style={tableWrapStyle}>
-            <table style={tableStyle}>
-              <thead>
-                <tr>
-                  <th style={thStyle}>שם תבנית</th>
-                  <th style={thStyle}>קטגוריה</th>
-                  <th style={thStyle}>סטטוס</th>
-                  <th style={thStyle}>שימוש במערכת</th>
-                  <th style={thStyle}>פעולות</th>
-                </tr>
-              </thead>
-              <tbody>
-                {recommendationTemplates.map(template => (
-                  <tr key={template.id}>
-                    <td style={tdStyle}>{template.name}</td>
-                    <td style={tdStyle}>{template.category}</td>
-                    <td style={tdStyle}><span style={statusPillStyle('active')}>{template.status}</span></td>
-                    <td style={tdStyle}>פופאפ קופה / המלצות / סיכום</td>
-                    <td style={tdStyle}>
-                      <div style={rowActionsStyle}>
-                        <button type="button" style={smallButtonStyle} onClick={() => stageAction(`עריכת תבנית ${template.name}`, 5)}>ערוך</button>
-                        <button type="button" style={smallButtonStyle} onClick={() => stageAction(`שכפול תבנית ${template.name}`, 5)}>שכפל</button>
-                        <button type="button" style={dangerButtonStyle} onClick={() => stageAction(`כיבוי תבנית ${template.name}`, 5)}>כבה</button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
-
-        <section style={cardStyle}>
-          <h2 style={sectionTitleStyle}>תבניות מייל מערכת</h2>
-          <div style={tableWrapStyle}>
-            <table style={tableStyle}>
-              <thead>
-                <tr>
-                  <th style={thStyle}>שם</th>
-                  <th style={thStyle}>נושא</th>
-                  <th style={thStyle}>משתנים</th>
-                  <th style={thStyle}>סטטוס</th>
-                  <th style={thStyle}>פעולות</th>
-                </tr>
-              </thead>
-              <tbody>
-                {templates.map(template => (
-                  <tr key={template.id}>
-                    <td style={tdStyle}>{template.name}</td>
-                    <td style={tdStyle}>{template.subject}</td>
-                    <td style={tdStyle}>{template.variables?.join(', ') || '-'}</td>
-                    <td style={tdStyle}><span style={statusPillStyle(template.active ? 'active' : 'blocked')}>{template.active ? 'פעילה' : 'כבויה'}</span></td>
-                    <td style={tdStyle}>
-                      <button type="button" style={smallButtonStyle} onClick={() => stageAction(`עריכת תבנית מייל ${template.name}`, 5)}>ערוך</button>
-                    </td>
-                  </tr>
-                ))}
-                {!templates.length && <tr><td style={tdStyle} colSpan={5}>אין תבניות מייל להצגה.</td></tr>}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      </div>
-    )
-  }
-
-  function renderDataFiles() {
-    const kinds = infrastructure?.dataImportKinds || []
-
-    return (
-      <div style={stackStyle}>
-        <section style={metricsGridStyle}>
-          <article style={metricCardStyle('blue')}><span>סוגי קבצים</span><strong>{kinds.length}</strong></article>
-          <article style={metricCardStyle('green')}><span>קבצי תשואות</span><strong>{kinds.filter(kind => kind.id.includes('returns')).length}</strong></article>
-          <article style={metricCardStyle('orange')}><span>קבצי עזר</span><strong>{kinds.filter(kind => !kind.id.includes('returns')).length}</strong></article>
-          <article style={metricCardStyle('gray')}><span>גרסה פעילה</span><strong>מקומית</strong></article>
-        </section>
-
-        <section style={cardStyle}>
-          <div style={sectionHeaderStyle}>
-            <div>
-              <h2 style={sectionTitleStyle}>קבצי נתונים ותשואות</h2>
-              <p style={mutedStyle}>תשתית להעלאת קבצי רשות שוק ההון וקבצי עזר. בשלב זה הקבצים לא נשמרים לשרת ולא מחליפים את מנגנון התשואות הקיים.</p>
-            </div>
-            <button type="button" style={primaryButtonStyle} onClick={() => returnsInputRef.current?.click()}>העלה קבצים</button>
-          </div>
-          <div style={tableWrapStyle}>
-            <table style={tableStyle}>
-              <thead>
-                <tr>
-                  <th style={thStyle}>סוג קובץ</th>
-                  <th style={thStyle}>סיומות מותרות</th>
-                  <th style={thStyle}>עמודות חובה</th>
-                  <th style={thStyle}>שימוש במערכת</th>
-                  <th style={thStyle}>פעולות</th>
-                </tr>
-              </thead>
-              <tbody>
-                {kinds.map(kind => (
-                  <tr key={kind.id}>
-                    <td style={tdStyle}>{kind.label}</td>
-                    <td style={tdStyle}>{kind.accepts.join(', ')}</td>
-                    <td style={tdStyle}>{kind.requiredColumns.join(', ')}</td>
-                    <td style={tdStyle}>{kind.id.includes('returns') ? 'תשואות ABD ומסלולי השקעה' : 'נתוני עזר לפגישה חכמה'}</td>
-                    <td style={tdStyle}>
-                      <div style={rowActionsStyle}>
-                        <button type="button" style={smallButtonStyle} onClick={() => validateDataImportKind(kind)}>מיפוי</button>
-                        <button type="button" style={smallButtonStyle} onClick={() => validateDataImportKind(kind)}>בדיקה</button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-                {!kinds.length && <tr><td style={tdStyle} colSpan={5}>אין סוגי קבצים להצגה.</td></tr>}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      </div>
-    )
-  }
-
-  function stageAction(label: string, stage = 2) {
-    setMessage(`${label}: פעולה זו עדיין ממתינה לחיבור מלא בשלב ${stage}.`)
-    addAudit(label, `stage-${stage}`, 'info')
-  }
 }
 
-function EmptyState({ title, text }: { title: string; text: string }) {
-  return (
-    <div style={emptyStateStyle}>
-      <ShieldCheck size={28} color="var(--abd-accent)" />
-      <strong>{title}</strong>
-      <span>{text}</span>
-    </div>
-  )
+const SUBTITLES: Record<Tab, string> = {
+  dashboard: 'מדדים חיים ותורים שדורשים טיפול',
+  users: 'אישור, חסימה, מנוי, שיוך לסוכנות, איפוס סיסמה ומחיקה — לחיצה על שורה פותחת את כרטיס המשתמש',
+  agencies: 'סוכנויות, מנהלים ועובדים — לחיצה על שורה פותחת את כרטיס הסוכנות',
+  plans: 'קטלוג התוכניות — לחיצה על כרטיס פותחת עריכה',
+  support: 'פניות שנפתחו מתוך המערכת — טיפול, תשובה במייל וסגירה',
+  security: 'כל פעולות הניהול נרשמות כאן בשרת',
+  settings: 'כללי ההרשמה שחלים על נרשמים חדשים',
 }
 
-function Limit({ label, value }: { label: string; value: string | number }) {
-  return (
-    <div style={limitStyle}>
-      <span>{label}</span>
-      <strong>{value}</strong>
-    </div>
-  )
-}
-
-function PlanNumberInput({ label, value, onChange }: { label: string; value: number; onChange: (value: number) => void }) {
-  return (
-    <label style={limitStyle}>
-      <span>{label}</span>
-      <input
-        type="number"
-        value={value}
-        onChange={event => onChange(Number(event.target.value) || 0)}
-        style={compactNumberInputStyle}
-      />
-    </label>
-  )
-}
-
-function SettingRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div style={settingRowStyle}>
-      <span>{label}</span>
-      <strong>{value}</strong>
-    </div>
-  )
-}
-
-function yesNo(value?: boolean) {
-  return value ? 'כן' : 'לא'
-}
-
-function featureLabel(key: string) {
-  const labels: Record<string, string> = {
-    pdfExport: 'ייצוא PDF',
-    excelExport: 'ייצוא Excel',
-    simulators: 'סימולטורים',
-    portfolioAnalysis: 'ניתוח תיק',
-    advancedTemplates: 'תבניות מתקדמות',
-    ai: 'AI',
-    extendedSupport: 'תמיכה מורחבת',
-    customBranding: 'מיתוג אישי',
-  }
-  return labels[key] || key
-}
-
-function formatDate(value?: string) {
-  if (!value) return '-'
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return '-'
-  return date.toLocaleDateString('he-IL')
-}
-
-function formatTime(value: string) {
-  const date = new Date(value)
-  return date.toLocaleString('he-IL', { dateStyle: 'short', timeStyle: 'short' })
-}
-
-function formatBytes(value: number) {
-  if (!Number.isFinite(value) || value <= 0) return '0 KB'
-  if (value < 1024 * 1024) return `${Math.ceil(value / 1024).toLocaleString('he-IL')} KB`
-  return `${(value / 1024 / 1024).toLocaleString('he-IL', { maximumFractionDigits: 1 })} MB`
-}
-
-function statusPillStyle(status?: string): React.CSSProperties {
-  if (status === 'active' || status === 'success') return { ...pillBaseStyle, background: 'var(--status-active-bg)', color: 'var(--status-active-text)' }
-  if (status === 'blocked' || status === 'failure') return { ...pillBaseStyle, background: 'var(--status-danger-bg)', color: 'var(--status-danger-text)' }
-  return { ...pillBaseStyle, background: 'var(--status-warning-bg)', color: 'var(--status-warning-text)' }
-}
-
-function statusDotStyle(result: AuditEvent['result']): React.CSSProperties {
-  return {
-    width: 10,
-    height: 10,
-    borderRadius: 999,
-    background: result === 'failure' ? 'var(--status-danger)' : result === 'success' ? 'var(--status-active)' : 'var(--abd-accent)',
-  }
-}
-
-// macOS System Settings-style sidebar row: a small colored icon badge (like
-// Wi-Fi/Bluetooth/Notifications category icons) + label, selected state is a
-// flat tinted pill rather than the app's filled-accent-button look.
-const TAB_BADGE_COLORS: Record<string, string> = {
-  dashboard: '#8E8E93',
-  users: '#5AC8FA',
-  agencies: '#FF9F0A',
-  plans: '#BF5AF2',
-  leads: '#30D158',
-  workspace: '#64748B',
-  templates: '#0A84FF',
-  data: '#5E5CE6',
-  landing: '#FF375F',
-  messages: '#FF9F0A',
-  support: '#32ADE6',
-  reports: '#30B0C7',
-  security: '#FF453A',
-  settings: '#8E8E93',
-}
-
-function navIconBadgeStyle(tabId: string): React.CSSProperties {
-  return {
-    display: 'grid',
-    placeItems: 'center',
-    width: 26,
-    height: 26,
-    borderRadius: 7,
-    background: TAB_BADGE_COLORS[tabId] || '#8E8E93',
-    color: '#fff',
-    flexShrink: 0,
-  }
-}
+const pageStyle: React.CSSProperties = { minHeight: '100vh', display: 'grid', gridTemplateColumns: '232px minmax(0, 1fr)', background: 'var(--bg-shell)', fontFamily: 'var(--font-main)' }
+const sidebarStyle: React.CSSProperties = { minHeight: '100vh', padding: '18px 12px', background: 'var(--bg-surface-sunken)', borderLeft: '1px solid var(--separator)', position: 'sticky', top: 0, alignSelf: 'start', display: 'flex', flexDirection: 'column' }
+const brandStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 10, padding: '4px 8px 16px', color: 'var(--text-heading)' }
+const logoStyle: React.CSSProperties = { width: 40, height: 40, objectFit: 'contain', borderRadius: 9, background: 'var(--bg-surface)' }
+const contentStyle: React.CSSProperties = { padding: '24px 28px', minWidth: 0 }
+const headerStyle: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, marginBottom: 18 }
+const adminBadgeStyle: React.CSSProperties = { height: 32, display: 'flex', alignItems: 'center', border: '1px solid var(--separator)', borderRadius: 999, padding: '0 12px', background: 'var(--bg-surface)', color: 'var(--text-heading)', fontWeight: 600, fontSize: 13 }
+const countBadgeStyle: React.CSSProperties = { minWidth: 20, height: 20, borderRadius: 999, background: 'var(--abd-accent)', color: '#fff', fontSize: 11.5, fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '0 6px' }
+const backLinkStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 6, color: 'var(--text-muted)', fontSize: 13, padding: '8px 10px', textDecoration: 'none' }
+const loginPageStyle: React.CSSProperties = { minHeight: '100vh', display: 'grid', placeItems: 'center', background: 'var(--bg-shell)', fontFamily: 'var(--font-main)', padding: 20 }
+const loginCardStyle: React.CSSProperties = { width: 'min(420px, 92vw)', display: 'grid', gap: 14, background: 'var(--bg-surface)', border: '1px solid var(--separator)', borderRadius: 'var(--radius-xl)', padding: 28, boxShadow: 'var(--shadow-floating)' }
+const inputStyle: React.CSSProperties = { minHeight: 42, border: '1px solid var(--separator-strong, var(--separator))', borderRadius: 'var(--radius-md)', padding: '8px 12px', fontFamily: 'inherit', fontSize: 14, background: 'var(--bg-surface)', color: 'var(--text-heading)' }
+const errorNoticeStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, background: 'var(--destructive-bg, #FEE2E2)', color: 'var(--destructive-text, #991B1B)', border: '1px solid var(--separator)', borderRadius: 'var(--radius-lg)', padding: 12, marginBottom: 14, fontWeight: 600 }
 
 function navButtonStyle(active: boolean): React.CSSProperties {
   return {
-    width: '100%',
-    minHeight: 34,
-    display: 'flex',
-    alignItems: 'center',
-    gap: 9,
-    border: 0,
-    borderRadius: 8,
-    background: active ? 'var(--bg-surface)' : 'transparent',
-    boxShadow: active ? 'var(--shadow-1)' : 'none',
-    color: 'var(--text-heading)',
-    fontFamily: 'var(--font-main)',
-    fontWeight: active ? 600 : 500,
-    fontSize: 13.5,
-    textAlign: 'right',
-    padding: '4px 8px',
-    cursor: 'pointer',
+    display: 'flex', alignItems: 'center', gap: 10, width: '100%', minHeight: 38, padding: '0 10px', border: 0, borderRadius: 'var(--radius-md)',
+    background: active ? 'var(--bg-surface)' : 'transparent', color: active ? 'var(--text-heading)' : 'var(--text-muted)',
+    fontWeight: active ? 700 : 500, fontSize: 13.5, cursor: 'pointer', fontFamily: 'inherit', boxShadow: active ? 'var(--shadow-sm, 0 1px 2px rgba(0,0,0,.05))' : 'none',
   }
 }
-
-function metricCardStyle(_tone: string): React.CSSProperties {
-  return {
-    display: 'grid',
-    gap: 7,
-    minHeight: 100,
-    padding: 18,
-    borderRadius: 'var(--radius-lg)',
-    border: '1px solid var(--separator)',
-    background: 'var(--bg-surface)',
-    color: 'var(--text-heading)',
-  }
-}
-
-// macOS System Settings-style shell: flat gray sidebar (no border/shadow),
-// white content groups on a light canvas, subdued type weights (600/700
-// instead of the app's 900 everywhere) — deliberately a different visual
-// language from the rest of the app per the redesign plan.
-const pageStyle: React.CSSProperties = { minHeight: '100vh', display: 'grid', gridTemplateColumns: '260px 1fr', fontFamily: 'var(--font-main)', background: 'var(--bg-canvas)' }
-const loginPageStyle: React.CSSProperties = { minHeight: '100vh', padding: 28, display: 'grid', placeItems: 'center', fontFamily: 'var(--font-main)', background: 'var(--bg-canvas)' }
-const loginCardStyle: React.CSSProperties = { width: 'min(420px, 92vw)', display: 'grid', gap: 14, background: 'var(--bg-surface)', border: '1px solid var(--separator)', borderRadius: 'var(--radius-xl)', padding: 28, boxShadow: 'var(--shadow-floating)' }
-const sidebarStyle: React.CSSProperties = { minHeight: '100vh', padding: '18px 12px', background: 'var(--bg-surface-sunken)', borderLeft: '1px solid var(--separator)', position: 'sticky', top: 0, alignSelf: 'start' }
-const brandStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 10, padding: '4px 8px 16px', color: 'var(--text-heading)' }
-const logoStyle: React.CSSProperties = { width: 40, height: 40, objectFit: 'contain', borderRadius: 9, background: 'var(--bg-surface)' }
-const navStyle: React.CSSProperties = { display: 'grid', gap: 2 }
-const contentStyle: React.CSSProperties = { padding: '28px 32px', minWidth: 0 }
-const headerStyle: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, marginBottom: 22 }
-const titleStyle: React.CSSProperties = { color: 'var(--text-heading)', fontSize: 26, fontWeight: 700 }
-const loginTitleStyle: React.CSSProperties = { color: 'var(--text-heading)', fontSize: 24, fontWeight: 700 }
-const mutedStyle: React.CSSProperties = { color: 'var(--text-muted)', lineHeight: 1.7, marginTop: 5 }
-const adminBadgeStyle: React.CSSProperties = { height: 32, display: 'flex', alignItems: 'center', border: '1px solid var(--separator)', borderRadius: 999, padding: '0 12px', background: 'var(--bg-surface)', color: 'var(--text-heading)', fontWeight: 600, fontSize: 13 }
-const versionBadgeStyle: React.CSSProperties = { border: '1px solid var(--separator)', borderRadius: 999, padding: '4px 10px', background: 'var(--bg-surface-sunken)', color: 'var(--text-muted)', fontSize: 11.5, fontWeight: 600, direction: 'ltr' }
-const stackStyle: React.CSSProperties = { display: 'grid', gap: 18 }
-const metricsGridStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 14 }
-const twoColumnStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18, alignItems: 'start' }
-const cardStyle: React.CSSProperties = { display: 'grid', gap: 14, background: 'var(--bg-surface)', border: '1px solid var(--separator)', borderRadius: 'var(--radius-lg)', padding: 18, boxShadow: 'var(--shadow-1)' }
-const sectionHeaderStyle: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'start', gap: 16 }
-const sectionTitleStyle: React.CSSProperties = { color: 'var(--text-heading)', fontSize: 15, fontWeight: 700 }
-const toolbarStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, alignItems: 'center' }
-const inputStyle: React.CSSProperties = { minHeight: 40, border: '1px solid var(--separator)', borderRadius: 'var(--radius-md)', padding: '8px 12px', fontFamily: 'var(--font-main)', color: 'var(--text-heading)', background: 'var(--bg-canvas)' }
-const compactNumberInputStyle: React.CSSProperties = { width: '100%', minHeight: 32, border: '1px solid var(--separator)', borderRadius: 'var(--radius-sm)', padding: '4px 8px', fontFamily: 'var(--font-main)', color: 'var(--text-heading)', fontWeight: 600, direction: 'ltr', textAlign: 'center', background: 'var(--bg-canvas)' }
-const searchInputStyle: React.CSSProperties = { ...inputStyle, width: '100%' }
-const primaryButtonStyle: React.CSSProperties = { minHeight: 38, border: 0, borderRadius: 'var(--radius-md)', background: 'var(--abd-accent)', color: '#fff', fontFamily: 'var(--font-main)', fontWeight: 600, fontSize: 13.5, padding: '0 16px', cursor: 'pointer' }
-const smallButtonStyle: React.CSSProperties = { ...primaryButtonStyle, minHeight: 32, padding: '0 10px', fontSize: 12.5 }
-const dangerButtonStyle: React.CSSProperties = { ...smallButtonStyle, background: 'var(--destructive)', color: '#fff' }
-const quickActionsStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8 }
-const quickButtonStyle: React.CSSProperties = { minHeight: 42, display: 'flex', alignItems: 'center', gap: 8, border: '1px solid var(--separator)', borderRadius: 'var(--radius-md)', background: 'var(--bg-canvas)', color: 'var(--text-heading)', fontFamily: 'var(--font-main)', fontWeight: 600, fontSize: 13, padding: '0 12px', cursor: 'pointer' }
-const errorStyle: React.CSSProperties = { color: 'var(--destructive-text)', background: 'var(--destructive-bg)', borderRadius: 'var(--radius-md)', padding: 10, fontWeight: 600 }
-const noticeStyle: React.CSSProperties = { background: 'var(--bg-surface-sunken)', color: 'var(--text-heading)', border: '1px solid var(--separator)', borderRadius: 'var(--radius-lg)', padding: 12, marginBottom: 18, fontWeight: 600 }
-const tableWrapStyle: React.CSSProperties = { overflowX: 'auto', border: '1px solid var(--separator)', borderRadius: 'var(--radius-lg)' }
-const tableStyle: React.CSSProperties = { width: '100%', borderCollapse: 'collapse', minWidth: 1020 }
-const thStyle: React.CSSProperties = { textAlign: 'right', background: 'var(--bg-surface-sunken)', color: 'var(--text-muted)', fontWeight: 600, fontSize: 12.5, padding: 11, whiteSpace: 'nowrap' }
-const tdStyle: React.CSSProperties = { padding: 11, borderBottom: '1px solid var(--separator)', color: 'var(--text-heading)', fontWeight: 500, verticalAlign: 'middle' }
-const selectedTableRowStyle: React.CSSProperties = { background: 'var(--bg-surface-sunken)', boxShadow: 'inset 4px 0 0 var(--abd-accent)' }
-const pillBaseStyle: React.CSSProperties = { borderRadius: 999, padding: '5px 9px', fontWeight: 600, fontSize: 12, whiteSpace: 'nowrap' }
-const rowActionsStyle: React.CSSProperties = { display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }
-const smallInputStyle: React.CSSProperties = { ...inputStyle, minHeight: 34, width: 138 }
-const smallSelectStyle: React.CSSProperties = { ...inputStyle, minHeight: 34, width: 150, padding: '4px 8px', fontWeight: 600 }
-const activityListStyle: React.CSSProperties = { display: 'grid', gap: 1 }
-const activityRowStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: '10px 1fr auto', alignItems: 'center', gap: 9, padding: '9px 10px', borderBottom: '1px solid var(--separator)', color: 'var(--text-heading)', fontSize: 13.5 }
-const cardsListStyle: React.CSSProperties = { display: 'grid', gap: 8, maxHeight: 360, overflow: 'auto' }
-const roleCardStyle: React.CSSProperties = { display: 'grid', gap: 5, border: '1px solid var(--separator)', borderRadius: 'var(--radius-md)', padding: 12, color: 'var(--text-heading)', background: 'var(--bg-canvas)', textAlign: 'right', fontFamily: 'var(--font-main)', cursor: 'pointer' }
-const activeRoleCardStyle: React.CSSProperties = { ...roleCardStyle, borderColor: 'var(--abd-accent)', background: 'var(--bg-surface-sunken)', boxShadow: 'inset 0 0 0 1px var(--abd-accent)' }
-const innerCardStyle: React.CSSProperties = { display: 'grid', gap: 13, border: '1px solid var(--separator)', borderRadius: 'var(--radius-lg)', background: 'var(--bg-canvas)', padding: 16 }
-const smallSectionTitleStyle: React.CSSProperties = { color: 'var(--text-heading)', fontSize: 14.5, fontWeight: 700 }
-const agencyDetailHeaderStyle: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, borderBottom: '1px solid var(--separator)', paddingBottom: 14 }
-const agencyBrandPreviewStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: '70px 28px', gap: 10, alignItems: 'center', color: 'var(--text-heading)' }
-const agencyLogoStyle: React.CSSProperties = { width: 70, height: 48, objectFit: 'contain', border: '1px solid var(--separator)', borderRadius: 'var(--radius-md)', background: 'var(--bg-surface)', padding: 6 }
-const colorInputStyle: React.CSSProperties = { width: 72, height: 42, border: '1px solid var(--separator)', borderRadius: 'var(--radius-md)', background: 'var(--bg-surface)', padding: 4, cursor: 'pointer' }
-const notesTextAreaStyle: React.CSSProperties = { ...inputStyle, minHeight: 155, resize: 'vertical' }
-const permissionGridStyle: React.CSSProperties = { display: 'flex', flexWrap: 'wrap', gap: 8 }
-const permissionPillStyle: React.CSSProperties = { borderRadius: 999, padding: '6px 10px', background: 'var(--bg-surface-sunken)', border: '1px solid var(--separator)', color: 'var(--text-heading)', fontWeight: 600, fontSize: 12 }
-const permissionEditorStyle: React.CSSProperties = { display: 'grid', gap: 10, maxHeight: 560, overflowY: 'auto', paddingInlineEnd: 4 }
-const permissionToggleStyle = (active: boolean): React.CSSProperties => ({
-  display: 'grid',
-  gridTemplateColumns: 'auto 1fr',
-  gap: 10,
-  alignItems: 'start',
-  border: '1px solid',
-  borderColor: active ? 'var(--abd-accent)' : 'var(--separator)',
-  borderRadius: 'var(--radius-md)',
-  background: active ? 'var(--bg-surface-sunken)' : 'var(--bg-surface)',
-  color: 'var(--text-heading)',
-  padding: 12,
-  cursor: 'pointer',
-  lineHeight: 1.55,
-})
-const userOverrideNoteStyle: React.CSSProperties = { marginTop: 14, border: '1px dashed var(--separator-strong)', borderRadius: 'var(--radius-md)', background: 'var(--bg-canvas)', color: 'var(--text-muted)', padding: 12, fontWeight: 500, lineHeight: 1.7 }
-const emptyStateStyle: React.CSSProperties = { minHeight: 180, display: 'grid', placeItems: 'center', alignContent: 'center', gap: 8, borderRadius: 'var(--radius-lg)', border: '1px dashed var(--separator)', background: 'var(--bg-canvas)', color: 'var(--text-heading)', textAlign: 'center', padding: 20 }
-const planCardsGridStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 14 }
-const planCardStyle: React.CSSProperties = { display: 'grid', gap: 14, padding: 16, borderRadius: 'var(--radius-lg)', border: '1px solid var(--separator)', background: 'var(--bg-canvas)', color: 'var(--text-heading)' }
-const planTitleStyle: React.CSSProperties = { fontSize: 18, fontWeight: 700, color: 'var(--text-heading)' }
-const planPriceStyle: React.CSSProperties = { fontSize: 24, fontWeight: 700, color: 'var(--text-heading)' }
-const priceInputStyle: React.CSSProperties = { width: 110, border: '1px solid var(--separator)', borderRadius: 'var(--radius-md)', padding: '4px 8px', marginInline: 6, fontFamily: 'var(--font-main)', color: 'var(--text-heading)', fontSize: 22, fontWeight: 700, direction: 'ltr', textAlign: 'center', background: 'var(--bg-surface)' }
-const limitsGridStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 8 }
-const limitStyle: React.CSSProperties = { display: 'grid', gap: 4, padding: 10, borderRadius: 'var(--radius-md)', background: 'var(--bg-surface-sunken)', color: 'var(--text-heading)' }
-const featureListStyle: React.CSSProperties = { display: 'flex', flexWrap: 'wrap', gap: 8 }
-function featureItemStyle(enabled: boolean): React.CSSProperties {
-  return { display: 'inline-flex', alignItems: 'center', gap: 5, borderRadius: 999, padding: '6px 10px', background: enabled ? 'var(--success-bg)' : 'var(--destructive-bg)', color: enabled ? 'var(--success-text)' : 'var(--destructive-text)', fontWeight: 600, fontSize: 12 }
-}
-const flagsGridStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 12 }
-function flagCardStyle(enabled: boolean): React.CSSProperties {
-  return { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: 14, borderRadius: 'var(--radius-lg)', border: '1px solid var(--separator)', background: enabled ? 'var(--bg-surface-sunken)' : 'var(--bg-surface)', color: 'var(--text-heading)', fontWeight: 600 }
-}
-const settingRowStyle: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', gap: 12, padding: '12px 4px', color: 'var(--text-heading)', borderBottom: '1px solid var(--separator)' }
-const adminFieldStyle: React.CSSProperties = { display: 'grid', gap: 8, color: 'var(--text-heading)', fontWeight: 600 }

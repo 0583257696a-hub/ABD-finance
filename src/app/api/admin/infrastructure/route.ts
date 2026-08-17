@@ -1,63 +1,40 @@
 import { NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { requireAdmin, d1Unavailable } from '@/lib/admin/guard'
 import { adminInfrastructureDefaults } from '@/lib/admin/defaults'
-import { getD1AdminSetting, setD1AdminSetting, writeAuditEvent } from '@/lib/system-db'
+import { getAdminInfrastructure, saveAdminInfrastructure } from '@/lib/admin/infrastructure'
+import { writeAuditEvent } from '@/lib/admin/admin-db'
 
-type AdminSession = {
-  user?: {
-    email?: string | null
-    role?: string | null
-  }
-} | null
+/**
+ * Admin: the persisted "infrastructure" document — subscription plans and
+ * registration settings. Registration (/api/register) reads the SAME stored
+ * document, so what the admin toggles here is what new sign-ups get.
+ */
 
-function isAdmin(session: AdminSession) {
-  return session?.user?.role === 'admin' || session?.user?.email === 'admin@abd-finance.co.il'
-}
-
-const ADMIN_INFRASTRUCTURE_KEY = 'admin_infrastructure'
-
-export async function GET() {
-  const session = await getServerSession(authOptions)
-  if (!isAdmin(session)) {
-    return NextResponse.json({ error: 'אין הרשאת מנהל מערכת' }, { status: 403 })
-  }
-
-  const stored = await getD1AdminSetting<typeof adminInfrastructureDefaults>(ADMIN_INFRASTRUCTURE_KEY)
-
-  return NextResponse.json({
-    mode: stored ? 'd1' : 'defaults',
-    connected: {
-      landingPage: Boolean(stored),
-      registration: Boolean(stored),
-      crm: false,
-      subscriptions: Boolean(stored),
-      auditPersistence: true,
-    },
-    infrastructure: stored || adminInfrastructureDefaults,
-  })
+export async function GET(request: Request) {
+  const gate = await requireAdmin(request)
+  if (gate.response) return gate.response
+  const { infrastructure, stored } = await getAdminInfrastructure()
+  return NextResponse.json({ mode: stored ? 'd1' : 'defaults', infrastructure })
 }
 
 export async function PATCH(request: Request) {
-  const session = await getServerSession(authOptions)
-  if (!isAdmin(session)) {
-    return NextResponse.json({ error: 'אין הרשאת מנהל מערכת' }, { status: 403 })
-  }
+  const gate = await requireAdmin(request)
+  if (gate.response) return gate.response
 
-  const body = await request.json().catch(() => null)
+  const body = await request.json().catch(() => null) as { infrastructure?: unknown } | null
   const infrastructure = body?.infrastructure
   if (!infrastructure || typeof infrastructure !== 'object') {
     return NextResponse.json({ error: 'מבנה תשתית לא תקין' }, { status: 400 })
   }
-
-  const saved = await setD1AdminSetting(ADMIN_INFRASTRUCTURE_KEY, infrastructure)
-  if (!saved) return NextResponse.json({ error: 'D1 לא זמין לשמירת תשתית הניהול' }, { status: 503 })
-
-  await writeAuditEvent({
-    actorEmail: session?.user?.email,
-    action: 'admin.infrastructure_saved',
-    targetId: ADMIN_INFRASTRUCTURE_KEY,
-  })
-
+  // Only the parts the panel edits are accepted; the rest stays at defaults.
+  const incoming = infrastructure as Partial<typeof adminInfrastructureDefaults>
+  const next = {
+    ...adminInfrastructureDefaults,
+    plans: Array.isArray(incoming.plans) ? incoming.plans : adminInfrastructureDefaults.plans,
+    registration: { ...adminInfrastructureDefaults.registration, ...(incoming.registration || {}) },
+  }
+  const saved = await saveAdminInfrastructure(next)
+  if (!saved) return d1Unavailable()
+  await writeAuditEvent({ actorEmail: gate.admin.email, action: 'admin.infrastructure_saved', metadata: { plans: next.plans.length } })
   return NextResponse.json({ ok: true, mode: 'd1' })
 }
