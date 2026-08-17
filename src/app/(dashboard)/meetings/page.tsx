@@ -11,6 +11,7 @@ import { StatusBadge } from '@/components/ui/StatusBadge'
 import { Sheet } from '@/components/ui/Sheet'
 import { Dialog } from '@/components/ui/Dialog'
 import { useWorkspaceStore } from '@/lib/store/workspaceStore'
+import { describeAnswers } from '@/lib/questionnaires'
 
 type ProviderStatus = {
   id: 'google_calendar' | 'microsoft_outlook' | 'calendly'
@@ -52,35 +53,11 @@ type ClientForm = {
   client_email: string
   status: 'sent' | 'submitted'
   payload_json: string | null
+  questions_json: string | null
   sent_at: string
   submitted_at: string | null
 }
 
-const FIELD_LABELS: Record<string, string> = {
-  fullName: 'שם מלא',
-  phone: 'טלפון',
-  birthYear: 'שנת לידה',
-  maritalStatus: 'מצב משפחתי',
-  employmentStatus: 'סטטוס תעסוקה',
-  employerName: 'מעסיק',
-  monthlyIncome: 'הכנסה חודשית',
-  partnerMonthlyIncome: 'הכנסת בן/בת זוג',
-  monthlyExpenses: 'הוצאות חודשיות',
-  hasPension: 'פנסיה/ביטוח מנהלים',
-  hasStudyFund: 'קרן השתלמות',
-  hasLifeInsurance: 'ביטוח חיים',
-  hasHealthInsurance: 'ביטוח בריאות',
-  retirementAgeGoal: 'גיל פרישה מתוכנן',
-  goals: 'מטרות',
-  notes: 'הערות',
-}
-
-function yesNoLabel(value: string) {
-  if (value === 'yes') return 'כן'
-  if (value === 'no') return 'לא'
-  if (value === 'unknown') return 'לא בטוח/ה'
-  return value
-}
 
 function formatWhen(iso: string) {
   const date = new Date(iso)
@@ -644,10 +621,15 @@ export default function MeetingsPage() {
                         <span style={metaStyle}> · נשלח {formatWhen(form.sent_at)}</span>
                         {form.status === 'submitted' && payload && open && (
                           <dl style={payloadStyle}>
-                            {Object.entries(payload).map(([key, value]) => (
-                              <div key={key} style={{ display: 'flex', gap: 6 }}>
-                                <dt style={{ fontWeight: 700, color: 'var(--text-heading)', flexShrink: 0 }}>{FIELD_LABELS[key] || key}:</dt>
-                                <dd style={{ color: 'var(--text-body)' }}>{key.startsWith('has') ? yesNoLabel(value) : value}</dd>
+                            {describeAnswers(form.questions_json, payload).map((row, index, all) => (
+                              <div key={row.id} style={{ display: 'grid', gap: 2 }}>
+                                {(index === 0 || all[index - 1].section !== row.section) && (
+                                  <span style={{ color: 'var(--text-muted)', fontSize: 11.5, fontWeight: 700, marginTop: index === 0 ? 0 : 6 }}>{row.section}</span>
+                                )}
+                                <div style={{ display: 'flex', gap: 6, minWidth: 0 }}>
+                                  <dt style={{ fontWeight: 700, color: 'var(--text-heading)', flexShrink: 0 }}>{row.label}:</dt>
+                                  <dd style={{ color: 'var(--text-body)', overflowWrap: 'anywhere', whiteSpace: 'pre-wrap' }}>{row.value}</dd>
+                                </div>
                               </div>
                             ))}
                           </dl>

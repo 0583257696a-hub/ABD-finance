@@ -117,3 +117,42 @@ const SPOUSE_MARITAL_VALUES = ['נשוי/אה', 'ידוע/ה בציבור']
 export function isSpouseRelevant(answers: Record<string, string>): boolean {
   return SPOUSE_MARITAL_VALUES.includes(answers.maritalStatus || '')
 }
+
+const YES_NO_LABELS: Record<string, string> = { yes: 'כן', no: 'לא', unknown: 'לא בטוח/ה' }
+
+/** Field ids used by the pre-2026-08 fixed questionnaire (submissions saved without a question snapshot). */
+const LEGACY_FIELD_LABELS: Record<string, string> = {
+  fullName: 'שם מלא', phone: 'טלפון', birthYear: 'שנת לידה', maritalStatus: 'מצב משפחתי', employmentStatus: 'סטטוס תעסוקה',
+  employerName: 'מעסיק', monthlyIncome: 'הכנסה חודשית', partnerMonthlyIncome: 'הכנסת בן/בת זוג', monthlyExpenses: 'הוצאות חודשיות',
+  hasPension: 'פנסיה/ביטוח מנהלים', hasStudyFund: 'קרן השתלמות', hasLifeInsurance: 'ביטוח חיים', hasHealthInsurance: 'ביטוח בריאות',
+  retirementAgeGoal: 'גיל פרישה מתוכנן', goals: 'מטרות', notes: 'הערות',
+}
+
+export type DescribedAnswer = { id: string; section: string; label: string; value: string }
+
+/**
+ * Turns a submitted answers map into display rows using the question
+ * snapshot the form was sent with (falls back to the base questionnaire).
+ * Never shows a raw field id: an answer whose question is unknown gets a
+ * generic label. Yes/no codes are translated. Order = questionnaire order.
+ */
+export function describeAnswers(questionsJson: string | null | undefined, answers: Record<string, string>): DescribedAnswer[] {
+  const snapshot = parseQuestions(questionsJson)
+  const questions = snapshot.length ? snapshot : buildBaseQuestions()
+  const byId = new Map(questions.map(question => [question.id, question]))
+  const rows: DescribedAnswer[] = []
+  for (const question of questions) {
+    const raw = String(answers[question.id] ?? '').trim()
+    if (!raw) continue
+    rows.push({ id: question.id, section: question.section, label: question.label, value: question.type === 'yes-no' ? (YES_NO_LABELS[raw] || raw) : raw })
+  }
+  // Answers whose question isn't in the snapshot: legacy fixed-form ids get
+  // their old labels; anything else gets a generic label — never a raw id.
+  for (const [id, value] of Object.entries(answers)) {
+    const raw = String(value ?? '').trim()
+    if (byId.has(id) || !raw) continue
+    const legacy = LEGACY_FIELD_LABELS[id]
+    rows.push({ id, section: legacy ? 'פרטים מהשאלון' : 'שדות נוספים', label: legacy || 'שדה נוסף', value: id.startsWith('has') ? (YES_NO_LABELS[raw] || raw) : raw })
+  }
+  return rows
+}
