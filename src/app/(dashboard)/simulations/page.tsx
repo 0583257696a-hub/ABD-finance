@@ -109,6 +109,17 @@ const phoenixScenarioRows = [
   { label: '100%', spousePercent: 1 },
 ]
 const phoenixGuaranteeOptions = [0, 60, 120, 180, 240]
+
+/**
+ * Column heading for the scenario tables. Phoenix caps the guarantee at age
+ * 87 (max = (87 − age) × 12, at most 240), so for a member above ~67 the
+ * "240" scenario is really computed at the cap. Say so in the header
+ * instead of showing a 234-month factor under a 240-month label.
+ */
+function guaranteeColumnLabel(option: number, maxGuarantee?: number) {
+  if (maxGuarantee == null || option <= maxGuarantee) return `${option} חודשים`
+  return `${option} → ${Math.floor(maxGuarantee)} חודשים (מקסימום לגיל)`
+}
 const PHOENIX_INPUTS_KEY = 'abd_next_phoenix_inputs'
 const PHOENIX_SELECTION_KEY = 'abd_next_phoenix_selected_parts'
 
@@ -920,7 +931,7 @@ function PhoenixView({ funds }: { funds: Fund[] }) {
             <thead>
               <tr>
                 <th style={thStyle}>אחוז בן/בת זוג</th>
-                {phoenixGuaranteeOptions.map(option => <th key={option} style={String(option) === inputs.guaranteeMonths ? activeThStyle : thStyle}>{option} חודשים</th>)}
+                {phoenixGuaranteeOptions.map(option => <th key={option} style={String(option) === inputs.guaranteeMonths ? activeThStyle : thStyle}>{guaranteeColumnLabel(option, model?.maxGuarantee)}</th>)}
               </tr>
             </thead>
             <tbody>
@@ -953,7 +964,7 @@ function PhoenixView({ funds }: { funds: Fund[] }) {
             <thead>
               <tr>
                 <th style={thStyle}>אחוז בן/בת זוג</th>
-                {phoenixGuaranteeOptions.map(option => <th key={option} style={String(option) === inputs.guaranteeMonths ? activeThStyle : thStyle}>{option} חודשים</th>)}
+                {phoenixGuaranteeOptions.map(option => <th key={option} style={String(option) === inputs.guaranteeMonths ? activeThStyle : thStyle}>{guaranteeColumnLabel(option, model?.maxGuarantee)}</th>)}
               </tr>
             </thead>
             <tbody>
