@@ -66,7 +66,7 @@ export function Sheet({
   return (
     <div
       onClick={onClose}
-      style={{ position: 'fixed', inset: 0, zIndex: 1100, background: 'rgba(15,25,41,0.28)', backdropFilter: 'blur(2px)', animation: 'ui-fade-in var(--duration-fast) var(--easing-standard) both', ...overlayLayout[placement] }}
+      style={{ position: 'fixed', inset: 0, zIndex: 1100, overflow: 'hidden', background: 'rgba(15,25,41,0.28)', backdropFilter: 'blur(2px)', animation: 'ui-fade-in var(--duration-fast) var(--easing-standard) both', ...overlayLayout[placement] }}
     >
       <style>{`
         @keyframes ui-fade-in { from { opacity: 0 } to { opacity: 1 } }
