@@ -7,10 +7,29 @@ import { IconButton } from './Button'
 
 type SheetPlacement = 'side' | 'bottom' | 'center'
 
+/**
+ * Panel geometry per placement. Deliberately NO transform-based positioning:
+ * the entrance keyframes animate `transform`, and with animation-fill-mode
+ * "both" the keyframe's final transform overrides any static transform used
+ * for layout — that's exactly how the centered sheet was ending up shoved
+ * off-screen. Centering is done by the overlay's flex layout instead, so the
+ * panel's own transform is free for the animation.
+ *
+ * `side` uses inset-inline-start (RTL-aware) so the panel slides in from the
+ * start edge — the same side as the sidebar in this RTL app — not hard-coded
+ * `left: 0`, which put it on the wrong side.
+ */
 const placementStyle: Record<SheetPlacement, React.CSSProperties> = {
-  side: { position: 'fixed', top: 0, bottom: 0, left: 0, width: 'min(560px, 100vw)', borderRadius: 0, animationName: 'ui-sheet-in-side' },
-  bottom: { position: 'fixed', left: 0, right: 0, bottom: 0, maxHeight: '86vh', borderRadius: 'var(--radius-xl) var(--radius-xl) 0 0', animationName: 'ui-sheet-in-bottom' },
-  center: { position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: 'min(720px, calc(100vw - 32px))', maxHeight: '90vh', borderRadius: 'var(--radius-xl)', animationName: 'ui-sheet-in-center' },
+  side: { height: '100%', width: 'min(560px, 100vw)', borderRadius: 0, animationName: 'ui-sheet-in-side' },
+  bottom: { width: '100%', maxHeight: '86vh', borderRadius: 'var(--radius-xl) var(--radius-xl) 0 0', animationName: 'ui-sheet-in-bottom' },
+  center: { width: 'min(720px, calc(100vw - 32px))', maxHeight: '90vh', borderRadius: 'var(--radius-xl)', animationName: 'ui-sheet-in-center' },
+}
+
+/** How the overlay lays out the panel for each placement. */
+const overlayLayout: Record<SheetPlacement, React.CSSProperties> = {
+  side: { display: 'flex', justifyContent: 'flex-start', alignItems: 'stretch' },
+  bottom: { display: 'flex', justifyContent: 'center', alignItems: 'flex-end' },
+  center: { display: 'flex', justifyContent: 'center', alignItems: 'center', padding: 16 },
 }
 
 export function Sheet({
@@ -47,14 +66,16 @@ export function Sheet({
   return (
     <div
       onClick={onClose}
-      style={{ position: 'fixed', inset: 0, zIndex: 1100, background: 'rgba(15,25,41,0.28)', backdropFilter: 'blur(2px)', animation: 'ui-fade-in var(--duration-fast) var(--easing-standard) both' }}
+      style={{ position: 'fixed', inset: 0, zIndex: 1100, background: 'rgba(15,25,41,0.28)', backdropFilter: 'blur(2px)', animation: 'ui-fade-in var(--duration-fast) var(--easing-standard) both', ...overlayLayout[placement] }}
     >
       <style>{`
         @keyframes ui-fade-in { from { opacity: 0 } to { opacity: 1 } }
-        @keyframes ui-sheet-in-side { from { opacity: 0; transform: translateX(-16px) } to { opacity: 1; transform: translateX(0) } }
+        @keyframes ui-sheet-in-side { from { opacity: 0; transform: translateX(16px) } to { opacity: 1; transform: translateX(0) } }
         @keyframes ui-sheet-in-bottom { from { opacity: 0; transform: translateY(24px) } to { opacity: 1; transform: translateY(0) } }
-        @keyframes ui-sheet-in-center { from { opacity: 0; transform: translate(-50%, -46%) scale(.98) } to { opacity: 1; transform: translate(-50%, -50%) scale(1) } }
+        @keyframes ui-sheet-in-center { from { opacity: 0; transform: translateY(8px) scale(.98) } to { opacity: 1; transform: none } }
         @media (prefers-reduced-motion: reduce) { [data-ui-sheet] { animation: none !important; } }
+        /* The global body[data-animations] hover rule adds translateY(-1px) to every button/a — harmless on buttons, but a transform on the panel itself would nudge it; pin the panel. */
+        [data-ui-sheet]:hover { transform: none; }
       `}</style>
       <div
         data-ui-sheet

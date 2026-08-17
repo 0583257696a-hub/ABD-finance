@@ -94,8 +94,17 @@ body[data-animations="on"] main {
   animation: abd-screen-settle .28s cubic-bezier(.2, .72, .22, 1) both;
 }
 
+/*
+ * Panel-rise on content sections/asides. Explicitly EXCLUDES the fixed
+ * app sidebar (aside[data-app-sidebar]) and any modal panel: with
+ * fill-mode "both" the keyframe leaves a permanent `transform` on the
+ * element, and a transform on a position:fixed ancestor creates a new
+ * containing block — which corrupts the positioning of fixed/overlay
+ * children and was the cause of sheets rendering clipped/off-screen and
+ * the sidebar disappearing behind overlays.
+ */
 body[data-animations="on"] section,
-body[data-animations="on"] aside {
+body[data-animations="on"] aside:not([data-app-sidebar]):not([data-ui-sheet]) {
   animation: abd-panel-rise .24s cubic-bezier(.2, .72, .22, 1) both;
 }
 

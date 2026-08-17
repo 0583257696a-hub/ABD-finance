@@ -76,7 +76,7 @@ export default function Sidebar() {
   }
 
   return (
-    <aside style={{ ...sidebarStyle, width: collapsed ? 76 : 212 }}>
+    <aside data-app-sidebar style={{ ...sidebarStyle, width: collapsed ? 76 : 212 }}>
       <div style={{ ...topRowStyle, justifyContent: collapsed ? 'center' : 'space-between' }}>
         <div style={logoWrapStyle}>
           <img src={branding?.logoData || '/assets/abd-finance-logo.png'} alt={branding?.companyName || 'ABD Finance'} style={logoStyle} />
