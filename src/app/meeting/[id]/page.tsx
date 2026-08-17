@@ -9,6 +9,7 @@ import {
   Home,
   Lightbulb,
   LineChart,
+  LogOut,
   Mic,
   Radar,
   Settings,
@@ -188,6 +189,9 @@ export default function MeetingWorkspacePage({ params }: { params: Promise<{ id:
           </Button>
           <Button variant="primary" size="sm" disabled={ending} onClick={() => void endMeeting()}>
             <Square size={13} style={{ marginLeft: 6 }} /> {ending ? 'מסיים…' : 'סיים פגישה'}
+          </Button>
+          <Button variant="ghost" size="sm" title="התנתק מהמערכת" onClick={() => { window.location.href = '/api/auth/logout' }}>
+            <LogOut size={14} style={{ marginLeft: 6 }} /> התנתק
           </Button>
         </div>
       </header>

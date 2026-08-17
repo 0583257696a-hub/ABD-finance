@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { Suspense } from 'react'
 import { authOptions } from '@/lib/auth'
 import Sidebar from '@/components/layout/Sidebar'
+import LogoutButton from '@/components/layout/LogoutButton'
 
 export default async function DashboardLayout({
   children,
@@ -18,6 +19,7 @@ export default async function DashboardLayout({
       <Suspense fallback={null}>
         <Sidebar />
       </Suspense>
+      <LogoutButton />
       <main
         style={{
           minHeight: '100vh',
