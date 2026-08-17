@@ -30,6 +30,7 @@ import {
   type MonthlyRow,
   type TaxType,
 } from '@/lib/compound-calculator'
+import { phoenixAgeAt, phoenixConversionFactor, phoenixMaxGuaranteeMonths, PHOENIX_REGULATIONS_EDITION } from '@/lib/phoenix/factor-engine'
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Filler, Tooltip, ChartLegend)
 
@@ -196,96 +197,33 @@ function parsePhoenixDate(value: string) {
   return Number.isNaN(date.getTime()) ? null : date
 }
 
-function firstOfNextBirthMonth(date: Date) {
-  return new Date(date.getFullYear(), date.getMonth() + 1, 1)
-}
-
-function exactAgeOn(calcDate: Date, birthDate: Date | null) {
-  if (!calcDate || !birthDate) return null
-  const ageCalcDate = firstOfNextBirthMonth(birthDate)
-  const months = (calcDate.getFullYear() - ageCalcDate.getFullYear()) * 12 +
-    (calcDate.getMonth() - ageCalcDate.getMonth())
-  return months / 12
-}
-
-function annualMortality(age: number, gender: PhoenixGender, role: 'pensioner' | 'spouse' | 'widow') {
-  const safeAge = Math.max(18, age)
-  const genderOffset = gender === 'male' ? 0.0012 : -0.0005
-  const roleOffset = role === 'widow' ? 0.0015 : role === 'spouse' ? -0.0002 : 0
-  const baseline = 0.0048 + Math.exp((safeAge - 74) / 11.4) * 0.0036
-  return Math.min(0.34, Math.max(0.0015, baseline + genderOffset + roleOffset))
-}
-
-function mortalityImprovement(age: number, calcYear: number) {
-  const yearsForward = Math.max(0, calcYear - 2025)
-  const ageImpact = Math.max(0.94, 1 - Math.max(0, age - 67) * 0.0012)
-  return Math.max(0.88, Math.pow(0.9975, yearsForward) * ageImpact)
-}
-
-function monthlyMortality(age: number, gender: PhoenixGender, role: 'pensioner' | 'spouse' | 'widow', calcYear: number) {
-  const annual = annualMortality(age, gender, role)
-  const monthly = 1 - Math.pow(1 - annual, 1 / 12)
-  return Math.min(0.35, monthly * mortalityImprovement(age, calcYear))
-}
-
+/**
+ * Conversion factor for one (guarantee, survivor-rate) scenario, via the
+ * exact Phoenix engine (src/lib/phoenix/factor-engine.ts). Returns the
+ * factor WITHOUT retro months — the caller adds those (retro is added to the
+ * factor linearly, per Phoenix's spec, not to the pension).
+ *
+ * The previous in-file engine used a hand-fitted mortality curve and an
+ * invented improvement decay; measured against Phoenix's own simulator it
+ * overstated the factor by ~20-24% in every scenario (understating the
+ * client's monthly pension by ~20%). It was replaced, not tuned — see the
+ * engine file header and scripts/check-phoenix-factor.ts.
+ *
+ * Throws PhoenixEngineError for retirement age < 55 (Phoenix's own tables
+ * start there); the caller surfaces that as a validation message.
+ */
 function computePhoenixScenario(model: NonNullable<PhoenixModel>, guaranteeMonths: number, spousePercent: number) {
-  const monthlyDiscount = Math.pow(1 + model.netAnnualRate, -1 / 12)
-  let pensionerSurvival = 1
-  let spouseAliveSurvival = 1
-  let widowSurvival = 1
-  let newWidowProbability = 0
-  let factor = 0
-  let prevPensionerQ = 0
-  let prevWidowQ = 0
-  let prevPensionerSurvival = 1
-
-  for (let month = 1; month <= 1500; month += 1) {
-    const memberAge = model.memberExactAge + (month - 1) / 12
-    const spouseAge = (model.spouseExactAge || 0) + (month - 1) / 12
-    const pensionerPay = month <= guaranteeMonths && memberAge < model.maxGuaranteeAge
-      ? 1
-      : pensionerSurvival
-
-    if (month > 1) {
-      newWidowProbability = (newWidowProbability * (1 - prevWidowQ)) +
-        (prevPensionerQ * prevPensionerSurvival * spouseAliveSurvival * spousePercent)
-    }
-
-    const widowPay = month <= 1 || spouseAge >= model.maxAge
-      ? 0
-      : (month <= guaranteeMonths && memberAge < model.maxGuaranteeAge ? 0 : newWidowProbability)
-
-    factor += (pensionerPay + widowPay) * Math.pow(monthlyDiscount, month)
-
-    const pensionerQ = memberAge >= model.maxAge
-      ? 1
-      : monthlyMortality(memberAge, model.gender, 'pensioner', model.calcYear)
-    const spouseQ = model.isMarried && spouseAge < model.maxAge
-      ? monthlyMortality(spouseAge, model.spouseGender, 'spouse', model.calcYear)
-      : 1
-    const widowQ = model.isMarried && spouseAge < model.maxAge
-      ? monthlyMortality(spouseAge, model.spouseGender, 'widow', model.calcYear)
-      : 1
-
-    prevPensionerQ = pensionerQ
-    prevWidowQ = widowQ
-    prevPensionerSurvival = pensionerSurvival
-    pensionerSurvival = memberAge >= model.maxAge ? 0 : pensionerSurvival * (1 - pensionerQ)
-    spouseAliveSurvival = spouseAge >= model.maxAge ? 0 : spouseAliveSurvival * (1 - spouseQ)
-    widowSurvival = spouseAge >= model.maxAge ? 0 : widowSurvival * (1 - widowQ)
-
-    if (
-      month > guaranteeMonths &&
-      pensionerSurvival < 0.000001 &&
-      spouseAliveSurvival < 0.000001 &&
-      widowSurvival < 0.000001 &&
-      newWidowProbability < 0.000001
-    ) {
-      break
-    }
-  }
-
-  return factor
+  return phoenixConversionFactor({
+    birthPensioner: model.memberBirth,
+    birthSpouse: model.isMarried ? model.spouseBirth : null,
+    isMale: model.gender === 'male',
+    retirementYear: model.calcDate.getFullYear(),
+    retirementMonth: model.calcDate.getMonth() + 1,
+    guaranteeMonths,
+    spouseRate: model.isMarried ? spousePercent : 0,
+    fund: model.fund,
+    retroMonths: 0,
+  }).factor
 }
 
 function buildPhoenixModel(inputs: PhoenixInputs) {
@@ -293,22 +231,31 @@ function buildPhoenixModel(inputs: PhoenixInputs) {
   const memberBirth = parsePhoenixDate(inputs.memberBirth)
   const spouseBirth = parsePhoenixDate(inputs.spouseBirth)
   const isMarried = inputs.maritalStatus === 'married'
-  const memberExactAge = exactAgeOn(calcDate, memberBirth)
-  const spouseExactAge = isMarried && spouseBirth ? exactAgeOn(calcDate, spouseBirth) : null
-  if (memberExactAge == null || Number.isNaN(memberExactAge)) return null
-  if (isMarried && (spouseExactAge == null || Number.isNaN(spouseExactAge))) return null
+  if (!memberBirth) return null
+  if (isMarried && !spouseBirth) return null
 
-  const maxGuaranteeRaw = Math.max(0, Math.floor((87 - memberExactAge) * 12))
-  const maxGuarantee = Math.min(240, maxGuaranteeRaw)
+  // Age per Phoenix's convention: 1st of the month FOLLOWING the birth month.
+  const memberExactAge = phoenixAgeAt(memberBirth, calcDate)
+  const spouseExactAge = isMarried && spouseBirth ? phoenixAgeAt(spouseBirth, calcDate) : null
+  if (Number.isNaN(memberExactAge)) return null
+
+  const maxGuarantee = phoenixMaxGuaranteeMonths(memberExactAge)
   const guaranteeInput = Math.max(0, Number(inputs.guaranteeMonths) || 0)
   const effectiveGuarantee = Math.min(guaranteeInput, maxGuarantee)
+  // Displayed for transparency. NOTE: the engine derives net interest from
+  // the fund type + Phoenix's regulated 0.3% fee (rounded to 4 dp, per the
+  // regulations) — the user-editable feeRate field is no longer an input to
+  // the factor. It stays in the form for backwards compatibility of saved
+  // inputs but is informational only.
   const grossRate = inputs.fund === 'comprehensive' ? 0.0438 : 0.04
-  const feeRate = Math.max(0, Number(inputs.feeRate) || 0)
-  const netAnnualRate = round4((1 + grossRate) * (1 - feeRate) - 1)
+  const netAnnualRate = round4((1 + grossRate) * (1 - 0.003) - 1)
 
   return {
     calcDate,
     calcYear: calcDate.getFullYear(),
+    fund: inputs.fund,
+    memberBirth,
+    spouseBirth,
     gender: inputs.memberGender,
     spouseGender: inputs.memberGender === 'male' ? 'female' as const : 'male' as const,
     isMarried,
@@ -326,12 +273,16 @@ function buildPhoenixModel(inputs: PhoenixInputs) {
     accumulation: Math.max(0, Number(inputs.accumulation) || 0),
     netAnnualRate,
     maxAge: 119,
+    /** Retirement below 55 is outside Phoenix's tables — the engine throws. */
+    belowMinimumAge: memberExactAge < 55,
   }
 }
 
 function calculatePhoenix(inputs: PhoenixInputs) {
   const model = buildPhoenixModel(inputs)
-  if (!model || model.netAnnualRate <= -0.99) return { model, result: null, coefficientRows: [], pensionRows: [] }
+  // Below 55 the engine throws (Phoenix's reduction table starts at 55) —
+  // surface as "no result" and let the UI explain, rather than crashing.
+  if (!model || model.belowMinimumAge) return { model, result: null, coefficientRows: [], pensionRows: [] }
   const baseCoefficient = computePhoenixScenario(model, model.effectiveGuarantee, model.spousePercent)
   const coefficient = baseCoefficient + model.retroMonths
   const monthlyPension = coefficient > 0 ? model.accumulation / coefficient : 0
@@ -938,9 +889,14 @@ function PhoenixView({ funds }: { funds: Fund[] }) {
             <Field label="חודשי הבטחה" suffix="" value={inputs.guaranteeMonths} onChange={value => update('guaranteeMonths', value)} />
             <Field label="חודשי רטרו" suffix="" value={inputs.retroMonths} onChange={value => update('retroMonths', value)} />
             <Field label="צבירה" suffix="₪" value={inputs.accumulation} onChange={value => update('accumulation', value)} />
-            <Field label="דמי ניהול" suffix="" value={inputs.feeRate} onChange={value => update('feeRate', value)} />
           </div>
-          {!result && <div style={warningStyle}>נתוני חישוב חסרים.</div>}
+          {model?.belowMinimumAge && (
+            <div style={warningStyle}>גיל פרישה נמוך מ-55 — לוחות התקנון של הפניקס מתחילים בגיל 55, ולא ניתן לחשב מקדם מתחתיו.</div>
+          )}
+          {!model && <div style={warningStyle}>נתוני חישוב חסרים.</div>}
+          <p style={{ marginTop: 10, color: 'var(--text-muted)', fontSize: 12.5, lineHeight: 1.6 }}>
+            החישוב לפי תקנון הפניקס מהדורת {PHOENIX_REGULATIONS_EDITION} — לוחות תמותה פ1–פ5 ולוחות שיפורי תמותה (חוזר 2024-9-8), ריבית תקנונית ודמי ניהול 0.3% הכלולים בשיעור ההיוון. המקדם המחייב הוא זה שבהצעת הגוף המנהל.
+          </p>
         </div>
 
         <div style={cardStyle}>
