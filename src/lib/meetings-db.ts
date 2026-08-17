@@ -355,6 +355,21 @@ export async function listClientForms(userEmail: string): Promise<ClientFormReco
   return result?.results || []
 }
 
+/**
+ * Deletes a sent-but-unfilled questionnaire. Deleting the row is what
+ * revokes the client's link: the public token lookup 404s afterwards, so
+ * the form can no longer be opened or submitted. Deliberately only allowed
+ * while status='sent' — a submitted questionnaire is client data the
+ * advisor may still need and stays.
+ */
+export async function deleteUnsubmittedClientForm(userEmail: string, token: string): Promise<boolean> {
+  const db = await getDb()
+  if (!db) return false
+  await db.prepare("DELETE FROM client_forms WHERE token = ? AND user_email = ? AND status = 'sent'").bind(token, userEmail).run()
+  const remaining = await db.prepare('SELECT token FROM client_forms WHERE token = ?').bind(token).first<{ token: string }>()
+  return !remaining
+}
+
 /** Latest submitted questionnaire for a given client email — used to auto-load client data into a starting meeting. */
 export async function findLatestSubmittedForm(userEmail: string, clientEmail: string): Promise<ClientFormRecord | null> {
   const db = await getDb()

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import type { ReactNode } from 'react'
 import { X } from 'lucide-react'
 import { IconButton } from './Button'
@@ -55,17 +55,36 @@ export function Sheet({
   useEffect(() => {
     if (!open) return
     function onKey(event: KeyboardEvent) {
-      if (event.key === 'Escape') onClose()
+      if (event.key !== 'Escape') return
+      // Escape while typing in a field inside the sheet just blurs the field
+      // (native behaviour); it must not discard the whole sheet's contents.
+      const target = event.target as HTMLElement | null
+      if (target && /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName)) {
+        target.blur()
+        return
+      }
+      onClose()
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
   }, [open, onClose])
 
+  // Backdrop close must only fire for a click that STARTED on the backdrop.
+  // A `click` event is dispatched on whatever element receives mouseup, so
+  // drag-selecting text inside an input (mousedown inside the panel, mouseup
+  // out on the backdrop) would otherwise register as a backdrop click and
+  // silently close the sheet, losing everything typed.
+  const pressStartedOnBackdrop = useRef(false)
+
   if (!open) return null
 
   return (
     <div
-      onClick={onClose}
+      onMouseDown={event => { pressStartedOnBackdrop.current = event.target === event.currentTarget }}
+      onClick={event => {
+        if (event.target === event.currentTarget && pressStartedOnBackdrop.current) onClose()
+        pressStartedOnBackdrop.current = false
+      }}
       style={{ position: 'fixed', inset: 0, zIndex: 1100, overflow: 'hidden', background: 'rgba(15,25,41,0.28)', backdropFilter: 'blur(2px)', animation: 'ui-fade-in var(--duration-fast) var(--easing-standard) both', ...overlayLayout[placement] }}
     >
       <style>{`

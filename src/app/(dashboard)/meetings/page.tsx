@@ -9,6 +9,7 @@ import { Surface } from '@/components/ui/Surface'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { Sheet } from '@/components/ui/Sheet'
+import { Dialog } from '@/components/ui/Dialog'
 import { useWorkspaceStore } from '@/lib/store/workspaceStore'
 
 type ProviderStatus = {
@@ -382,6 +383,27 @@ export default function MeetingsPage() {
     await refresh()
   }
 
+  const [formToDelete, setFormToDelete] = useState<ClientForm | null>(null)
+
+  async function deleteForm() {
+    if (!formToDelete) return
+    setBusy(true)
+    try {
+      const response = await fetch('/api/client-forms', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'delete', token: formToDelete.token }),
+      })
+      setStatus(response.ok
+        ? `השאלון של ${formToDelete.client_name || formToDelete.client_email} נמחק — הקישור שנשלח ללקוח בוטל.`
+        : 'המחיקה נכשלה — ייתכן שהלקוח כבר מילא את השאלון.')
+      setFormToDelete(null)
+      await refresh()
+    } finally {
+      setBusy(false)
+    }
+  }
+
   // "שלח שאלון הכנה" first opens a template picker; the actual send carries
   // the chosen template id so the form snapshots those questions.
   const [templatePicker, setTemplatePicker] = useState<{ name: string; email: string } | null>(null)
@@ -633,6 +655,11 @@ export default function MeetingsPage() {
                       </div>
                       <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}>
                         <StatusBadge tone={form.status === 'submitted' ? 'success' : 'warning'} label={form.status === 'submitted' ? 'מולא' : 'ממתין'} />
+                        {form.status === 'sent' && (
+                          <Button size="sm" variant="ghost" disabled={busy} onClick={() => setFormToDelete(form)} title="מחיקת השאלון — הקישור שנשלח ללקוח יבוטל">
+                            מחק
+                          </Button>
+                        )}
                         {form.status === 'submitted' && (
                           <>
                             <Button size="sm" variant="ghost" onClick={() => setOpenFormToken(open ? '' : form.token)}>{open ? 'סגור' : 'צפה'}</Button>
@@ -652,6 +679,16 @@ export default function MeetingsPage() {
           </Surface>
         </div>
       </section>
+
+      <Dialog
+        open={Boolean(formToDelete)}
+        title="למחוק את השאלון?"
+        description={`הקישור שנשלח אל ${formToDelete?.client_name || formToDelete?.client_email || 'הלקוח'} יבוטל והלקוח לא יוכל למלא את השאלון. ניתן לשלוח שאלון חדש בכל עת.`}
+        confirmLabel="מחק ובטל קישור"
+        destructive
+        onConfirm={() => void deleteForm()}
+        onCancel={() => setFormToDelete(null)}
+      />
 
       {templatePicker && (
         <Sheet

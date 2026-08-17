@@ -2,7 +2,7 @@ import { getServerSession } from 'next-auth'
 import { NextResponse } from 'next/server'
 import { authOptions } from '@/lib/auth'
 import { requireSameOrigin, sanitizeText } from '@/lib/security'
-import { createClientForm, getQuestionnaireTemplate, listClientForms } from '@/lib/meetings-db'
+import { createClientForm, deleteUnsubmittedClientForm, getQuestionnaireTemplate, listClientForms } from '@/lib/meetings-db'
 import { buildBaseQuestions } from '@/lib/questionnaires'
 import { sendSystemEmail } from '@/lib/system-mail'
 
@@ -23,7 +23,17 @@ export async function POST(request: Request) {
   const session = await getServerSession(authOptions)
   if (!session?.user?.email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const body = await request.json().catch(() => ({})) as { clientName?: string; clientEmail?: string; templateId?: string }
+  const body = await request.json().catch(() => ({})) as { action?: 'delete'; token?: string; clientName?: string; clientEmail?: string; templateId?: string }
+
+  // Revoke a sent-but-unfilled questionnaire: deleting the row makes the
+  // client's link 404 from now on.
+  if (body.action === 'delete') {
+    const token = sanitizeText(body.token, 64)
+    if (!/^[a-f0-9]{32}$/.test(token)) return NextResponse.json({ error: 'Bad request' }, { status: 400 })
+    const deleted = await deleteUnsubmittedClientForm(session.user.email, token)
+    return NextResponse.json({ ok: deleted }, { status: deleted ? 200 : 409 })
+  }
+
   const clientName = sanitizeText(body.clientName, 160) || ''
   const clientEmail = sanitizeText(body.clientEmail, 200) || ''
   if (!clientEmail.includes('@')) return NextResponse.json({ error: 'invalid-email' }, { status: 400 })

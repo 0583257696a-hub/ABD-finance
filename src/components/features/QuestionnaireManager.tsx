@@ -78,19 +78,37 @@ export default function QuestionnaireManager() {
   }
 
   function openEditor(template: TemplateRow) {
+    setNotice('')
     setEditing(template)
     setEditName(template.name)
     setEditQuestions(parseQuestions(template.questions_json))
   }
 
   async function saveEditor() {
-    if (!editing || !editName.trim() || !editQuestions.length) return
+    if (!editing || !editName.trim()) return
+    // A freshly added question starts with an empty label. The server rejects
+    // the WHOLE template if any question has a blank label — so rather than
+    // failing the entire save over one unfinished row, drop blank-label
+    // questions here (a question with no text is meaningless anyway) and
+    // trim option lists. Only genuinely-empty templates are refused.
+    const cleaned = editQuestions
+      .map(question => ({ ...question, label: question.label.trim(), options: question.options?.map(option => option.trim()).filter(Boolean) }))
+      .filter(question => question.label.length > 0)
+    if (!cleaned.length) {
+      setNotice('לא ניתן לשמור שאלון ללא שאלות — הוסף לפחות שאלה אחת עם נוסח.')
+      return
+    }
+    const invalidChoice = cleaned.find(question => (question.type === 'select' || question.type === 'multiple-choice') && (question.options?.length || 0) < 2)
+    if (invalidChoice) {
+      setNotice(`השאלה "${invalidChoice.label}" היא שאלת בחירה וצריכה לפחות 2 אפשרויות.`)
+      return
+    }
     setBusy(true)
     try {
       const response = await fetch('/api/questionnaires', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'update', id: editing.id, name: editName.trim(), questions: editQuestions }),
+        body: JSON.stringify({ action: 'update', id: editing.id, name: editName.trim(), questions: cleaned }),
       })
       if (response.ok) {
         setEditing(null)
@@ -188,9 +206,12 @@ export default function QuestionnaireManager() {
           width="min(880px, 96vw)"
           title="עריכת שאלון"
           footer={
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-start' }}>
-              <Button variant="primary" disabled={busy} onClick={() => void saveEditor()}>שמור שאלון</Button>
-              <Button variant="ghost" disabled={busy} onClick={() => setEditing(null)}>ביטול</Button>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {notice && <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: notice.includes('נשמר') ? 'var(--success-text, #065F46)' : 'var(--destructive-text, #991B1B)' }}>{notice}</p>}
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-start' }}>
+                <Button variant="primary" disabled={busy} onClick={() => void saveEditor()}>{busy ? 'שומר…' : 'שמור שאלון'}</Button>
+                <Button variant="ghost" disabled={busy} onClick={() => setEditing(null)}>ביטול</Button>
+              </div>
             </div>
           }
         >

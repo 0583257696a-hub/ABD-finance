@@ -100,7 +100,7 @@ export default function ClientFormPage({ params }: { params: Promise<{ token: st
         </header>
 
         {state === 'loading' && <p style={mutedStyle}>טוען…</p>}
-        {state === 'invalid' && <p style={mutedStyle}>הקישור אינו תקין או שפג תוקפו. פנה ליועץ לקבלת קישור חדש.</p>}
+        {state === 'invalid' && <p style={mutedStyle}>הקישור אינו תקין, פג תוקפו או בוטל על ידי היועץ. פנה ליועץ לקבלת קישור חדש.</p>}
         {state === 'already' && <p style={mutedStyle}>השאלון כבר נשלח — תודה! נתראה בפגישה.</p>}
         {state === 'done' && (
           <div style={{ textAlign: 'center', padding: '24px 0' }}>
