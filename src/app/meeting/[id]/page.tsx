@@ -240,6 +240,10 @@ export default function MeetingWorkspacePage({ params }: { params: Promise<{ id:
               <InfoRow label="מקור" value={sourceLabel(meeting.source)} />
               <InfoRow label="התחלה" value={meeting.started_at ? new Date(meeting.started_at).toLocaleString('he-IL') : '-'} />
               <InfoRow label="AI" value="זמין בטאב הסיכום (כפתור 'טיוטת AI')" />
+              <p style={{ marginTop: 14, color: 'var(--text-muted)', fontSize: 13, lineHeight: 1.7 }}>
+                יש לך בעיה? פנה למרכז התמיכה של ABD Finance:{' '}
+                <a href="mailto:support@abd-finance.co.il" style={{ color: 'var(--abd-accent)', fontWeight: 700, textDecoration: 'none' }}>support@abd-finance.co.il</a>
+              </p>
             </div>
           )}
         </main>

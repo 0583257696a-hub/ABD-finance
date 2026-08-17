@@ -8,6 +8,7 @@ import {
   ChevronsLeft,
   ChevronsRight,
   FileText,
+  LifeBuoy,
   LogOut,
   Settings,
   ShieldCheck,
@@ -146,6 +147,14 @@ export default function Sidebar() {
             {!collapsed && <span>ניהול מערכת</span>}
           </Link>
         )}
+        <a
+          href="mailto:support@abd-finance.co.il"
+          title="יש לך בעיה? פנה למרכז התמיכה של ABD Finance — support@abd-finance.co.il"
+          style={{ ...navItemStyle, ...supportItemStyle, justifyContent: collapsed ? 'center' : 'flex-start' }}
+        >
+          <LifeBuoy size={16} />
+          {!collapsed && <span>תמיכה</span>}
+        </a>
       </div>
     </aside>
   )
@@ -262,6 +271,12 @@ const bottomStyle: React.CSSProperties = {
   gap: 2,
   paddingTop: 10,
   borderTop: '1px solid var(--separator)',
+}
+
+const supportItemStyle: React.CSSProperties = {
+  color: 'var(--text-muted)',
+  fontSize: 12.5,
+  minHeight: 34,
 }
 
 const logoutItemStyle: React.CSSProperties = {

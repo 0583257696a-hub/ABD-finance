@@ -138,6 +138,11 @@ function LoginPageInner() {
               שכחתי סיסמה
             </Link>
           </form>
+
+          <p style={supportNoteStyle}>
+            יש לך בעיה? פנה למרכז התמיכה של ABD Finance:{' '}
+            <a href="mailto:support@abd-finance.co.il" style={supportLinkStyle}>support@abd-finance.co.il</a>
+          </p>
         </section>
       </section>
     </main>
@@ -206,6 +211,8 @@ const primaryButtonStyle: React.CSSProperties = { minHeight: 50, display: 'inlin
 const registerButtonStyle: React.CSSProperties = { minHeight: 48, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #CFE6FA', borderRadius: 14, background: '#FFFFFF', color: 'var(--abd-primary)', fontFamily: 'var(--font-main)', fontWeight: 900, cursor: 'pointer', textDecoration: 'none' }
 const forgotPasswordStyle: React.CSSProperties = { textAlign: 'center', color: 'var(--text-muted)', fontFamily: 'var(--font-main)', fontWeight: 800, textDecoration: 'none' }
 const errorStyle: React.CSSProperties = { borderRadius: 12, padding: 10, background: 'var(--status-danger-bg)', color: 'var(--status-danger-text)', textAlign: 'center', fontWeight: 800 }
+const supportNoteStyle: React.CSSProperties = { marginTop: 22, paddingTop: 16, borderTop: '1px solid #D7EAFB', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13, lineHeight: 1.7 }
+const supportLinkStyle: React.CSSProperties = { color: 'var(--abd-accent)', fontWeight: 800, textDecoration: 'none', direction: 'ltr', unicodeBidi: 'embed' }
 const dividerStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 12 }
 const dividerLineStyle: React.CSSProperties = { flex: 1, height: 1, background: '#D7EAFB' }
 const googleButtonStyle: React.CSSProperties = { minHeight: 50, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 10, border: '1px solid #CFE6FA', borderRadius: 14, background: '#FFFFFF', color: 'var(--text-heading)', fontFamily: 'var(--font-main)', fontSize: 15, fontWeight: 800, cursor: 'pointer' }
