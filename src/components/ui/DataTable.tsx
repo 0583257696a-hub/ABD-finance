@@ -139,13 +139,25 @@ export function DataTable<T>({
 
   const hasLeadingColumn = renderLeadingCell != null
 
+  // Widths are kept in pixels (for resize/persistence) but RENDERED as
+  // percentages of their sum, so the table always fills exactly the
+  // container — never wider (no horizontal scrolling to finish reading a
+  // row) and never narrower. Cell text wraps onto extra lines when a
+  // column is too narrow for its content instead of being cut with "…".
+  const leadingWidth = hasLeadingColumn ? (leadingColumnWidth ?? 44) : 0
+  const totalWidth = orderedColumns.reduce((sum, column) => sum + (columnWidths[column.key] ?? column.width), 0)
+  // Leading (checkbox) column is fixed px; the rest share what remains.
+  const percent = (px: number) => leadingWidth
+    ? `calc((100% - ${leadingWidth}px) * ${px / Math.max(totalWidth, 1)})`
+    : `${(px / Math.max(totalWidth, 1)) * 100}%`
+
   return (
     <div style={wrapStyle}>
       <table style={tableStyle}>
         <colgroup>
-          {hasLeadingColumn && <col style={{ width: leadingColumnWidth ?? 44 }} />}
+          {hasLeadingColumn && <col style={{ width: leadingWidth }} />}
           {orderedColumns.map(column => (
-            <col key={column.key} style={{ width: columnWidths[column.key] ?? column.width }} />
+            <col key={column.key} style={{ width: percent(columnWidths[column.key] ?? column.width) }} />
           ))}
         </colgroup>
         <thead>
@@ -202,7 +214,7 @@ export function DataTable<T>({
                 </td>
               )}
               {orderedColumns.map(column => (
-                <td key={column.key} style={{ ...tdStyle, textAlign: column.numeric ? 'left' : 'right' }}>
+                <td key={column.key} style={{ ...tdStyle, textAlign: column.numeric ? 'left' : 'right', whiteSpace: column.numeric ? 'nowrap' : 'normal' }}>
                   {column.render ? column.render(row) : String((row as Record<string, unknown>)[column.key] ?? '-')}
                 </td>
               ))}
@@ -224,7 +236,7 @@ const tableStyle: CSSProperties = { width: '100%', tableLayout: 'fixed', borderC
 const thStyle: CSSProperties = { position: 'relative', background: 'var(--bg-surface-sunken)', borderBottom: '1px solid var(--separator)', padding: 0, textAlign: 'right' }
 const thContentStyle: CSSProperties = { display: 'flex', alignItems: 'center', gap: 4, padding: '10px 12px' }
 const gripStyle: CSSProperties = { display: 'flex', color: 'var(--text-tertiary)', cursor: 'grab', flexShrink: 0 }
-const sortButtonStyle: CSSProperties = { flex: 1, border: 0, background: 'transparent', textAlign: 'right', padding: 0, fontFamily: 'var(--font-main)', fontSize: 13.5, fontWeight: 700, color: 'var(--text-heading)', cursor: 'pointer', whiteSpace: 'nowrap' }
+const sortButtonStyle: CSSProperties = { flex: 1, minWidth: 0, border: 0, background: 'transparent', textAlign: 'right', padding: 0, fontFamily: 'var(--font-main)', fontSize: 13.5, fontWeight: 700, color: 'var(--text-heading)', cursor: 'pointer', whiteSpace: 'normal', overflowWrap: 'anywhere', lineHeight: 1.3 }
 const resizeHandleStyle: CSSProperties = { width: 6, alignSelf: 'stretch', cursor: 'col-resize', flexShrink: 0, touchAction: 'none' }
-const tdStyle: CSSProperties = { padding: '10px 12px', borderBottom: '1px solid var(--separator)', color: 'var(--text-body)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }
+const tdStyle: CSSProperties = { padding: '10px 12px', borderBottom: '1px solid var(--separator)', color: 'var(--text-body)', whiteSpace: 'normal', overflowWrap: 'anywhere', verticalAlign: 'middle', lineHeight: 1.45 }
 const emptyStyle: CSSProperties = { padding: 28, textAlign: 'center', color: 'var(--text-muted)' }
