@@ -140,7 +140,7 @@ const phoenixSelectionParts: PhoenixSelectionPart[] = [
 // ("תשואות הלקוח" / "תשואות השוק") — two navigation paths to identical content.
 const simViews: Array<{ id: SimView; label: string; note: string }> = [
   { id: 'compound', label: 'מחשבון ריבית דריבית', note: 'חישוב צבירה, מס, דמי ניהול ותרחישים' },
-  { id: 'phoenix', label: 'מחשבון קצבה הפניקס', note: 'סימולטור הקצבה המקורי בתוך המערכת' },
+  { id: 'phoenix', label: 'מחשבון קצבה', note: 'מקדם קצבת זקנה וקצבה חודשית לפי תקנון הפניקס' },
   { id: 'infrastructure', label: 'תשתיות לקצבה', note: 'פילוח שכבות תגמולים ופיצויים' },
 ]
 

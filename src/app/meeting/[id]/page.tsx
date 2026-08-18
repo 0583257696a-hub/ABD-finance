@@ -8,21 +8,17 @@ import {
   FileText,
   Home,
   Lightbulb,
-  LineChart,
   LogOut,
   Mic,
   Radar,
-  Settings,
   Shield,
   Square,
   StickyNote,
-  TrendingUp,
 } from 'lucide-react'
 import FundsWorkspace from '@/components/features/FundsWorkspace'
 import InsurancePage from '@/app/(dashboard)/insurance/page'
 import RecommendationsPage from '@/app/(dashboard)/recommendations/page'
 import SimulationsPage from '@/app/(dashboard)/simulations/page'
-import CalculatorsPage from '@/app/(dashboard)/calculators/page'
 import ReturnsPage from '@/app/(dashboard)/returns/page'
 import AbdReturnsPage from '@/app/(dashboard)/abd-returns/page'
 import SmartAgentPage from '@/app/(dashboard)/smart-agent/page'
@@ -31,6 +27,7 @@ import { Button } from '@/components/ui/Button'
 import { useWorkspaceStore } from '@/lib/store/workspaceStore'
 import { clearClientDataStorage, WORKSPACE_MEETING_ID_KEY } from '@/lib/client-data-keys'
 import { Dialog } from '@/components/ui/Dialog'
+import { SegmentedControl } from '@/components/ui/SegmentedControl'
 
 /**
  * Meeting Workspace — the MeetingShell. Architecturally separate from
@@ -57,7 +54,8 @@ type MeetingRecord = {
   notes: string
 }
 
-type MeetingTab = 'overview' | 'insurance' | 'recommendations' | 'summary' | 'tools' | 'calculators' | 'client-returns' | 'abd-returns' | 'smart-agent' | 'notes' | 'settings'
+type MeetingTab = 'overview' | 'insurance' | 'recommendations' | 'summary' | 'calculators' | 'returns' | 'smart-agent' | 'notes'
+type ReturnsView = 'client' | 'market'
 
 // The full feature set lives here and only here (per the app's hierarchy:
 // a minimal dashboard for meetings/settings, full features gated behind an
@@ -68,13 +66,10 @@ const NAV: Array<{ id: MeetingTab; label: string; icon: typeof Home }> = [
   { id: 'insurance', label: 'ביטוח', icon: Shield },
   { id: 'recommendations', label: 'המלצות', icon: Lightbulb },
   { id: 'summary', label: 'סיכום פגישה', icon: FileText },
-  { id: 'tools', label: 'כלים', icon: TrendingUp },
   { id: 'calculators', label: 'מחשבונים', icon: Calculator },
-  { id: 'client-returns', label: 'תשואות הלקוח', icon: BarChart2 },
-  { id: 'abd-returns', label: 'תשואות השוק', icon: LineChart },
+  { id: 'returns', label: 'תשואות', icon: BarChart2 },
   { id: 'smart-agent', label: 'Smart Agent', icon: Radar },
-  { id: 'notes', label: 'הערות', icon: StickyNote },
-  { id: 'settings', label: 'הגדרות פגישה', icon: Settings },
+  { id: 'notes', label: 'הערות ופרטים', icon: StickyNote },
 ]
 
 function formatDuration(startedAt: string | null): string {
@@ -94,6 +89,7 @@ export default function MeetingWorkspacePage({ params }: { params: Promise<{ id:
   const [meeting, setMeeting] = useState<MeetingRecord | null>(null)
   const [loadState, setLoadState] = useState<'loading' | 'ready' | 'error'>('loading')
   const [tab, setTab] = useState<MeetingTab>('overview')
+  const [returnsView, setReturnsView] = useState<ReturnsView>('client')
   const [notes, setNotes] = useState('')
   const [tick, setTick] = useState(0)
   const [ending, setEnding] = useState(false)
@@ -280,35 +276,43 @@ export default function MeetingWorkspacePage({ params }: { params: Promise<{ id:
           {tab === 'insurance' && <InsurancePage />}
           {tab === 'recommendations' && <RecommendationsPage />}
           {tab === 'summary' && <MeetingSummaryPage />}
-          {tab === 'tools' && <SimulationsPage />}
-          {tab === 'calculators' && <CalculatorsPage />}
-          {tab === 'client-returns' && <ReturnsPage />}
-          {tab === 'abd-returns' && <AbdReturnsPage />}
-          {tab === 'smart-agent' && <SmartAgentPage />}
-          {tab === 'notes' && (
-            <div style={{ maxWidth: 720 }}>
-              <h2 style={{ color: 'var(--text-heading)', fontSize: 18, fontWeight: 700, marginBottom: 12 }}>הערות פגישה</h2>
-              <textarea
-                value={notes}
-                onChange={event => void saveNotes(event.target.value)}
-                rows={16}
-                placeholder="הערות חופשיות לפגישה הנוכחית — נשמר אוטומטית."
-                style={notesInputStyle}
-              />
+          {tab === 'calculators' && <SimulationsPage />}
+          {tab === 'returns' && (
+            <div style={{ display: 'grid', gap: 14 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                <SegmentedControl<ReturnsView>
+                  value={returnsView}
+                  onChange={setReturnsView}
+                  options={[{ value: 'client', label: 'תשואות הלקוח' }, { value: 'market', label: 'תשואות השוק' }]}
+                />
+                <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>{returnsView === 'client' ? 'התשואות בקופות של הלקוח מתוך הקבצים שיובאו' : 'השוואת מסלולים ויצרנים לפי נתוני השוק העדכניים'}</span>
+              </div>
+              {returnsView === 'client' ? <ReturnsPage /> : <AbdReturnsPage />}
             </div>
           )}
-          {tab === 'settings' && (
-            <div style={{ maxWidth: 480, display: 'grid', gap: 10 }}>
-              <h2 style={{ color: 'var(--text-heading)', fontSize: 18, fontWeight: 700, marginBottom: 4 }}>פרטי הפגישה</h2>
-              <InfoRow label="כותרת" value={meeting.title} />
-              <InfoRow label="לקוח" value={meeting.client_name || '-'} />
-              <InfoRow label="מקור" value={sourceLabel(meeting.source)} />
-              <InfoRow label="התחלה" value={meeting.started_at ? new Date(meeting.started_at).toLocaleString('he-IL') : '-'} />
-              <InfoRow label="AI" value="זמין בטאב הסיכום (כפתור 'טיוטת AI')" />
-              <p style={{ marginTop: 14, color: 'var(--text-muted)', fontSize: 13, lineHeight: 1.7 }}>
-                יש לך בעיה? פנה למרכז התמיכה של ABD Finance:{' '}
-                <a href="mailto:support@abd-finance.co.il" style={{ color: 'var(--abd-accent)', fontWeight: 700, textDecoration: 'none' }}>support@abd-finance.co.il</a>
-              </p>
+          {tab === 'smart-agent' && <SmartAgentPage />}
+          {tab === 'notes' && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(240px, 320px)', gap: 18, alignItems: 'start' }}>
+              <div>
+                <h2 style={{ color: 'var(--text-heading)', fontSize: 18, fontWeight: 700, marginBottom: 12 }}>הערות פגישה</h2>
+                <textarea
+                  value={notes}
+                  onChange={event => void saveNotes(event.target.value)}
+                  rows={16}
+                  placeholder="הערות חופשיות לפגישה הנוכחית — נשמר אוטומטית."
+                  style={notesInputStyle}
+                />
+              </div>
+              <div style={{ display: 'grid', gap: 8 }}>
+                <h2 style={{ color: 'var(--text-heading)', fontSize: 15, fontWeight: 700, marginBottom: 4 }}>פרטי הפגישה</h2>
+                <InfoRow label="כותרת" value={meeting.title} />
+                <InfoRow label="לקוח" value={meeting.client_name || '-'} />
+                <InfoRow label="מקור" value={sourceLabel(meeting.source)} />
+                <InfoRow label="התחלה" value={meeting.started_at ? new Date(meeting.started_at).toLocaleString('he-IL') : '-'} />
+                <p style={{ marginTop: 10, color: 'var(--text-muted)', fontSize: 12.5, lineHeight: 1.7 }}>
+                  יש לך בעיה? <a href="mailto:support@abd-finance.co.il" style={{ color: 'var(--abd-accent)', fontWeight: 700, textDecoration: 'none' }}>support@abd-finance.co.il</a>
+                </p>
+              </div>
             </div>
           )}
         </main>
