@@ -15,10 +15,12 @@ import { Button } from '@/components/ui/Button'
 import { Surface } from '@/components/ui/Surface'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { Lightbulb } from 'lucide-react'
+import { DEFAULT_RATIONALE, formatRecommendationLine } from '@/lib/recommendation-text'
 
 type Recommendation = {
   id: string
   fromFundId: string
+  actionType?: string
   productType: string
   manufacturer: string
   track: string
@@ -55,7 +57,7 @@ export default function RecommendationsPage() {
   const [productType, setProductType] = useState('קופת גמל')
   const [manufacturer, setManufacturer] = useState('')
   const [trackId, setTrackId] = useState('')
-  const [reason, setReason] = useState('המלצה לביצוע ניוד בהתאם לצורכי הלקוח, דמי הניהול, רמת הסיכון, תשואות המסלול והתאמתו לפרופיל הלקוח.')
+  const [reason, setReason] = useState(DEFAULT_RATIONALE.migrate)
 
   useEffect(() => {
     if (!hydrated) hydrate()
@@ -96,6 +98,7 @@ export default function RecommendationsPage() {
     const next: Recommendation = {
       id: `${Date.now()}`,
       fromFundId: selectedFund.id || '',
+      actionType: 'ניוד למוצר חדש',
       productType,
       manufacturer,
       track: selectedTrack.trackName,
@@ -149,7 +152,7 @@ export default function RecommendationsPage() {
               <span>5 שנים: {selectedTrack.returns?.annual5 ?? 'אין נתון'}%</span>
             </div>
           )}
-          <Field label="נימוק ההמלצה">
+          <Field label="נימוק (סיומת המשפט)">
             <textarea value={reason} onChange={event => setReason(event.target.value)} rows={4} style={{ ...inputStyle, resize: 'vertical' }} />
           </Field>
           <Button variant="primary" fullWidth onClick={addRecommendation} disabled={!selectedFund || !selectedTrack} style={{ marginTop: 4 }}>
@@ -166,7 +169,7 @@ export default function RecommendationsPage() {
                   <strong>{item.productType} | {item.manufacturer}</strong>
                   <span>{item.track}</span>
                   <small>{item.trackId ? `מספר מסלול ${item.trackId} | ` : ''}{money(item.amount)}</small>
-                  <p>{item.reason}</p>
+                  <p>{formatRecommendationLine({ actionType: item.actionType || 'ניוד למוצר חדש', sourceProductType: funds.find(fund => fund.id === item.fromFundId)?.productType, sourceManufacturer: funds.find(fund => fund.id === item.fromFundId)?.manufacturer, sourceAccountNumber: funds.find(fund => fund.id === item.fromFundId)?.accountNumber, targetProductType: item.productType, targetManufacturer: item.manufacturer, track: item.track, amount: item.amount, reason: item.reason })}</p>
                   <button type="button" onClick={() => persist(recommendations.filter(rec => rec.id !== item.id))} style={linkButtonStyle}>הסר המלצה</button>
                 </article>
               ))}

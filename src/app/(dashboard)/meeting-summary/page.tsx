@@ -6,6 +6,7 @@ import { useWorkspaceStore } from '@/lib/store/workspaceStore'
 import { Toolbar } from '@/components/ui/Toolbar'
 import { Button } from '@/components/ui/Button'
 import type { Fund } from '@/types/fund'
+import { DEFAULT_RATIONALE, formatRecommendationLine, isAutoRationale, recommendationKind } from '@/lib/recommendation-text'
 import type { InsurancePolicy } from '@/types/insurance'
 import type {
   MeetingFact,
@@ -278,16 +279,30 @@ function buildAutoRecommendations(funds: Fund[], trackingDeals: Record<string, u
       isAuto: true,
     }))
 
-  const fromDeals = trackingDeals.map(action => ({
-    id: `action-${action.id}`,
-    text: compactLines([
-      `${action.actionType || 'פעולה'}: ${action.productType || ''} ${action.manufacturer ? `ב${action.manufacturer}` : ''}`,
-      action.track ? `מסלול: ${action.track}` : '',
-      num(action.amount) ? `סכום: ${money(action.amount)}` : '',
-      clean(action.reason || action.notes),
-    ]),
-    isAuto: true,
-  }))
+  // One concise line per recommendation, built from the structured deal +
+  // its source fund (see lib/recommendation-text) — never a concatenation of
+  // every field plus a boilerplate reason.
+  const fundById = new Map(funds.map(fund => [fund.id, fund]))
+  const fromDeals = trackingDeals.map(action => {
+    const source = fundById.get(String(action.fromFundId || ''))
+    return {
+      id: `action-${action.id}`,
+      text: formatRecommendationLine({
+        actionType: String(action.actionType || ''),
+        sourceProductType: source?.productType,
+        sourceManufacturer: source?.manufacturer,
+        sourceAccountNumber: source?.accountNumber,
+        targetProductType: String(action.productType || ''),
+        targetManufacturer: String(action.manufacturer || ''),
+        track: String(action.track || ''),
+        feeDeposit: action.managementFeeDeposit as string | undefined,
+        feeBalance: action.managementFeeBalance as string | undefined,
+        amount: action.amount as number | undefined,
+        reason: String(action.reason || action.notes || ''),
+      }),
+      isAuto: true,
+    }
+  })
 
   const fromRisks = trackingRisks.map(action => ({
     id: `risk-${action.id}`,
@@ -561,7 +576,8 @@ export default function MeetingSummaryPage() {
       if (trackingDeals.length) {
         lines.push(`פעולות/ניודים שסוכמו (${trackingDeals.length}):`)
         for (const deal of trackingDeals.slice(0, 15) as Array<Record<string, unknown>>) {
-          lines.push(`- ${deal.actionType || 'פעולה'}: ${deal.productType || ''} ${deal.manufacturer ? `ב${deal.manufacturer}` : ''}${deal.reason ? ` — ${deal.reason}` : ''}`)
+          const source = funds.find(fund => fund.id === deal.fromFundId)
+          lines.push(`- ${formatRecommendationLine({ actionType: String(deal.actionType || ''), sourceProductType: source?.productType, sourceManufacturer: source?.manufacturer, sourceAccountNumber: source?.accountNumber, targetProductType: String(deal.productType || ''), targetManufacturer: String(deal.manufacturer || ''), track: String(deal.track || ''), feeDeposit: deal.managementFeeDeposit as string | undefined, feeBalance: deal.managementFeeBalance as string | undefined, amount: deal.amount as number | undefined, reason: String(deal.reason || deal.notes || '') })}`)
         }
       }
       if (trackingRisks.length) {
@@ -883,7 +899,9 @@ function MigrationSection({ funds, trackingDeals, trackingRisks }: { funds: Fund
   return (
     <PaperSection title="טבלת ניודים / פעולות">
       <Table headers={['קופה קיימת / פעולה', 'מוצר יעד', 'יצרן יעד', 'מסלול', 'מצבירה', 'מהפקדה', 'סיבת ההמלצה']}>
-        {fundMigrations.map(fund => {
+        {/* A migration created in the fund modal exists BOTH as fund.migrationPlan and as a
+            trackingDeals entry — show it once, from the deal (which carries fees + rationale). */}
+        {fundMigrations.filter(fund => !trackingDeals.some(action => String(action.fromFundId || '') === fund.id)).map(fund => {
           const plan = fund.migrationPlan || {}
           return (
             <tr key={fund.id}>
@@ -897,17 +915,21 @@ function MigrationSection({ funds, trackingDeals, trackingRisks }: { funds: Fund
             </tr>
           )
         })}
-        {trackingDeals.map(action => (
-          <tr key={String(action.id)}>
-            <td>{String(action.actionType || 'פעולה')}</td>
-            <td>{String(action.productType || '-')}</td>
-            <td>{String(action.manufacturer || '-')}</td>
-            <td>{String(action.track || '-')}</td>
-            <td>-</td>
-            <td>-</td>
-            <td>{String(action.reason || action.notes || '-')}</td>
-          </tr>
-        ))}
+        {trackingDeals.map(action => {
+          const source = funds.find(fund => fund.id === String(action.fromFundId || ''))
+          const sourceLabel = source ? [source.manufacturer, source.accountNumber].filter(Boolean).join(' | ') : ''
+          return (
+            <tr key={String(action.id)}>
+              <td>{String(action.actionType || 'פעולה')}{sourceLabel ? ` — ${sourceLabel}` : ''}</td>
+              <td>{String(action.productType || '-')}</td>
+              <td>{String(action.manufacturer || '-')}</td>
+              <td>{String(action.track || '-')}</td>
+              <td>{action.managementFeeBalance ? `${action.managementFeeBalance}%` : '-'}</td>
+              <td>{action.managementFeeDeposit ? `${action.managementFeeDeposit}%` : '-'}</td>
+              <td>{isAutoRationale(String(action.reason || '')) ? (DEFAULT_RATIONALE[recommendationKind(String(action.actionType || ''))] || '-') : String(action.reason || action.notes || '-')}</td>
+            </tr>
+          )
+        })}
         {trackingRisks.map(action => (
           <tr key={String(action.id)}>
             <td>{String(action.title || 'סיכון')}</td>

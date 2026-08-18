@@ -14,6 +14,8 @@ export type TrackingDeal = {
   compensationRate?: string
   employerName?: string
   employerId?: string
+  managementFeeBalance?: string
+  managementFeeDeposit?: string
   reason?: string
   notes?: string
   amount?: number

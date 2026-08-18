@@ -18,6 +18,7 @@ import { ManufacturerLogo as SharedManufacturerLogo } from '@/components/shared/
 import { buildInfrastructureRows, isInfrastructureFund } from '@/lib/infrastructure'
 import { DataTable, type DataTableColumn } from '@/components/ui/DataTable'
 import { Sheet } from '@/components/ui/Sheet'
+import { DEFAULT_RATIONALE, formatRecommendationLine, isAutoRationale, recommendationKind } from '@/lib/recommendation-text'
 
 type FundActivityView = 'employers' | 'deposits' | 'beneficiaries'
 
@@ -377,20 +378,32 @@ function normalizeMigrationProductType(sourceProductType?: string) {
   return 'קופת גמל'
 }
 
-function defaultRecommendationReason(action: RecommendationActionId, fund: FundRecord, productType: string, manufacturer: string) {
-  const fundLabel = [fund.manufacturer, fund.accountNumber].filter(Boolean).join(' ')
-  switch (action) {
-    case 'new-product':
-      return `ניוד למוצר חדש: מומלץ לבחון ניוד של ${fundLabel || 'הקופה'} אל ${productType || 'מוצר מתאים'}${manufacturer ? ` ב${manufacturer}` : ''}, בהתאם לדמי הניהול ותשואות מסלול ההשקעה. יש לוודא התאמה לרמת הסיכון ולצורכי הלקוח לפני אישור ההמלצה — התאמה זו טרם נבדקה במערכת.`
-    case 'keep':
-      return `השארה: בשלב זה מומלץ להשאיר את ${fundLabel || 'הקופה'} במוצר הקיים, בכפוף להמשך מעקב אחר דמי הניהול, תשואות המסלול והתאמתו לצורכי הלקוח.`
-    case 'pension':
-      return `התחלת קצבה: מומלץ לסמן את ${fundLabel || 'הקופה'} כחלק מתשתיות הקצבה ולבחון את שילובה במסלול הפרישה המתאים.`
-    case 'redeem':
-      return `פדיון כספים: מומלץ לבחון אפשרות פדיון / משיכה של הכספים בקופה, לאחר בדיקת השלכות מס, נזילות והתאמה לצורכי התזרים.`
-    case 'service':
-      return `טיפול שוטף: מומלץ לבצע טיפול המשך בקופה, לרבות עדכון פרטים, מינוי סוכן, השלמת מסמכים ומעקב אחר ביצוע.`
-  }
+/**
+ * The "נימוק" is only the CLOSING CLAUSE of the recommendation sentence; the
+ * sentence itself (product, manufacturer, account, target, track, fees,
+ * amount) is assembled by formatRecommendationLine from structured fields, so
+ * it never repeats them. Default clause per action type.
+ */
+function defaultRecommendationReason(action: RecommendationActionId) {
+  const kind = action === 'new-product' ? 'migrate' : action === 'keep' ? 'keep' : action === 'pension' ? 'pension' : action === 'redeem' ? 'redeem' : 'service'
+  return DEFAULT_RATIONALE[kind]
+}
+
+/** Composes the final one-line recommendation for a saved item (used by the list + summary + PDF). */
+function recommendationLine(item: Recommendation, sourceFund?: FundRecord | null) {
+  return formatRecommendationLine({
+    actionType: item.actionType,
+    sourceProductType: sourceFund?.productType,
+    sourceManufacturer: sourceFund?.manufacturer,
+    sourceAccountNumber: sourceFund?.accountNumber,
+    targetProductType: item.productType,
+    targetManufacturer: item.manufacturer,
+    track: item.track,
+    feeDeposit: item.managementFeeDeposit,
+    feeBalance: item.managementFeeBalance,
+    amount: item.amount,
+    reason: item.reason,
+  })
 }
 
 export default function FundsWorkspace() {
@@ -926,7 +939,7 @@ function FundModal({
     // target is a Meitav gemel track. Only replaces text the advisor hasn't
     // edited (tracked via lastAutoReasonRef).
     if (activeRecommendationAction !== 'new-product') return
-    const nextAuto = defaultRecommendationReason('new-product', fund, productType, manufacturer)
+    const nextAuto = defaultRecommendationReason('new-product')
     setReason(current => (current === lastAutoReasonRef.current || !current.trim()) ? nextAuto : current)
     lastAutoReasonRef.current = nextAuto
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -994,7 +1007,7 @@ function FundModal({
     onSaveRecommendations([next, ...recommendations])
     onUpdateFund({
       ...fund,
-      recommendation: reason,
+      recommendation: recommendationLine(next, fund),
       recommendationTemplateId: recommendationTemplateIds[activeRecommendationAction],
       migrationPlan,
     })
@@ -1020,7 +1033,7 @@ function FundModal({
       setMigrationSourceMode('whole')
       setMigrationSourcePartIds([])
     }
-    const autoReason = defaultRecommendationReason(actionId, fund, nextProduct, manufacturer)
+    const autoReason = defaultRecommendationReason(actionId)
     setReason(autoReason)
     lastAutoReasonRef.current = autoReason
     if (actionId === 'pension' && !isInfrastructureTarget) {
@@ -1033,7 +1046,7 @@ function FundModal({
     onSaveRecommendations(next)
     const updated = next.find(item => item.id === id)
     if (updated?.fromFundId === fund.id && typeof patch.reason === 'string') {
-      onUpdateFund({ ...fund, recommendation: patch.reason })
+      onUpdateFund({ ...fund, recommendation: recommendationLine(updated, fund) })
     }
   }
 
@@ -1043,7 +1056,7 @@ function FundModal({
     onSaveRecommendations(next)
     if (removed?.fromFundId === fund.id) {
       const nextForFund = next.find(item => item.fromFundId === fund.id)
-      onUpdateFund({ ...fund, recommendation: nextForFund?.reason || '' })
+      onUpdateFund({ ...fund, recommendation: nextForFund ? recommendationLine(nextForFund, fund) : '' })
       if (!nextForFund) setReason('')
     }
   }
@@ -1263,9 +1276,27 @@ function FundModal({
             </>
           )}
           {activeRecommendationAction && (
-            <Field label="נימוק המלצה">
-              <textarea value={reason} onChange={event => setReason(event.target.value)} rows={3} style={{ ...inputStyle, resize: 'vertical' }} />
-            </Field>
+            <>
+              <Field label="נימוק (סיומת המשפט)">
+                <textarea value={reason} onChange={event => setReason(event.target.value)} rows={2} style={{ ...inputStyle, resize: 'vertical' }} placeholder={DEFAULT_RATIONALE[recommendationKind(recommendationActions.find(action => action.id === activeRecommendationAction)?.label)]} />
+              </Field>
+              <div style={{ background: 'var(--bg-surface-sunken)', border: '1px solid var(--separator)', borderRadius: 12, padding: '10px 12px', fontSize: 13.5, lineHeight: 1.7, color: 'var(--text-heading)' }}>
+                <div style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 2 }}>כך תופיע ההמלצה בסיכום</div>
+                {formatRecommendationLine({
+                  actionType: recommendationActions.find(action => action.id === activeRecommendationAction)?.label,
+                  sourceProductType: fund.productType,
+                  sourceManufacturer: fund.manufacturer,
+                  sourceAccountNumber: fund.accountNumber,
+                  targetProductType: activeRecommendationAction === 'new-product' ? productType : fund.productType,
+                  targetManufacturer: activeRecommendationAction === 'new-product' ? manufacturer : fund.manufacturer,
+                  track: activeRecommendationAction === 'new-product' ? (selectedTrack?.trackName || '') : (fund.investmentTrack || ''),
+                  feeDeposit: activeRecommendationAction === 'new-product' ? managementFeeDeposit : undefined,
+                  feeBalance: activeRecommendationAction === 'new-product' ? managementFeeBalance : undefined,
+                  amount: activeRecommendationAction === 'new-product' ? migrationSourceAmount : Number(fund.currentBalance || 0),
+                  reason,
+                })}
+              </div>
+            </>
           )}
           {activeRecommendationAction === 'new-product' && (
             <Field label="הערות מקצועיות">
@@ -1296,10 +1327,13 @@ function FundModal({
                     {item.professionalNotes ? ` | ${item.professionalNotes}` : ''}
                   </small>
                 )}
+                <p style={{ margin: 0, fontSize: 13.5, lineHeight: 1.7, color: 'var(--text-heading)' }}>{recommendationLine(item, fund)}</p>
                 <textarea
-                  value={item.reason}
+                  value={isAutoRationale(item.reason) ? '' : item.reason}
                   onChange={event => updateRecommendation(item.id, { reason: event.target.value })}
-                  rows={3}
+                  rows={2}
+                  placeholder={DEFAULT_RATIONALE[recommendationKind(item.actionType)] || 'נימוק'}
+                  title="נימוק — סיומת המשפט. ריק = נוסח ברירת המחדל."
                   style={{ ...inputStyle, resize: 'vertical' }}
                 />
               </article>
