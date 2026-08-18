@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { FileText, Download, Trash2, Send, MessageCircle } from 'lucide-react'
+import { FileText, Download, Trash2, Send, MessageCircle, Database } from 'lucide-react'
 import { useSession } from 'next-auth/react'
 import { useToast } from '@/components/ui/Toast'
 import { Toolbar } from '@/components/ui/Toolbar'
@@ -70,6 +70,8 @@ export default function MeetingSummariesHistoryPage() {
   const [detailLoading, setDetailLoading] = useState(false)
   const [toDelete, setToDelete] = useState<SummaryListItem | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [crmConnected, setCrmConnected] = useState(false)
+  const [crmBusy, setCrmBusy] = useState(false)
   const toast = useToast()
   const [sendOpen, setSendOpen] = useState(false)
   const [sendTo, setSendTo] = useState('')
@@ -117,6 +119,34 @@ export default function MeetingSummariesHistoryPage() {
       .catch(() => { if (!cancelled) setStatus('error') })
     return () => { cancelled = true }
   }, [reloadKey])
+
+  // CRM: is there an active connection? Drives the "שלח ל-CRM" button in the viewer.
+  useEffect(() => {
+    let cancelled = false
+    fetch('/api/crm').then(async response => {
+      if (!response.ok) return
+      const payload = await response.json() as { providers?: Array<{ connected?: boolean }> }
+      if (!cancelled) setCrmConnected(Boolean(payload.providers?.some(item => item.connected)))
+    }).catch(() => null)
+    return () => { cancelled = true }
+  }, [])
+
+  async function syncToCrm() {
+    if (!openSummary) return
+    setCrmBusy(true)
+    try {
+      const response = await fetch('/api/crm', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'sync-summary', summaryId: openSummary.id }) })
+      const payload = await response.json().catch(() => ({})) as { ok?: boolean; result?: { tasks?: number; note?: unknown; contact?: unknown; errors?: string[]; skipped?: string[] } }
+      if (payload.ok) {
+        const parts = [payload.result?.contact ? 'לקוח' : '', payload.result?.note ? 'הערה' : '', payload.result?.tasks ? `${payload.result.tasks} משימות` : ''].filter(Boolean)
+        toast(parts.length ? `נשלח ל-CRM: ${parts.join(', ')}` : (payload.result?.skipped?.[0] || 'לא היה מה לשלוח (כבר סונכרן).'), 'success')
+      } else {
+        toast(payload.result?.errors?.[0] || 'השליחה ל-CRM נכשלה.', 'error')
+      }
+    } catch {
+      toast('שגיאת רשת בשליחה ל-CRM.', 'error')
+    } finally { setCrmBusy(false) }
+  }
 
   function retry() {
     setStatus('loading')
@@ -254,6 +284,11 @@ export default function MeetingSummariesHistoryPage() {
                 <Button variant="secondary" onClick={shareWhatsApp} title="פותח וואטסאפ עם תמצית הסיכום (המלצות והמשך טיפול) — בוחרים את איש הקשר שם">
                   <MessageCircle size={16} /> וואטסאפ
                 </Button>
+                {crmConnected && (
+                  <Button variant="secondary" disabled={crmBusy} onClick={() => void syncToCrm()} title="שולח את הלקוח, הסיכום כהערה ומשימות ההמשך ל-CRM המחובר (לפי ההגדרות)">
+                    <Database size={16} /> {crmBusy ? 'שולח…' : 'שלח ל-CRM'}
+                  </Button>
+                )}
                 <Button variant="primary" onClick={() => { setSendTo(''); setSendOpen(true) }} title="שולח את הסיכום ללקוח במייל, מהכתובת שלך">
                   <Send size={15} /> שלח ללקוח
                 </Button>

@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { authOptions } from '@/lib/auth'
 import { requireSameOrigin, sanitizeText } from '@/lib/security'
 import { createFollowUps, deleteFollowUp, listFollowUps, updateFollowUp } from '@/lib/meetings-db'
+import { runInBackground, syncFollowUpToCrm } from '@/lib/crm/sync'
 
 /** Follow-up tasks (משימות המשך) — owner-scoped CRUD. Created automatically at end of meeting; managed from the meetings home. */
 
@@ -26,7 +27,10 @@ export async function POST(request: Request) {
   const text = sanitizeText(body.text, 500)
   if (!text) return NextResponse.json({ error: 'missing-text' }, { status: 400 })
   const created = await createFollowUps(session.user.email, [{ text, clientName: sanitizeText(body.clientName, 160), meetingId: body.meetingId || null, owner: body.owner === 'client' ? 'client' : 'advisor', dueDate: body.dueDate ? sanitizeText(body.dueDate, 20) : null }])
-  return NextResponse.json({ ok: created > 0 })
+  if (created[0]) {
+    void runInBackground(syncFollowUpToCrm({ userEmail: session.user.email, followUpId: created[0], text, owner: body.owner === 'client' ? 'client' : 'advisor', dueDate: body.dueDate || null, clientName: sanitizeText(body.clientName, 160) || null }))
+  }
+  return NextResponse.json({ ok: created.length > 0, id: created[0] || null })
 }
 
 export async function PATCH(request: Request) {

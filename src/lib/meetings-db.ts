@@ -524,19 +524,20 @@ export type FollowUpRecord = {
   done_at: string | null
 }
 
-export async function createFollowUps(userEmail: string, items: Array<{ text: string; meetingId?: string | null; summaryId?: string | null; clientName?: string; owner?: 'advisor' | 'client'; dueDate?: string | null }>): Promise<number> {
+export async function createFollowUps(userEmail: string, items: Array<{ text: string; meetingId?: string | null; summaryId?: string | null; clientName?: string; owner?: 'advisor' | 'client'; dueDate?: string | null }>): Promise<string[]> {
   const db = await getDb()
-  if (!db || !items.length) return 0
+  if (!db || !items.length) return []
   const now = new Date().toISOString()
-  let created = 0
+  const created: string[] = []
   for (const item of items) {
     const text = String(item.text || '').trim()
     if (!text) continue
+    const id = crypto.randomUUID()
     await db.prepare(
       `INSERT INTO follow_ups (id, user_email, meeting_id, summary_id, client_name, text, owner, due_date, status, created_at, updated_at, done_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'open', ?, ?, NULL)`,
-    ).bind(crypto.randomUUID(), userEmail, item.meetingId ?? null, item.summaryId ?? null, item.clientName || '', text.slice(0, 500), item.owner === 'client' ? 'client' : 'advisor', item.dueDate || null, now, now).run()
-    created += 1
+    ).bind(id, userEmail, item.meetingId ?? null, item.summaryId ?? null, item.clientName || '', text.slice(0, 500), item.owner === 'client' ? 'client' : 'advisor', item.dueDate || null, now, now).run()
+    created.push(id)
   }
   return created
 }

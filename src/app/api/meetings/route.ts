@@ -21,6 +21,7 @@ import { buildIcsInvite, icsToBase64 } from '@/lib/meetings-ics'
 import { sendSystemEmail } from '@/lib/system-mail'
 import { clientNameFromSummary } from '@/lib/meeting-summary-doc'
 import { writeAuditEvent } from '@/lib/system-db'
+import { runInBackground, syncMeetingSummaryToCrm } from '@/lib/crm/sync'
 
 export async function GET() {
   const session = await getServerSession(authOptions)
@@ -137,7 +138,15 @@ export async function POST(request: Request) {
       if (saved) {
         const doc = body.summary as { manualFollowUps?: Array<{ text?: string }> }
         const items = (doc.manualFollowUps || []).map(item => ({ text: String(item?.text || ''), meetingId: meeting.id, summaryId, clientName })).filter(item => item.text.trim())
-        if (items.length) await createFollowUps(userEmail, items).catch(() => 0)
+        if (items.length) await createFollowUps(userEmail, items).catch(() => [])
+        // CRM push (contact + note + tasks) — best effort, never blocks the advisor.
+        void runInBackground(syncMeetingSummaryToCrm({
+          userEmail,
+          meeting: { id: meeting.id, title: meeting.title, client_name: clientName, client_email: meeting.client_email, ended_at: new Date().toISOString() },
+          summaryId,
+          summary: body.summary,
+          advisorName: session.user.name || undefined,
+        }))
       }
     }
 

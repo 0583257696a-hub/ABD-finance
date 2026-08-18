@@ -42,6 +42,7 @@
 | `SYSTEM_EMAIL_FROM` | אופציונלי | ⬜ ברירת מחדל | כתובת השולח של המערכת. ברירת מחדל: `Smart Meeting <noreply@abd-finance.co.il>` |
 | `SYSTEM_EMAIL_REPLY_TO` | אופציונלי | ⬜ ברירת מחדל | ברירת מחדל `support@abd-finance.co.il` |
 | `ADMIN_NOTIFICATION_EMAIL` | אופציונלי | ⬜ | לאן נשלחות התראות מערכת (בקשות תמיכה, הרשמות). ברירת מחדל: כתובת האדמין |
+| `CRM_ENCRYPTION_KEY` | אופציונלי | ⬜ (משתמש ב-NEXTAUTH_SECRET) | הצפנת מפתחות CRM במנוחה (§3.2). החלפה = יועצים מזינים מפתח CRM מחדש |
 | `APP_USER_EMAIL` / `APP_USER_PASSWORD` | אופציונלי | ⬜ ברירת מחדל | חשבון יועץ סטטי לבדיקות (`advisor@abd-finance.co.il`). **בפרודקשן מומלץ להגדיר סיסמה חזקה משלכם** או ליצור יועצים אמיתיים בפאנל הניהול |
 | `DISABLE_LOGIN` | לא | ⬜ | **לא להגדיר** בפרודקשן (מבטל התחברות — לפיתוח בלבד) |
 
@@ -108,6 +109,38 @@ https://smart-meeting.abd-finance.co.il/api/calendar/callback/google_calendar
 - Application (client) ID + Secret → Cloudflare `MICROSOFT_CLIENT_ID` / `MICROSOFT_CLIENT_SECRET`
 
 **Teams / Zoom:** עדיין לא ממומשים (דורשים אפליקציית OAuth נוספת לכל אחד). כרגע יש חלופה: להדביק קישור וידאו ידני בשדה "מקום/קישור" בקביעת פגישה.
+
+## 3.2 חיבור CRM (אופציונלי) — הגדרות → חיבורים → "חיבור CRM"
+
+בסיום פגישה המערכת יכולה לעדכן את ה-CRM: **הלקוח** (יצירה/עדכון ללא כפילויות), **סיכום הפגישה כהערה** על הלקוח, ו**משימות ההמשך** כמשימות עם בעלים ותאריך יעד. גם ידנית: בארכיון הסיכומים → "שלח ל-CRM". התמליל לעולם לא נשלח. חיבור אחד פעיל לכל יועץ; המפתח נשמר **מוצפן** בשרת (AES-256-GCM, מפתח נגזר מ-`CRM_ENCRYPTION_KEY` או `NEXTAUTH_SECRET`) ואינו מוצג שוב.
+
+| ספק | מה צריך | איפה משיגים |
+|---|---|---|
+| **HubSpot** | Private App Access Token | HubSpot → Settings → Integrations → Private Apps → Create app. Scopes: `crm.objects.contacts.read/write`, `crm.objects.notes.write` (או sales notes), `crm.objects.tasks.write`. אופציונלי: Portal ID (לקישורים) ושם מאפיין מותאם לת.ז (`id_number`) אם יצרתם כזה |
+| **Fireberry (Powerlink)** | API Token + מספרי אובייקטים/שדות | Fireberry → הגדרות → API → טוקן. ברירות מחדל: לקוח = אובייקט 1 (`accountname`, `emailaddress1`, `telephone1`, `idnumber`), משימה = 6, הערה = 10, שדה קישור `accountid`. **אם המערכת שלכם מותאמת — עדכנו את המספרים/השדות בטופס.** "בדוק וחבר" מריץ שאילתה אמיתית ולכן מספר אובייקט שגוי נתפס מיד |
+| **Webhook כללי** | כתובת https + secret | Zapier ("Catch Hook") / Make ("Custom webhook") / n8n / Power Automate / monday / Salesforce Flow / API פנימי. כל אירוע נשלח כ-POST JSON חתום. מתאים לכל CRM שאין לו מתאם ייעודי |
+
+**הגדרות סנכרון (לכל יועץ):** אוטומטי בסיום פגישה · לקוח · הערה · משימות · לכלול תמצית נתונים (כבוי כברירת מחדל — יתרות ומספרים) · לשלוח ת.ז. יומן סנכרון (25 אחרונים) מוצג מתחת עם הצלחה/שגיאה וסיבה.
+
+**חוזה ה-Webhook** (לצוות ה-IT / בונה ה-Zap):
+```
+POST <url>
+content-type: application/json
+x-abd-event: contact.upsert | meeting.note | task.create | connection.test
+x-abd-timestamp: <unix ms>
+x-abd-signature: sha256=<hex HMAC-SHA256(secret, timestamp + "." + rawBody)>
+
+{ "event": "...", "sentAt": "ISO", "advisorEmail": "...", "data": { ... } }
+```
+- `contact.upsert` → `data: { fullName, email?, phone?, idNumber? }`
+- `meeting.note` → `data: { title, body, occurredAt, meetingId, summaryId, contactExternalId }`
+- `task.create` → `data: { title, body, dueAt?, owner: "advisor"|"client", followUpId, contactExternalId }`
+- תשובה אופציונלית `{ "id": "...", "url": "..." }` — נשמרת כמזהה חיצוני (הערות/משימות מקבלות את מזהה הלקוח שהוחזר ב-`contactExternalId`).
+- אימות: חשבו HMAC על `timestamp.body` והשוו ל-`x-abd-signature`; דחו timestamp ישן מ-5 דקות.
+
+**הוספת CRM חדש (למפתח):** קובץ אחד `src/lib/crm/adapters/<name>.ts` שמממש `CrmAdapter` (test/find/upsertContact/createNote/createTask) + שורה ב-`src/lib/crm/registry.ts`. הטופס בהגדרות, ה-API והסנכרון נבנים מה-`fields` של המתאם אוטומטית.
+
+**Secret אופציונלי:** `CRM_ENCRYPTION_KEY` — מפתח ייעודי להצפנת מפתחות ה-CRM (אם לא מוגדר משתמשים ב-`NEXTAUTH_SECRET`). **החלפתו מבטלת חיבורים קיימים** (היועצים יזינו מפתח מחדש).
 
 ## 3.1 Calendly (אופציונלי)
 Calendly → Integrations → API & Webhooks → OAuth app · Redirect: `https://smart-meeting.abd-finance.co.il/api/calendar/callback/calendly` → Secrets `CALENDLY_CLIENT_ID` / `CALENDLY_CLIENT_SECRET`.
@@ -199,6 +232,7 @@ npx wrangler d1 export abd-finance-db --remote --output backup.sql
 | 6 | Google consent screen: כל היועצים ב-Test users (או אפליקציה מאומתת) | Google Cloud Console | ⚠️ |
 | 7 | Microsoft app: redirect + הרשאות + תוקף Secret | Entra | ✅ Secrets קיימים — לבדוק תוקף |
 | 8 | Calendly (אם רוצים) | Calendly + Secrets | ⬜ לא מוגדר |
+| 8א | CRM (HubSpot / Fireberry / Webhook) — לפי יועץ | הגדרות → חיבורים → חיבור CRM | לפי יועץ (§3.2) |
 | 9 | יצירת יועצים והרשאות | פאנל ניהול | לפי הצורך |
 | 10 | כל יועץ: מיתוג + חיבור Google | הגדרות | לפי יועץ |
 | 11 | הרשאת מיקרופון + התקנת PWA | דפדפן היועץ | לפי יועץ |

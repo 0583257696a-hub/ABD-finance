@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
+import { CrmConnectionCard } from '@/components/features/CrmConnectionCard'
 import { Link2, Unlink } from 'lucide-react'
 import {
   applyBrandingSettings,
@@ -323,6 +324,13 @@ export default function SettingsPage() {
             ) : (
               <p style={{ color: 'var(--text-muted)' }}>טוען סטטוס חיבורים...</p>
             )}
+          </Surface>
+          )}
+
+          {section === 'connections' && (
+          <Surface id="crm" style={cardStyle}>
+            <h2 style={sectionTitleStyle}>חיבור CRM</h2>
+            <CrmConnectionCard />
           </Surface>
           )}
 
