@@ -47,6 +47,8 @@ export default function SettingsPage() {
   const [logoPalette, setLogoPalette] = useState<string[]>([])
   const [saved, setSaved] = useState(false)
   const [confirmReset, setConfirmReset] = useState(false)
+  // Six anchor-sections became three tabs (QA proposal §1.3ה): מיתוג · חיבורים · שאלונים.
+  const [section, setSection] = useState<'brand' | 'connections' | 'questionnaires'>('brand')
   const toast = useToast()
   const selectedTheme = useMemo(() => settingsFromTheme(settings.themeId), [settings.themeId])
   const generatedThemes = useMemo(() => buildLogoThemes(logoPalette), [logoPalette])
@@ -177,16 +179,17 @@ export default function SettingsPage() {
       />
 
       <section style={layoutStyle}>
-        <aside style={sideTabsStyle}>
-          <a href="#brand" style={sideTabStyle}>מיתוג אישי</a>
-          <a href="#themes" style={sideTabStyle}>ערכות נושא</a>
-          <a href="#summary" style={sideTabStyle}>סיכום וחתימה</a>
-          <a href="#calendar" style={sideTabStyle}>חיבור יומן</a>
-          <a href="#questionnaires" style={sideTabStyle}>שאלון הכנה</a>
-          <a href="#preview" style={sideTabStyle}>תצוגה מקדימה</a>
+        <aside style={sideTabsStyle} aria-label="מקטעי הגדרות">
+          {([['brand', 'מיתוג', 'לוגו, צבעים, נוסחים ותצוגה מקדימה'], ['connections', 'חיבורים', 'יומן Google / Outlook / Calendly'], ['questionnaires', 'שאלונים', 'שאלון ההכנה ותבניות']] as const).map(([id, label, hint]) => (
+            <button key={id} type="button" onClick={() => setSection(id)} style={{ ...sideTabStyle, ...(section === id ? sideTabActiveStyle : {}) }} aria-current={section === id ? 'page' : undefined}>
+              <span style={{ display: 'block' }}>{label}</span>
+              <span style={{ display: 'block', fontSize: 11.5, fontWeight: 500, color: section === id ? 'rgba(255,255,255,.85)' : 'var(--text-muted)' }}>{hint}</span>
+            </button>
+          ))}
         </aside>
 
         <div style={contentStyle}>
+          {section === 'brand' && (
           <Surface id="brand" style={cardStyle}>
             <h2 style={sectionTitleStyle}>מיתוג אישי</h2>
             <div style={gridStyle}>
@@ -214,7 +217,9 @@ export default function SettingsPage() {
               </div>
             )}
           </Surface>
+          )}
 
+          {section === 'brand' && (
           <Surface id="themes" style={cardStyle}>
             <div style={sectionHeaderStyle}>
               <div>
@@ -267,7 +272,9 @@ export default function SettingsPage() {
               </label>
             </div>
           </Surface>
+          )}
 
+          {section === 'brand' && (
           <Surface id="summary" style={cardStyle}>
             <h2 style={sectionTitleStyle}>נוסחי סיכום וחתימה</h2>
             <Field label="טקסט פתיחה">
@@ -280,7 +287,9 @@ export default function SettingsPage() {
               <textarea value={settings.emailSignature} onChange={event => update('emailSignature', event.target.value)} rows={5} style={textareaStyle} />
             </Field>
           </Surface>
+          )}
 
+          {section === 'connections' && (
           <Surface id="calendar" style={cardStyle}>
             <h2 style={sectionTitleStyle}>חיבור יומן</h2>
             {providers.length ? (
@@ -306,12 +315,16 @@ export default function SettingsPage() {
               <p style={{ color: 'var(--text-muted)' }}>טוען סטטוס חיבורים...</p>
             )}
           </Surface>
+          )}
 
+          {section === 'questionnaires' && (
           <Surface id="questionnaires" style={cardStyle}>
             <h2 style={sectionTitleStyle}>שאלון הכנה</h2>
             <QuestionnaireManager />
           </Surface>
+          )}
 
+          {section === 'brand' && (
           <Surface id="preview" style={cardStyle}>
             <h2 style={sectionTitleStyle}>תצוגה מקדימה מלאה</h2>
             <div style={{ ...previewStyle, background: settings.shellColor, color: settings.primaryColor, borderRadius: radiusValue(settings.borderRadius, 24, 12, 18) }}>
@@ -339,6 +352,7 @@ export default function SettingsPage() {
               </div>
             </div>
           </Surface>
+          )}
         </div>
       </section>
     </div>
@@ -491,7 +505,8 @@ const providerChipStyle: React.CSSProperties = { display: 'flex', alignItems: 'c
 const saveBadgeStyle: React.CSSProperties = { border: '1px solid var(--separator)', borderRadius: 999, padding: '9px 14px', background: 'var(--bg-surface)', color: 'var(--abd-primary)', fontWeight: 900 }
 const layoutStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: '180px 1fr', gap: 16, alignItems: 'start' }
 const sideTabsStyle: React.CSSProperties = { position: 'sticky', top: 86, display: 'grid', gap: 8, background: 'var(--bg-card)', border: '1px solid var(--separator)', borderRadius: 'var(--radius-card)', padding: 12, boxShadow: 'var(--shadow-card)' }
-const sideTabStyle: React.CSSProperties = { textDecoration: 'none', color: 'var(--abd-primary)', fontWeight: 900, padding: '11px 12px', borderRadius: 12, background: 'var(--bg-canvas)' }
+const sideTabStyle: React.CSSProperties = { textDecoration: 'none', color: 'var(--abd-primary)', fontWeight: 900, padding: '11px 12px', borderRadius: 12, background: 'var(--bg-canvas)', border: 0, textAlign: 'start', cursor: 'pointer', fontFamily: 'inherit', fontSize: 14, display: 'grid', gap: 2 }
+const sideTabActiveStyle: React.CSSProperties = { background: 'var(--abd-accent)', color: '#fff' }
 const contentStyle: React.CSSProperties = { display: 'grid', gap: 16 }
 const cardStyle: React.CSSProperties = { background: 'var(--bg-card)', border: '1px solid var(--separator)', borderRadius: 'var(--radius-card)', padding: 18, boxShadow: 'var(--shadow-card)' }
 const sectionHeaderStyle: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'start', marginBottom: 14 }

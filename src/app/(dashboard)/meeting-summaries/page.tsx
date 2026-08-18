@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/Button'
 import { Sheet } from '@/components/ui/Sheet'
 import { Dialog } from '@/components/ui/Dialog'
 import { SearchField } from '@/components/ui/SearchField'
+import { MeetingsSwitch } from '@/components/features/MeetingsSwitch'
 import { formatDate as formatDateShared, formatTime as formatTimeShared } from '@/lib/format-date'
 import { MeetingSummaryDocument } from '@/components/features/MeetingSummaryDocument'
 import { parseSummaryDocument, summaryHasContent } from '@/lib/meeting-summary-doc'
@@ -127,7 +128,8 @@ export default function MeetingSummariesHistoryPage() {
 
   return (
     <div dir="rtl" style={{ fontFamily: 'var(--font-main)' }}>
-      <Toolbar title="סיכומי פגישות" subtitle="ארכיון הסיכומים שנשמרו בסיום כל פגישה — לחיצה על שורה פותחת את הסיכום" />
+      <Toolbar title="פגישות" subtitle="ארכיון הסיכומים שנשמרו בסיום כל פגישה — לחיצה על שורה פותחת את הסיכום" />
+      <MeetingsSwitch active="archive" />
 
       {justSaved && (
         <div style={noticeStyle}>הפגישה הסתיימה והסיכום נשמר בארכיון.</div>

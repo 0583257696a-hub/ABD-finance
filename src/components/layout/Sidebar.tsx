@@ -7,7 +7,6 @@ import {
   CalendarClock,
   ChevronsLeft,
   ChevronsRight,
-  FileText,
   LifeBuoy,
   LogOut,
   Settings,
@@ -31,7 +30,6 @@ const NAV_GROUPS: Array<{ title: string; items: NavItem[] }> = [
     title: 'פגישות',
     items: [
       { tab: 'meetings', icon: CalendarClock, label: 'פגישות' },
-      { tab: 'meeting-summaries', icon: FileText, label: 'סיכומי פגישות' },
     ],
   },
 ]
@@ -103,7 +101,7 @@ export default function Sidebar() {
           <div key={group.title} style={groupStyle}>
             {!collapsed && <span style={groupTitleStyle}>{group.title}</span>}
             {group.items.map(({ tab, icon: Icon, label }) => {
-              const active = activeTab === tab
+              const active = activeTab === tab || (tab === 'meetings' && activeTab === 'meeting-summaries')
               return (
                 <Link
                   key={tab}

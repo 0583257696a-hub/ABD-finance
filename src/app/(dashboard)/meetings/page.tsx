@@ -15,6 +15,7 @@ import { describeAnswers } from '@/lib/questionnaires'
 import { formatDateTime } from '@/lib/format-date'
 import { useToast } from '@/components/ui/Toast'
 import { WORKSPACE_MEETING_ID_KEY } from '@/lib/client-data-keys'
+import { MeetingsSwitch } from '@/components/features/MeetingsSwitch'
 
 type ProviderStatus = {
   id: 'google_calendar' | 'microsoft_outlook' | 'calendly'
@@ -100,6 +101,9 @@ export default function MeetingsPage() {
   const [date, setDate] = useState('')
   const [time, setTime] = useState('10:00')
   const [durationMinutes, setDurationMinutes] = useState('60')
+  // One primary action; what happens alongside it is a checkbox, not another button.
+  const [sendInviteOnSave, setSendInviteOnSave] = useState(true)
+  const [sendQuestionnaireOnSave, setSendQuestionnaireOnSave] = useState(false)
   const [location, setLocation] = useState('')
   const [notes, setNotes] = useState('')
 
@@ -323,8 +327,8 @@ export default function MeetingsPage() {
     return !first
   }
 
-  async function createMeeting(sendInvite: boolean) {
-    if (!validateMeetingForm(sendInvite)) return
+  async function createMeeting(sendInvite: boolean, sendQuestionnaire = false) {
+    if (!validateMeetingForm(sendInvite || sendQuestionnaire)) return
     const startsAt = new Date(`${date}T${time}:00`)
     const endsAt = new Date(startsAt.getTime() + (Number(durationMinutes) || 60) * 60000)
     setBusy(true)
@@ -355,6 +359,11 @@ export default function MeetingsPage() {
           const invite = await inviteResponse.json() as { ok?: boolean; queued?: boolean }
           message += invite.ok ? ' זימון נשלח ללקוח עם קובץ יומן.' : invite.queued ? ' הזימון נכנס לתור (אין חיבור מייל בסביבה זו).' : ' שליחת הזימון נכשלה.'
         }
+      }
+      if (sendQuestionnaire && clientEmail.includes('@')) {
+        const formResponse = await fetch('/api/client-forms', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ clientName, clientEmail }) })
+        const form = await formResponse.json().catch(() => ({})) as { ok?: boolean; emailSent?: boolean }
+        message += form.ok ? (form.emailSent ? ' שאלון הכנה נשלח.' : ' השאלון נוצר, המייל בתור.') : ' שליחת השאלון נכשלה.'
       }
       toast(message, message.includes('נכשל') ? 'error' : 'success')
       setStatus('')
@@ -469,6 +478,7 @@ export default function MeetingsPage() {
         actions={<Button variant="primary" onClick={openStartFlow}><Zap size={15} style={iconStyle} /> התחל פגישה</Button>}
       />
 
+      <MeetingsSwitch active="meetings" />
       {status && <div style={noticeStyle} role="status" aria-live="polite">{status}</div>}
       {calendarNotice && <div style={noticeStyle}>{calendarNotice}</div>}
 
@@ -587,12 +597,13 @@ export default function MeetingsPage() {
             </div>
             <Field label="מיקום / קישור לשיחה"><input value={location} onChange={event => setLocation(event.target.value)} style={inputStyle} /></Field>
             <Field label="הערות"><textarea rows={2} value={notes} onChange={event => setNotes(event.target.value)} style={{ ...inputStyle, resize: 'vertical' }} /></Field>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <Button variant="primary" disabled={busy} onClick={() => void createMeeting(true)}>שמור + שלח זימון ללקוח</Button>
-              <Button variant="secondary" disabled={busy} onClick={() => void createMeeting(false)}>שמור בלבד</Button>
-              <Button variant="secondary" disabled={busy} onClick={() => void openTemplatePicker(clientName, clientEmail)}>
-                <FileText size={15} style={iconStyle} /> שלח שאלון הכנה
-              </Button>
+            <div style={{ display: 'grid', gap: 8, padding: '10px 12px', background: 'var(--bg-surface-sunken)', borderRadius: 'var(--radius-md)' }}>
+              <label style={checkRowStyle}><input type="checkbox" checked={sendInviteOnSave} onChange={event => setSendInviteOnSave(event.target.checked)} /> לשלוח ללקוח זימון עם קובץ יומן</label>
+              <label style={checkRowStyle}><input type="checkbox" checked={sendQuestionnaireOnSave} onChange={event => setSendQuestionnaireOnSave(event.target.checked)} /> לשלוח ללקוח שאלון הכנה <button type="button" onClick={() => void openTemplatePicker(clientName, clientEmail)} style={inlineLinkStyle} title="בחירת תבנית ושליחה מיידית">בחר תבנית…</button></label>
+            </div>
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+              <Button variant="primary" disabled={busy} onClick={() => void createMeeting(sendInviteOnSave, sendQuestionnaireOnSave)}>{sendInviteOnSave || sendQuestionnaireOnSave ? 'קבע ושלח' : 'קבע פגישה'}</Button>
+              <button type="button" disabled={busy} onClick={() => void createMeeting(false, false)} style={inlineLinkStyle}>שמור בלי לשלוח</button>
             </div>
           </div>
         </Surface>
@@ -691,7 +702,7 @@ export default function MeetingsPage() {
                 })}
               </div>
             ) : (
-              <EmptyState title="לא נשלחו שאלונים" description='מלא שם ואימייל לקוח בטופס הפגישה ולחץ "שלח שאלון הכנה".' />
+              <EmptyState title="לא נשלחו שאלונים" description='מלא שם ואימייל לקוח בטופס הפגישה וסמן "לשלוח ללקוח שאלון הכנה".' />
             )}
           </Surface>
         </div>
@@ -769,6 +780,8 @@ const iconStyle: React.CSSProperties = { flexShrink: 0 }
 const fieldStyle: React.CSSProperties = { display: 'grid', gap: 6, color: 'var(--text-heading)', fontWeight: 600, fontSize: 13.5 }
 const inputStyle: React.CSSProperties = { minHeight: 40, border: '1px solid var(--separator)', borderRadius: 'var(--radius-md)', padding: '8px 12px', fontFamily: 'var(--font-main)', fontSize: 14, background: 'var(--bg-canvas)', color: 'var(--text-heading)', width: '100%' }
 const rowStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }
+const checkRowStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 8, fontSize: 13.5, color: 'var(--text-heading)', cursor: 'pointer' }
+const inlineLinkStyle: React.CSSProperties = { border: 0, background: 'transparent', color: 'var(--abd-accent)', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, cursor: 'pointer', padding: 0, textDecoration: 'underline' }
 const noticeStyle: React.CSSProperties = { background: 'var(--bg-surface-sunken)', color: 'var(--text-heading)', border: '1px solid var(--separator)', borderRadius: 'var(--radius-lg)', padding: 12, marginBottom: 16, fontWeight: 600 }
 const meetingRowStyle: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, border: '1px solid var(--separator)', borderRadius: 'var(--radius-md)', padding: 12, background: 'var(--bg-canvas)' }
 const metaStyle: React.CSSProperties = { display: 'block', color: 'var(--text-muted)', fontSize: 12.5, marginTop: 2 }

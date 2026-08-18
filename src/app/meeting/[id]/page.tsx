@@ -3,15 +3,13 @@
 import { use, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
+  ArrowLeft,
   BarChart2,
-  Calculator,
   FileText,
   Home,
   Lightbulb,
   LogOut,
-  Mic,
-  Radar,
-  Shield,
+  Settings,
   Square,
   StickyNote,
 } from 'lucide-react'
@@ -27,7 +25,16 @@ import { Button } from '@/components/ui/Button'
 import { useWorkspaceStore } from '@/lib/store/workspaceStore'
 import { clearClientDataStorage, WORKSPACE_MEETING_ID_KEY } from '@/lib/client-data-keys'
 import { Dialog } from '@/components/ui/Dialog'
+import { Sheet } from '@/components/ui/Sheet'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
+import { feeAnomaly } from '@/lib/fee-caps'
+
+function parseFee(value: string | number | undefined): number | null {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null
+  const match = String(value ?? '').match(/[\d.]+/)
+  const parsed = match ? Number(match[0]) : NaN
+  return Number.isFinite(parsed) ? parsed : null
+}
 
 /**
  * Meeting Workspace — the MeetingShell. Architecturally separate from
@@ -54,22 +61,22 @@ type MeetingRecord = {
   notes: string
 }
 
-type MeetingTab = 'overview' | 'insurance' | 'recommendations' | 'summary' | 'calculators' | 'returns' | 'smart-agent' | 'notes'
-type ReturnsView = 'client' | 'market'
+/**
+ * The meeting is a 4-step flow — the order an advisor actually works in:
+ * look at what there is → analyse → recommend → summarise. Everything else
+ * (notes, meeting details) is a non-intrusive tool in the header, not a
+ * destination. Each step shows its state under its name so the advisor
+ * sees at a glance what's missing without entering it.
+ */
+type MeetingStep = 'portfolio' | 'analysis' | 'recommendations' | 'summary'
+type PortfolioView = 'funds' | 'insurance'
+type AnalysisView = 'client-returns' | 'market-returns' | 'calculators' | 'smart-agent'
 
-// The full feature set lives here and only here (per the app's hierarchy:
-// a minimal dashboard for meetings/settings, full features gated behind an
-// active meeting) — this NAV is the complete list of what an advisor can do
-// inside a meeting.
-const NAV: Array<{ id: MeetingTab; label: string; icon: typeof Home }> = [
-  { id: 'overview', label: 'קופות', icon: Home },
-  { id: 'insurance', label: 'ביטוח', icon: Shield },
+const STEPS: Array<{ id: MeetingStep; label: string; icon: typeof Home }> = [
+  { id: 'portfolio', label: 'התיק', icon: Home },
+  { id: 'analysis', label: 'ניתוח', icon: BarChart2 },
   { id: 'recommendations', label: 'המלצות', icon: Lightbulb },
-  { id: 'summary', label: 'סיכום פגישה', icon: FileText },
-  { id: 'calculators', label: 'מחשבונים', icon: Calculator },
-  { id: 'returns', label: 'תשואות', icon: BarChart2 },
-  { id: 'smart-agent', label: 'Smart Agent', icon: Radar },
-  { id: 'notes', label: 'הערות ופרטים', icon: StickyNote },
+  { id: 'summary', label: 'סיכום', icon: FileText },
 ]
 
 function formatDuration(startedAt: string | null): string {
@@ -88,8 +95,11 @@ export default function MeetingWorkspacePage({ params }: { params: Promise<{ id:
   const router = useRouter()
   const [meeting, setMeeting] = useState<MeetingRecord | null>(null)
   const [loadState, setLoadState] = useState<'loading' | 'ready' | 'error'>('loading')
-  const [tab, setTab] = useState<MeetingTab>('overview')
-  const [returnsView, setReturnsView] = useState<ReturnsView>('client')
+  const [step, setStep] = useState<MeetingStep>('portfolio')
+  const [portfolioView, setPortfolioView] = useState<PortfolioView>('funds')
+  const [analysisView, setAnalysisView] = useState<AnalysisView>('client-returns')
+  const [notesOpen, setNotesOpen] = useState(false)
+  const [detailsOpen, setDetailsOpen] = useState(false)
   const [notes, setNotes] = useState('')
   const [tick, setTick] = useState(0)
   const [ending, setEnding] = useState(false)
@@ -98,6 +108,33 @@ export default function MeetingWorkspacePage({ params }: { params: Promise<{ id:
   const resetWorkspace = useWorkspaceStore(state => state.resetWorkspace)
 
   const meetingSummary = useWorkspaceStore(state => state.meetingSummary)
+  const storeFunds = useWorkspaceStore(state => state.funds)
+  const storeInsurance = useWorkspaceStore(state => state.insurancePolicies)
+  const storeDeals = useWorkspaceStore(state => state.trackingDeals)
+  const flagCount = useMemo(() => storeFunds.filter(fund => feeAnomaly(fund.productType, parseFee(fund.balanceFee), parseFee(fund.depositFee))).length, [storeFunds])
+  const stepStatus: Record<MeetingStep, string> = {
+    portfolio: storeFunds.length || storeInsurance.length ? `${storeFunds.length} קופות${storeInsurance.length ? ` · ${storeInsurance.length} פוליסות` : ''}` : 'טרם יובא קובץ',
+    analysis: storeFunds.length ? (flagCount ? `${flagCount} דגלים` : 'ללא דגלים') : '—',
+    recommendations: storeDeals.length ? `${storeDeals.length} המלצות` : 'אין עדיין',
+    summary: (meetingSummary.recommendations?.length || meetingSummary.facts?.length) ? 'טיוטה' : 'ריק',
+  }
+  const stepIndex = STEPS.findIndex(item => item.id === step)
+  const nextStep = STEPS[stepIndex + 1]
+
+  // "N" opens the notes pad from anywhere (not while typing in a field).
+  useEffect(() => {
+    function onKey(event: KeyboardEvent) {
+      const target = event.target as HTMLElement | null
+      if (target && /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName)) return
+      if (target?.isContentEditable) return
+      if ((event.key === 'n' || event.key === 'N' || event.key === 'נ') && !event.metaKey && !event.ctrlKey && !event.altKey) {
+        event.preventDefault()
+        setNotesOpen(open => !open)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
   const workspaceClient = useWorkspaceStore(state => state.client)
   const workspaceClientName = workspaceClient?.fullName || [workspaceClient?.firstName, workspaceClient?.lastName].filter(Boolean).join(' ') || ''
 
@@ -227,8 +264,11 @@ export default function MeetingWorkspacePage({ params }: { params: Promise<{ id:
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexShrink: 0 }}>
           <span style={durationStyle}>{duration}</span>
-          <Button variant="secondary" size="sm" disabled title="הקלטה ותמלול — בקרוב" aria-disabled="true">
-            <Mic size={14} style={{ marginLeft: 6 }} /> תמלול (בקרוב)
+          <Button variant="secondary" size="sm" onClick={() => setNotesOpen(true)} title="הערות פגישה (קיצור: N)">
+            <StickyNote size={14} style={{ marginLeft: 6 }} /> הערות
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => setDetailsOpen(true)} title="פרטי הפגישה" aria-label="פרטי הפגישה">
+            <Settings size={15} />
           </Button>
           <Button variant="primary" size="sm" disabled={ending} onClick={() => void endMeeting()}>
             <Square size={13} style={{ marginLeft: 6 }} /> {ending ? 'מסיים…' : 'סיים פגישה'}
@@ -257,66 +297,90 @@ export default function MeetingWorkspacePage({ params }: { params: Promise<{ id:
         onCancel={() => setConfirmLogout(false)}
       />
 
-      <div style={bodyStyle} data-meeting-body>
-        <nav style={navStyle} data-meeting-nav aria-label="מקטעי הפגישה">
-          {NAV.map(item => {
-            const Icon = item.icon
-            const active = tab === item.id
-            return (
-              <button key={item.id} type="button" onClick={() => setTab(item.id)} style={navButtonStyle(active)} aria-current={active ? 'page' : undefined}>
-                <Icon size={16} />
-                <span>{item.label}</span>
-              </button>
-            )
-          })}
-        </nav>
+      <nav style={stepperStyle} data-meeting-nav aria-label="שלבי הפגישה">
+        {STEPS.map((item, index) => {
+          const Icon = item.icon
+          const active = step === item.id
+          const done = index < stepIndex
+          return (
+            <button key={item.id} type="button" onClick={() => setStep(item.id)} style={stepButtonStyle(active, done)} aria-current={active ? 'step' : undefined}>
+              <span style={stepBadgeStyle(active, done)}>{done ? '✓' : index + 1}</span>
+              <span style={{ display: 'grid', gap: 1, textAlign: 'start', minWidth: 0 }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700 }}><Icon size={14} /> {item.label}</span>
+                <span style={{ fontSize: 11.5, color: active ? 'var(--abd-accent)' : 'var(--text-muted)', fontWeight: 500 }}>{stepStatus[item.id]}</span>
+              </span>
+              {index < STEPS.length - 1 && <span style={stepConnectorStyle} aria-hidden />}
+            </button>
+          )
+        })}
+      </nav>
 
+      <div style={bodyStyle} data-meeting-body>
         <main style={contentStyle} data-meeting-content>
-          {tab === 'overview' && <FundsWorkspace />}
-          {tab === 'insurance' && <InsurancePage />}
-          {tab === 'recommendations' && <RecommendationsPage />}
-          {tab === 'summary' && <MeetingSummaryPage />}
-          {tab === 'calculators' && <SimulationsPage />}
-          {tab === 'returns' && (
+          {step === 'portfolio' && (
             <div style={{ display: 'grid', gap: 14 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-                <SegmentedControl<ReturnsView>
-                  value={returnsView}
-                  onChange={setReturnsView}
-                  options={[{ value: 'client', label: 'תשואות הלקוח' }, { value: 'market', label: 'תשואות השוק' }]}
-                />
-                <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>{returnsView === 'client' ? 'התשואות בקופות של הלקוח מתוך הקבצים שיובאו' : 'השוואת מסלולים ויצרנים לפי נתוני השוק העדכניים'}</span>
-              </div>
-              {returnsView === 'client' ? <ReturnsPage /> : <AbdReturnsPage />}
+              <SegmentedControl<PortfolioView>
+                value={portfolioView}
+                onChange={setPortfolioView}
+                options={[{ value: 'funds', label: `פנסיוני${storeFunds.length ? ` (${storeFunds.length})` : ''}` }, { value: 'insurance', label: `ביטוחי${storeInsurance.length ? ` (${storeInsurance.length})` : ''}` }]}
+              />
+              {portfolioView === 'funds' ? <FundsWorkspace /> : <InsurancePage />}
             </div>
           )}
-          {tab === 'smart-agent' && <SmartAgentPage />}
-          {tab === 'notes' && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(240px, 320px)', gap: 18, alignItems: 'start' }}>
-              <div>
-                <h2 style={{ color: 'var(--text-heading)', fontSize: 18, fontWeight: 700, marginBottom: 12 }}>הערות פגישה</h2>
-                <textarea
-                  value={notes}
-                  onChange={event => void saveNotes(event.target.value)}
-                  rows={16}
-                  placeholder="הערות חופשיות לפגישה הנוכחית — נשמר אוטומטית."
-                  style={notesInputStyle}
-                />
-              </div>
-              <div style={{ display: 'grid', gap: 8 }}>
-                <h2 style={{ color: 'var(--text-heading)', fontSize: 15, fontWeight: 700, marginBottom: 4 }}>פרטי הפגישה</h2>
-                <InfoRow label="כותרת" value={meeting.title} />
-                <InfoRow label="לקוח" value={meeting.client_name || '-'} />
-                <InfoRow label="מקור" value={sourceLabel(meeting.source)} />
-                <InfoRow label="התחלה" value={meeting.started_at ? new Date(meeting.started_at).toLocaleString('he-IL') : '-'} />
-                <p style={{ marginTop: 10, color: 'var(--text-muted)', fontSize: 12.5, lineHeight: 1.7 }}>
-                  יש לך בעיה? <a href="mailto:support@abd-finance.co.il" style={{ color: 'var(--abd-accent)', fontWeight: 700, textDecoration: 'none' }}>support@abd-finance.co.il</a>
-                </p>
-              </div>
+          {step === 'analysis' && (
+            <div style={{ display: 'grid', gap: 14 }}>
+              <SegmentedControl<AnalysisView>
+                value={analysisView}
+                onChange={setAnalysisView}
+                options={[
+                  { value: 'client-returns', label: 'תשואות הלקוח' },
+                  { value: 'market-returns', label: 'תשואות השוק' },
+                  { value: 'calculators', label: 'מחשבונים וסימולציות' },
+                  { value: 'smart-agent', label: `Smart Agent${flagCount ? ` (${flagCount})` : ''}` },
+                ]}
+              />
+              {analysisView === 'client-returns' && <ReturnsPage />}
+              {analysisView === 'market-returns' && <AbdReturnsPage />}
+              {analysisView === 'calculators' && <SimulationsPage />}
+              {analysisView === 'smart-agent' && <SmartAgentPage />}
+            </div>
+          )}
+          {step === 'recommendations' && <RecommendationsPage />}
+          {step === 'summary' && <MeetingSummaryPage />}
+
+          {nextStep && (
+            <div style={{ display: 'flex', justifyContent: 'flex-start', marginTop: 22, paddingTop: 14, borderTop: '1px solid var(--separator)' }}>
+              <Button variant="primary" onClick={() => { setStep(nextStep.id); window.scrollTo({ top: 0, behavior: 'smooth' }) }}>
+                הבא: {nextStep.label} <ArrowLeft size={15} style={{ marginRight: 6 }} />
+              </Button>
             </div>
           )}
         </main>
       </div>
+
+      <Sheet open={notesOpen} onClose={() => setNotesOpen(false)} placement="side" width="min(460px, 100vw)" title="הערות פגישה" subtitle="נשמר אוטומטית · קיצור מקלדת: N">
+        <textarea
+          value={notes}
+          onChange={event => void saveNotes(event.target.value)}
+          rows={22}
+          placeholder="הערות חופשיות תוך כדי הפגישה…"
+          style={notesInputStyle}
+          autoFocus
+        />
+      </Sheet>
+
+      <Sheet open={detailsOpen} onClose={() => setDetailsOpen(false)} placement="side" width="min(420px, 100vw)" title="פרטי הפגישה">
+        <div style={{ display: 'grid', gap: 8 }}>
+          <InfoRow label="כותרת" value={meeting.title} />
+          <InfoRow label="לקוח" value={meeting.client_name || '-'} />
+          <InfoRow label="מקור" value={sourceLabel(meeting.source)} />
+          <InfoRow label="התחלה" value={meeting.started_at ? new Date(meeting.started_at).toLocaleString('he-IL') : '-'} />
+          <InfoRow label="משך עד כה" value={duration} />
+          <p style={{ marginTop: 10, color: 'var(--text-muted)', fontSize: 12.5, lineHeight: 1.7 }}>
+            הקלטה ותמלול — בקרוב. יש לך בעיה? <a href="mailto:support@abd-finance.co.il" style={{ color: 'var(--abd-accent)', fontWeight: 700, textDecoration: 'none' }}>support@abd-finance.co.il</a>
+          </p>
+        </div>
+      </Sheet>
     </div>
   )
 }
@@ -344,26 +408,23 @@ const liveDotStyle: React.CSSProperties = { width: 9, height: 9, borderRadius: 9
 const durationStyle: React.CSSProperties = { color: 'var(--text-heading)', fontWeight: 700, fontVariantNumeric: 'tabular-nums', fontSize: 14, direction: 'ltr' }
 const endErrorStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', margin: '10px 20px 0', padding: '10px 14px', borderRadius: 'var(--radius-lg)', background: 'var(--destructive-bg, #FEE2E2)', color: 'var(--destructive-text, #991B1B)', border: '1px solid var(--separator)', fontWeight: 600, fontSize: 13.5 }
 const bodyStyle: React.CSSProperties = { display: 'flex', flex: 1, minHeight: 0 }
-const navStyle: React.CSSProperties = { width: 190, flexShrink: 0, display: 'grid', gap: 2, alignContent: 'start', padding: 14, background: 'var(--bg-surface-sunken)', borderLeft: '1px solid var(--separator)' }
+const stepperStyle: React.CSSProperties = { display: 'flex', alignItems: 'stretch', gap: 0, padding: '10px 20px', background: 'var(--bg-surface-sunken)', borderBottom: '1px solid var(--separator)', overflowX: 'auto' }
+const stepConnectorStyle: React.CSSProperties = { flex: 1, height: 2, minWidth: 18, background: 'var(--separator)', margin: '0 10px', alignSelf: 'center' }
+function stepButtonStyle(active: boolean, done: boolean): React.CSSProperties {
+  return {
+    display: 'flex', alignItems: 'center', gap: 10, flex: '1 1 0', minWidth: 150, border: 0, background: 'transparent', cursor: 'pointer',
+    fontFamily: 'var(--font-main)', fontSize: 14, color: active ? 'var(--text-heading)' : done ? 'var(--text-heading)' : 'var(--text-muted)',
+    padding: '4px 0', textAlign: 'start',
+  }
+}
+function stepBadgeStyle(active: boolean, done: boolean): React.CSSProperties {
+  return {
+    width: 28, height: 28, borderRadius: 999, display: 'grid', placeItems: 'center', flexShrink: 0, fontWeight: 800, fontSize: 13,
+    background: active ? 'var(--abd-accent)' : done ? 'var(--success-bg, #ECFDF5)' : 'var(--bg-surface)',
+    color: active ? '#fff' : done ? 'var(--success-text, #065F46)' : 'var(--text-muted)',
+    border: active ? '2px solid var(--abd-accent)' : done ? '2px solid var(--success, #10B981)' : '2px solid var(--separator)',
+  }
+}
 const contentStyle: React.CSSProperties = { flex: 1, minWidth: 0, padding: 20, overflow: 'auto' }
 const notesInputStyle: React.CSSProperties = { width: '100%', border: '1px solid var(--separator)', borderRadius: 'var(--radius-md)', padding: 14, fontFamily: 'var(--font-main)', fontSize: 14, background: 'var(--bg-surface)', color: 'var(--text-heading)', resize: 'vertical', lineHeight: 1.7 }
 
-function navButtonStyle(active: boolean): React.CSSProperties {
-  return {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 9,
-    minHeight: 38,
-    padding: '0 10px',
-    border: 0,
-    borderRadius: 8,
-    background: active ? 'var(--bg-surface)' : 'transparent',
-    boxShadow: active ? 'var(--shadow-1)' : 'none',
-    color: 'var(--text-heading)',
-    fontFamily: 'var(--font-main)',
-    fontWeight: active ? 700 : 500,
-    fontSize: 13.5,
-    textAlign: 'right',
-    cursor: 'pointer',
-  }
-}
