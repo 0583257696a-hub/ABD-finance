@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { FileText, Download, Trash2, Send } from 'lucide-react'
+import { FileText, Download, Trash2, Send, MessageCircle } from 'lucide-react'
+import { useSession } from 'next-auth/react'
 import { useToast } from '@/components/ui/Toast'
 import { Toolbar } from '@/components/ui/Toolbar'
 import { Surface } from '@/components/ui/Surface'
@@ -15,7 +16,7 @@ import { SearchField } from '@/components/ui/SearchField'
 import { MeetingsSwitch } from '@/components/features/MeetingsSwitch'
 import { formatDate as formatDateShared, formatTime as formatTimeShared } from '@/lib/format-date'
 import { MeetingSummaryDocument } from '@/components/features/MeetingSummaryDocument'
-import { parseSummaryDocument, summaryHasContent } from '@/lib/meeting-summary-doc'
+import { parseSummaryDocument, summaryHasContent, summaryToWhatsAppText } from '@/lib/meeting-summary-doc'
 
 /**
  * סיכומי פגישות — archive of every completed meeting session. Written once,
@@ -62,6 +63,7 @@ function openSummaryPdf(id: string) {
 
 export default function MeetingSummariesHistoryPage() {
   const searchParams = useSearchParams()
+  const { data: session } = useSession()
   const [summaries, setSummaries] = useState<SummaryListItem[]>([])
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading')
   const [openSummary, setOpenSummary] = useState<SummaryDetail | null>(null)
@@ -149,6 +151,18 @@ export default function MeetingSummariesHistoryPage() {
   }
 
   const parsed = openSummary ? parseSummaryDocument(openSummary.summary_json) : null
+
+  // WhatsApp share (proposal §5): opens WhatsApp with the short text prefilled;
+  // the advisor picks the contact there. No API, no phone number stored here.
+  function shareWhatsApp() {
+    if (!openSummary || !parsed) return
+    const text = summaryToWhatsAppText(parsed, {
+      clientName: openSummary.client_name || undefined,
+      advisorName: session?.user?.name || undefined,
+      dateLabel: formatDate(openSummary.meeting_ended_at || openSummary.created_at),
+    })
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank', 'noopener')
+  }
   const visible = summaries.filter(summary => {
     const q = search.trim().toLowerCase()
     if (!q) return true
@@ -236,6 +250,9 @@ export default function MeetingSummariesHistoryPage() {
                 <Button variant="secondary" onClick={() => setOpenSummary(null)}>סגירה</Button>
                 <Button variant="secondary" onClick={() => openSummaryPdf(openSummary.id)}>
                   <Download size={16} /> PDF
+                </Button>
+                <Button variant="secondary" onClick={shareWhatsApp} title="פותח וואטסאפ עם תמצית הסיכום (המלצות והמשך טיפול) — בוחרים את איש הקשר שם">
+                  <MessageCircle size={16} /> וואטסאפ
                 </Button>
                 <Button variant="primary" onClick={() => { setSendTo(''); setSendOpen(true) }} title="שולח את הסיכום ללקוח במייל, מהכתובת שלך">
                   <Send size={15} /> שלח ללקוח
