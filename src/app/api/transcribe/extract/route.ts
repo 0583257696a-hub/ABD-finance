@@ -48,11 +48,12 @@ export async function POST(request: Request) {
   const transcript = sanitizeText(body.transcript, 24_000)
   if (transcript.length < 20) return NextResponse.json({ error: 'transcript-too-short' }, { status: 400 })
 
+  const today = new Date().toISOString().slice(0, 10)
   try {
     const response = await env.AI.run('@cf/meta/llama-3.3-70b-instruct-fp8-fast', {
       messages: [
         { role: 'system', content: SYSTEM },
-        { role: 'user', content: `התאריך היום: ${new Date().toISOString().slice(0, 10)}. תאריכי יעד (due) חייבים להיות אחרי היום ולהיגזר מהתמליל ("עד סוף החודש", "עד יום ראשון"); אם לא נאמר תאריך - השאר ריק.\n\nתמליל:\n${scrubIdentifiers(transcript)}` },
+        { role: 'user', content: `התאריך היום: ${today}. תאריכי יעד (due) חייבים להיות אחרי היום ולהיגזר מהתמליל ("עד סוף החודש", "עד יום ראשון"); אם לא נאמר תאריך - השאר ריק.\n\nתמליל:\n${scrubIdentifiers(transcript)}` },
       ],
       max_tokens: 1600,
       response_format: { type: 'json_schema', json_schema: RESPONSE_SCHEMA },
@@ -76,7 +77,11 @@ export async function POST(request: Request) {
       tasks: Array.isArray(parsed.tasks)
         ? parsed.tasks.map(task => {
           const record = task as { text?: string; owner?: string; due?: string }
-          return { text: sanitizeText(record?.text, 300), owner: record?.owner === 'client' ? 'client' as const : 'advisor' as const, due: /^\d{4}-\d{2}-\d{2}$/.test(String(record?.due || '')) ? String(record.due) : undefined }
+          // Models anchor relative dates ("עד סוף החודש") to their training year; a due date
+          // in the past is noise, so it is dropped and the advisor picks the date when adding.
+          const due = String(record?.due || '')
+          const validDue = /^\d{4}-\d{2}-\d{2}$/.test(due) && due >= today ? due : undefined
+          return { text: sanitizeText(record?.text, 300), owner: record?.owner === 'client' ? 'client' as const : 'advisor' as const, due: validDue }
         }).filter(task => task.text).slice(0, 8)
         : [],
       concerns: clean(parsed.concerns, 6),
