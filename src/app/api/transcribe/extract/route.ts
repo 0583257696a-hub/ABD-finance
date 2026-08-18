@@ -24,6 +24,18 @@ const SYSTEM = [
   'כללים: אל תמציא. אל תמליץ על מוצר, יצרן או מסלול. אם משהו לא נאמר - השאר ריק. ניסוח קצר, בעברית.',
 ].join('\n')
 
+const RESPONSE_SCHEMA = {
+  type: 'object',
+  properties: {
+    facts: { type: 'array', items: { type: 'object', properties: { label: { type: 'string' }, value: { type: 'string' } }, required: ['label', 'value'] } },
+    decisions: { type: 'array', items: { type: 'string' } },
+    tasks: { type: 'array', items: { type: 'object', properties: { text: { type: 'string' }, owner: { type: 'string', enum: ['advisor', 'client'] }, due: { type: 'string' } }, required: ['text', 'owner'] } },
+    concerns: { type: 'array', items: { type: 'string' } },
+    needs: { type: 'object', properties: { retirementAgeGoal: { type: 'string' }, maritalStatus: { type: 'string' }, monthlyIncome: { type: 'string' }, monthlyExpenses: { type: 'string' }, goals: { type: 'string' } } },
+  },
+  required: ['facts', 'decisions', 'tasks', 'concerns', 'needs'],
+}
+
 export async function POST(request: Request) {
   const csrf = requireSameOrigin(request)
   if (csrf) return csrf
@@ -40,10 +52,10 @@ export async function POST(request: Request) {
     const response = await env.AI.run('@cf/meta/llama-3.3-70b-instruct-fp8-fast', {
       messages: [
         { role: 'system', content: SYSTEM },
-        { role: 'user', content: `תמליל:\n${scrubIdentifiers(transcript)}` },
+        { role: 'user', content: `התאריך היום: ${new Date().toISOString().slice(0, 10)}. תאריכי יעד (due) חייבים להיות אחרי היום ולהיגזר מהתמליל ("עד סוף החודש", "עד יום ראשון"); אם לא נאמר תאריך - השאר ריק.\n\nתמליל:\n${scrubIdentifiers(transcript)}` },
       ],
       max_tokens: 1600,
-      response_format: { type: 'json_object' },
+      response_format: { type: 'json_schema', json_schema: RESPONSE_SCHEMA },
     }) as { response?: string | Record<string, unknown> } | string
     let parsed: Partial<ExtractedSuggestions>
     if (typeof response !== 'string' && response?.response && typeof response.response === 'object') {
@@ -70,7 +82,8 @@ export async function POST(request: Request) {
       concerns: clean(parsed.concerns, 6),
       needs: Object.fromEntries(Object.entries(parsed.needs || {}).filter(([, value]) => typeof value === 'string' && value.trim()).map(([key, value]) => [key, sanitizeText(value, 200)])),
     }
-    return NextResponse.json({ ok: true, suggestions })
+    const empty = !suggestions.facts.length && !suggestions.decisions.length && !suggestions.tasks.length && !suggestions.concerns.length && !Object.keys(suggestions.needs).length
+    return NextResponse.json({ ok: true, suggestions, ...(empty ? { debug: JSON.stringify(response).slice(0, 400) } : {}) })
   } catch (error) {
     return NextResponse.json({ error: 'extract-failed', detail: error instanceof Error ? error.message : String(error) }, { status: 502 })
   }
