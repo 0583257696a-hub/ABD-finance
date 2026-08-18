@@ -17,6 +17,7 @@ import { useToast } from '@/components/ui/Toast'
 import { WORKSPACE_MEETING_ID_KEY } from '@/lib/client-data-keys'
 import { MeetingsSwitch } from '@/components/features/MeetingsSwitch'
 import { MeetingPrepSheet } from '@/components/features/MeetingPrepSheet'
+import { FollowUpsCard } from '@/components/features/FollowUpsCard'
 
 type ProviderStatus = {
   id: 'google_calendar' | 'microsoft_outlook' | 'calendly'
@@ -715,6 +716,8 @@ export default function MeetingsPage() {
               <EmptyState title="אין פגישות קרובות" description="צור פגישה חדשה ושלח ללקוח זימון עם קובץ יומן." />
             )}
           </Surface>
+
+          <FollowUpsCard />
 
           {past.length > 0 && (
             <Surface style={{ padding: 20 }}>

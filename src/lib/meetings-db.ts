@@ -144,6 +144,21 @@ async function ensureMeetingsSchema(db: D1Like) {
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     )`,
+    `CREATE TABLE IF NOT EXISTS follow_ups (
+      id TEXT PRIMARY KEY,
+      user_email TEXT NOT NULL,
+      meeting_id TEXT,
+      summary_id TEXT,
+      client_name TEXT NOT NULL DEFAULT '',
+      text TEXT NOT NULL,
+      owner TEXT NOT NULL DEFAULT 'advisor',
+      due_date TEXT,
+      status TEXT NOT NULL DEFAULT 'open',
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      done_at TEXT
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_follow_ups_user_status ON follow_ups(user_email, status, due_date)`,
     `CREATE TABLE IF NOT EXISTS notifications (
       id TEXT PRIMARY KEY,
       user_email TEXT NOT NULL,
@@ -485,4 +500,84 @@ export async function confirmMeetingByToken(token: string): Promise<Pick<Meeting
     await db.prepare('UPDATE meetings SET confirmed_at = ? WHERE confirm_token = ?').bind(new Date().toISOString(), token).run()
   }
   return row
+}
+
+
+// ---------------------------------------------------------------------------
+// Follow-ups (משימות המשך) — a real entity, not just lines in the summary.
+// Created from the summary's "המשך טיפול" at end-of-meeting; owner
+// (advisor/client), due date, done. Listed cross-client on the meetings home.
+// ---------------------------------------------------------------------------
+
+export type FollowUpRecord = {
+  id: string
+  user_email: string
+  meeting_id: string | null
+  summary_id: string | null
+  client_name: string
+  text: string
+  owner: 'advisor' | 'client'
+  due_date: string | null
+  status: 'open' | 'done'
+  created_at: string
+  updated_at: string
+  done_at: string | null
+}
+
+export async function createFollowUps(userEmail: string, items: Array<{ text: string; meetingId?: string | null; summaryId?: string | null; clientName?: string; owner?: 'advisor' | 'client'; dueDate?: string | null }>): Promise<number> {
+  const db = await getDb()
+  if (!db || !items.length) return 0
+  const now = new Date().toISOString()
+  let created = 0
+  for (const item of items) {
+    const text = String(item.text || '').trim()
+    if (!text) continue
+    await db.prepare(
+      `INSERT INTO follow_ups (id, user_email, meeting_id, summary_id, client_name, text, owner, due_date, status, created_at, updated_at, done_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'open', ?, ?, NULL)`,
+    ).bind(crypto.randomUUID(), userEmail, item.meetingId ?? null, item.summaryId ?? null, item.clientName || '', text.slice(0, 500), item.owner === 'client' ? 'client' : 'advisor', item.dueDate || null, now, now).run()
+    created += 1
+  }
+  return created
+}
+
+export async function listFollowUps(userEmail: string, options?: { includeDone?: boolean; clientName?: string }): Promise<FollowUpRecord[]> {
+  const db = await getDb()
+  if (!db) return []
+  const clauses = ['user_email = ?']
+  const binds: unknown[] = [userEmail]
+  if (!options?.includeDone) clauses.push("status = 'open'")
+  if (options?.clientName) { clauses.push('lower(trim(client_name)) = lower(trim(?))'); binds.push(options.clientName) }
+  const result = await db.prepare(
+    `SELECT * FROM follow_ups WHERE ${clauses.join(' AND ')} ORDER BY CASE WHEN status = 'open' THEN 0 ELSE 1 END, CASE WHEN due_date IS NULL THEN 1 ELSE 0 END, due_date, created_at DESC LIMIT 300`,
+  ).bind(...binds).all<FollowUpRecord>()
+  return result?.results || []
+}
+
+export async function updateFollowUp(userEmail: string, id: string, patch: { status?: 'open' | 'done'; dueDate?: string | null; owner?: 'advisor' | 'client'; text?: string }): Promise<boolean> {
+  const db = await getDb()
+  if (!db) return false
+  const current = await db.prepare('SELECT * FROM follow_ups WHERE id = ? AND user_email = ?').bind(id, userEmail).first<FollowUpRecord>()
+  if (!current) return false
+  const now = new Date().toISOString()
+  const status = patch.status ?? current.status
+  await db.prepare(
+    'UPDATE follow_ups SET status = ?, due_date = ?, owner = ?, text = ?, updated_at = ?, done_at = ? WHERE id = ? AND user_email = ?',
+  ).bind(
+    status,
+    patch.dueDate === undefined ? current.due_date : patch.dueDate,
+    patch.owner ?? current.owner,
+    patch.text !== undefined ? String(patch.text).trim().slice(0, 500) || current.text : current.text,
+    now,
+    status === 'done' ? (current.done_at || now) : null,
+    id, userEmail,
+  ).run()
+  return true
+}
+
+export async function deleteFollowUp(userEmail: string, id: string): Promise<boolean> {
+  const db = await getDb()
+  if (!db) return false
+  await db.prepare('DELETE FROM follow_ups WHERE id = ? AND user_email = ?').bind(id, userEmail).run()
+  return true
 }

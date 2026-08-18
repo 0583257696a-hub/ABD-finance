@@ -33,13 +33,21 @@ export function MeetingPrepSheet({ meeting, forms, onClose, onStart }: {
 }) {
   const [previous, setPrevious] = useState<{ item: SummaryListItem; doc: MeetingSummaryData | null } | null>(null)
   const [state, setState] = useState<'idle' | 'loading' | 'ready'>('idle')
+  const [serverTasks, setServerTasks] = useState<Array<{ id: string; text: string; due_date: string | null; owner: string }>>([])
 
   useEffect(() => {
     if (!meeting) return
     let cancelled = false
     setState('loading')
     setPrevious(null)
+    setServerTasks([])
     ;(async () => {
+      try {
+        if (meeting.client_name) {
+          const tasks = await (await fetch(`/api/follow-ups?client=${encodeURIComponent(meeting.client_name)}`)).json() as { followUps: Array<{ id: string; text: string; due_date: string | null; owner: string }> }
+          if (!cancelled) setServerTasks(tasks.followUps || [])
+        }
+      } catch { /* optional */ }
       try {
         const list = await (await fetch('/api/meeting-summaries')).json() as { summaries: SummaryListItem[] }
         const wanted = normalizeName(meeting.client_name)
@@ -65,7 +73,8 @@ export function MeetingPrepSheet({ meeting, forms, onClose, onStart }: {
   const highlights = answers.filter(row => /פרישה|מטרות|הכנסה|מצב משפחתי|סיכון|חשוב/.test(row.label) || /מטרות/.test(row.section)).slice(0, 6)
 
   const doc = previous?.doc
-  const openTasks = (doc?.manualFollowUps || []).filter(item => item?.text?.trim())
+  // Real follow-up tasks (server) win; the summary's own lines are the fallback for pre-tasks archives.
+  const openTasks = serverTasks.length ? serverTasks.map(task => ({ id: task.id, text: `${task.text}${task.due_date ? ` (עד ${formatDate(task.due_date)})` : ''}` })) : (doc?.manualFollowUps || []).filter(item => item?.text?.trim())
   const lastRecommendations = (doc?.recommendations || []).filter(item => item?.text?.trim()).slice(0, 4)
 
   const openers: string[] = []

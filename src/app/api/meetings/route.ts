@@ -14,6 +14,7 @@ import {
   startMeetingSession,
   updateMeetingNotes,
   updateMeetingStatus,
+  createFollowUps,
   type MeetingSource,
 } from '@/lib/meetings-db'
 import { buildIcsInvite, icsToBase64 } from '@/lib/meetings-ics'
@@ -130,6 +131,13 @@ export async function POST(request: Request) {
         meeting_ended_at: new Date().toISOString(),
       })
       if (!saved) summaryId = null
+      // The summary's "המשך טיפול" lines become real follow-up tasks (owner, due
+      // date, done) that outlive the meeting and show on the meetings home.
+      if (saved) {
+        const doc = body.summary as { manualFollowUps?: Array<{ text?: string }> }
+        const items = (doc.manualFollowUps || []).map(item => ({ text: String(item?.text || ''), meetingId: meeting.id, summaryId, clientName })).filter(item => item.text.trim())
+        if (items.length) await createFollowUps(userEmail, items).catch(() => 0)
+      }
     }
 
     await endMeetingSession(userEmail, body.id, summaryId)

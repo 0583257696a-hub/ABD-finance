@@ -174,6 +174,7 @@ export async function deleteD1UserCompletely(userId: string): Promise<{ ok: bool
   await wipe('client_forms', 'user_email', email)
   await wipe('questionnaire_templates', 'user_email', email)
   await wipe('notifications', 'user_email', email)
+  await wipe('follow_ups', 'user_email', email)
   await wipe('calendar_connections', 'user_email', email)
   await wipe('agency_members', 'user_id', userId)
   await wipe('password_reset_tokens', 'user_id', userId)
