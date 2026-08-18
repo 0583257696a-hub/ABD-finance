@@ -9,6 +9,7 @@ import {
   Home,
   Lightbulb,
   LogOut,
+  Mic,
   Settings,
   Square,
   StickyNote,
@@ -28,6 +29,7 @@ import { Dialog } from '@/components/ui/Dialog'
 import { Sheet } from '@/components/ui/Sheet'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { loadStoredFindings, runAnalysis } from '@/lib/smart-agent/engine'
+import { RecordingPanel } from '@/components/features/RecordingPanel'
 
 /**
  * Meeting Workspace — the MeetingShell. Architecturally separate from
@@ -93,6 +95,7 @@ export default function MeetingWorkspacePage({ params }: { params: Promise<{ id:
   const [analysisView, setAnalysisView] = useState<AnalysisView>('client-returns')
   const [notesOpen, setNotesOpen] = useState(false)
   const [detailsOpen, setDetailsOpen] = useState(false)
+  const [recordingOpen, setRecordingOpen] = useState(false)
   const [notes, setNotes] = useState('')
   const [tick, setTick] = useState(0)
   const [ending, setEnding] = useState(false)
@@ -264,6 +267,9 @@ export default function MeetingWorkspacePage({ params }: { params: Promise<{ id:
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexShrink: 0 }}>
           <span style={durationStyle}>{duration}</span>
+          <Button variant="secondary" size="sm" onClick={() => setRecordingOpen(true)} title="הקלטה ותמלול — באישור הלקוח">
+            <Mic size={14} style={{ marginLeft: 6 }} /> הקלטה
+          </Button>
           <Button variant="secondary" size="sm" onClick={() => setNotesOpen(true)} title="הערות פגישה (קיצור: N)">
             <StickyNote size={14} style={{ marginLeft: 6 }} /> הערות
           </Button>
@@ -358,6 +364,8 @@ export default function MeetingWorkspacePage({ params }: { params: Promise<{ id:
         </main>
       </div>
 
+      <RecordingPanel open={recordingOpen} onOpenChange={setRecordingOpen} meetingId={meeting.id} clientName={meeting.client_name || workspaceClientName} />
+
       <Sheet open={notesOpen} onClose={() => setNotesOpen(false)} placement="side" width="min(460px, 100vw)" title="הערות פגישה" subtitle="נשמר אוטומטית · קיצור מקלדת: N">
         <textarea
           value={notes}
@@ -377,7 +385,7 @@ export default function MeetingWorkspacePage({ params }: { params: Promise<{ id:
           <InfoRow label="התחלה" value={meeting.started_at ? new Date(meeting.started_at).toLocaleString('he-IL') : '-'} />
           <InfoRow label="משך עד כה" value={duration} />
           <p style={{ marginTop: 10, color: 'var(--text-muted)', fontSize: 12.5, lineHeight: 1.7 }}>
-            הקלטה ותמלול — בקרוב. יש לך בעיה? <a href="mailto:support@abd-finance.co.il" style={{ color: 'var(--abd-accent)', fontWeight: 700, textDecoration: 'none' }}>support@abd-finance.co.il</a>
+            יש לך בעיה? <a href="mailto:support@abd-finance.co.il" style={{ color: 'var(--abd-accent)', fontWeight: 700, textDecoration: 'none' }}>support@abd-finance.co.il</a>
           </p>
         </div>
       </Sheet>

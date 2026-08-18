@@ -74,6 +74,14 @@ export function MeetingSummaryDocument({ doc, variant = 'screen' }: { doc: Meeti
         המידע המוצג נועד לסייע בארגון וסיכום מידע בלבד ואינו מהווה ייעוץ פנסיוני, ביטוחי, משפטי, השקעות או מס. האחריות לבדיקת הנתונים וקבלת ההחלטות חלה על המשתמש.
       </p>
 
+      {/* Transcript is INTERNAL: shown to the advisor on screen only, never in print/PDF or the client email. */}
+      {!print && doc.transcript?.trim() && (
+        <details style={{ ...section, border: '1px dashed var(--separator)', borderRadius: 10, padding: '8px 12px' }}>
+          <summary style={{ cursor: 'pointer', color: 'var(--text-muted)', fontSize: 13, fontWeight: 700 }}>תמליל הפגישה (פנימי — לא נשלח ללקוח){doc.recordingConsentAt ? ' · אישור הקלטה ' + new Date(doc.recordingConsentAt).toLocaleString('he-IL') : ''}</summary>
+          <p style={{ ...text, whiteSpace: 'pre-wrap', marginTop: 8, fontSize: 13 }}>{doc.transcript}</p>
+        </details>
+      )}
+
       {screenshots.length ? (
         <section style={section}>
           <h3 style={heading}>צילומי מסך</h3>

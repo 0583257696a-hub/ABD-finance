@@ -58,6 +58,7 @@ export function summaryHasContent(doc: MeetingSummaryData | null): boolean {
     doc.recommendations?.some(item => item?.text?.trim()) ||
     doc.manualFollowUps?.some(item => item?.text?.trim()) ||
     filledEditedSections(doc).length ||
-    doc.screenshots?.some(item => item?.imageData),
+    doc.screenshots?.some(item => item?.imageData) ||
+    Boolean(doc.transcript?.trim()),
   )
 }

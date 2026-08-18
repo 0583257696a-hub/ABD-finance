@@ -46,6 +46,10 @@ export type MeetingSummaryData = {
   manualFollowUps?: MeetingFollowUp[]
   hiddenAutoFollowUps?: string[]
   screenshots?: MeetingScreenshot[]
+  /** Live-meeting transcript (INTERNAL - never sent to the client or printed). */
+  transcript?: string
+  /** When the client consented to recording (ISO); also written to the audit log. */
+  recordingConsentAt?: string
   sections?: Record<string, boolean>
   manualFacts?: string[]
   manualRecommendations?: string[]

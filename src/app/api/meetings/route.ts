@@ -20,6 +20,7 @@ import {
 import { buildIcsInvite, icsToBase64 } from '@/lib/meetings-ics'
 import { sendSystemEmail } from '@/lib/system-mail'
 import { clientNameFromSummary } from '@/lib/meeting-summary-doc'
+import { writeAuditEvent } from '@/lib/system-db'
 
 export async function GET() {
   const session = await getServerSession(authOptions)
@@ -29,7 +30,7 @@ export async function GET() {
 }
 
 type PostBody = {
-  action?: 'create' | 'send-invite' | 'set-status' | 'start-session' | 'end-session' | 'import-calendar-event' | 'save-notes'
+  action?: 'create' | 'send-invite' | 'set-status' | 'start-session' | 'end-session' | 'import-calendar-event' | 'save-notes' | 'recording-consent'
   id?: string
   status?: 'scheduled' | 'done' | 'cancelled'
   clientName?: string
@@ -142,6 +143,20 @@ export async function POST(request: Request) {
 
     await endMeetingSession(userEmail, body.id, summaryId)
     return NextResponse.json({ ok: true, summaryId })
+  }
+
+  /**
+   * Recording consent — the client agreed to be recorded/transcribed. Written to
+   * the audit log with a timestamp (the standard for a licensed advisor
+   * processing identified financial data through AI). No audio is stored.
+   */
+  if (body.action === 'recording-consent') {
+    if (!body.id) return NextResponse.json({ error: 'Bad request' }, { status: 400 })
+    const meeting = await getMeeting(userEmail, body.id)
+    if (!meeting) return NextResponse.json({ error: 'not-found' }, { status: 404 })
+    const at = new Date().toISOString()
+    await writeAuditEvent({ actorEmail: userEmail, action: 'meeting.recording_consent', targetId: meeting.id, metadata: { clientName: meeting.client_name || '', at } })
+    return NextResponse.json({ ok: true, at })
   }
 
   if (body.action === 'save-notes') {
