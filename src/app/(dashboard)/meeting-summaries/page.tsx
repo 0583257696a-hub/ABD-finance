@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { FileText, Download, Trash2 } from 'lucide-react'
+import { FileText, Download, Trash2, Send } from 'lucide-react'
+import { useToast } from '@/components/ui/Toast'
 import { Toolbar } from '@/components/ui/Toolbar'
 import { Surface } from '@/components/ui/Surface'
 import { EmptyState } from '@/components/ui/EmptyState'
@@ -67,6 +68,26 @@ export default function MeetingSummariesHistoryPage() {
   const [detailLoading, setDetailLoading] = useState(false)
   const [toDelete, setToDelete] = useState<SummaryListItem | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const toast = useToast()
+  const [sendOpen, setSendOpen] = useState(false)
+  const [sendTo, setSendTo] = useState('')
+  const [sendNote, setSendNote] = useState('')
+  const [sending, setSending] = useState(false)
+
+  async function sendToClient() {
+    if (!openSummary || sending) return
+    // Blank recipient → the API uses the meeting's client email.
+    setSending(true)
+    try {
+      const response = await fetch('/api/meeting-summaries/send', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: openSummary.id, to: sendTo, note: sendNote }) })
+      const data = await response.json().catch(() => ({})) as { ok?: boolean; error?: string }
+      const sentTo = (data as { to?: string }).to || sendTo
+      if (data.ok) { toast(`הסיכום נשלח אל ${sentTo}.`, 'success'); setSendOpen(false); setSendNote('') }
+      else toast(data.error === 'missing-recipient' ? 'לפגישה אין אימייל לקוח — הזן כתובת.' : data.error === 'empty-summary' ? 'הסיכום ריק — אין מה לשלוח.' : 'שליחת הסיכום נכשלה. בדוק את חיבור המייל בהגדרות.', 'error')
+    } finally {
+      setSending(false)
+    }
+  }
   const [search, setSearch] = useState('')
   const justSaved = searchParams.get('justSaved')
 
@@ -205,13 +226,33 @@ export default function MeetingSummariesHistoryPage() {
               </Button>
               <div style={{ display: 'flex', gap: 8 }}>
                 <Button variant="secondary" onClick={() => setOpenSummary(null)}>סגירה</Button>
-                <Button variant="primary" onClick={() => openSummaryPdf(openSummary.id)}>
-                  <Download size={16} /> הורד PDF
+                <Button variant="secondary" onClick={() => openSummaryPdf(openSummary.id)}>
+                  <Download size={16} /> PDF
+                </Button>
+                <Button variant="primary" onClick={() => { setSendTo(''); setSendOpen(true) }} title="שולח את הסיכום ללקוח במייל, מהכתובת שלך">
+                  <Send size={15} /> שלח ללקוח
                 </Button>
               </div>
             </div>
           }
         >
+          {sendOpen && (
+            <div style={{ display: 'grid', gap: 8, padding: 12, marginBottom: 14, background: 'var(--bg-surface-sunken)', border: '1px solid var(--separator)', borderRadius: 'var(--radius-lg)' }}>
+              <strong style={{ color: 'var(--text-heading)', fontSize: 14 }}>שליחת הסיכום ללקוח במייל</strong>
+              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', gap: 8, alignItems: 'end' }}>
+                <label style={{ display: 'grid', gap: 4, fontSize: 13, fontWeight: 600, color: 'var(--text-heading)' }}>
+                  <span>אימייל הלקוח</span>
+                  <input dir="ltr" type="email" value={sendTo} onChange={event => setSendTo(event.target.value)} placeholder="ריק = האימייל של הלקוח מהפגישה" style={{ minHeight: 40, border: '1px solid var(--separator)', borderRadius: 'var(--radius-md)', padding: '8px 12px', fontFamily: 'inherit', fontSize: 14, background: 'var(--bg-surface)', color: 'var(--text-heading)', width: '100%' }} />
+                </label>
+                <Button variant="primary" disabled={sending} onClick={() => void sendToClient()}>{sending ? 'שולח…' : 'שלח'}</Button>
+              </div>
+              <label style={{ display: 'grid', gap: 4, fontSize: 13, fontWeight: 600, color: 'var(--text-heading)' }}>
+                <span>הודעה אישית (לא חובה)</span>
+                <textarea rows={2} value={sendNote} onChange={event => setSendNote(event.target.value)} placeholder="שלום ישראל, מצורף סיכום הפגישה שלנו…" style={{ border: '1px solid var(--separator)', borderRadius: 'var(--radius-md)', padding: '8px 12px', fontFamily: 'inherit', fontSize: 14, background: 'var(--bg-surface)', color: 'var(--text-heading)', resize: 'vertical' }} />
+              </label>
+              <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>המייל כולל את הסיכום המלא (תמצית נתונים, המלצות, המשך טיפול) והסתייגות מקצועית, ונשלח מהכתובת שלך עם Reply-To אליך.</span>
+            </div>
+          )}
           {parsed && summaryHasContent(parsed) ? (
             <MeetingSummaryDocument doc={parsed} />
           ) : (
