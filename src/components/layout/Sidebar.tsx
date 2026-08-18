@@ -9,6 +9,7 @@ import {
   ChevronsRight,
   LifeBuoy,
   LogOut,
+  Search,
   Settings,
   ShieldCheck,
 } from 'lucide-react'
@@ -17,6 +18,7 @@ import { BRANDING_EVENT, readBrandingSettings, type BrandingSettings } from '@/l
 import NotificationsBell from './NotificationsBell'
 import { SupportSheet } from '@/components/features/SupportSheet'
 import { clearClientDataStorage } from '@/lib/client-data-keys'
+import { COMMAND_PALETTE_EVENT } from '@/components/features/CommandPalette'
 
 type NavItem = { tab: string; icon: typeof CalendarClock; label: string }
 
@@ -95,6 +97,17 @@ export default function Sidebar() {
           <ChevronsLeft size={16} />
         </button>
       )}
+
+      <button
+        type="button"
+        onClick={() => window.dispatchEvent(new Event(COMMAND_PALETTE_EVENT))}
+        title="חיפוש ופקודות (Ctrl+K)"
+        style={{ ...navItemStyle, justifyContent: collapsed ? 'center' : 'flex-start', width: '100%', border: '1px solid var(--separator-strong)', background: 'var(--bg-surface-sunken)', color: 'var(--text-muted)', cursor: 'pointer', fontFamily: 'inherit', margin: '2px 0 8px' }}
+      >
+        <Search size={17} strokeWidth={1.8} />
+        {!collapsed && <span style={{ flex: 1, textAlign: 'start' }}>חיפוש…</span>}
+        {!collapsed && <kbd style={{ fontSize: 10.5, padding: '0 5px', borderRadius: 5, border: '1px solid var(--separator-strong)', fontFamily: 'inherit', color: 'var(--text-muted)' }}>Ctrl K</kbd>}
+      </button>
 
       <nav style={navStyle}>
         {NAV_GROUPS.map(group => (

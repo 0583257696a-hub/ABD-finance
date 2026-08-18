@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { FileText, Download, Trash2, Send } from 'lucide-react'
 import { useToast } from '@/components/ui/Toast'
@@ -90,6 +90,14 @@ export default function MeetingSummariesHistoryPage() {
   }
   const [search, setSearch] = useState('')
   const justSaved = searchParams.get('justSaved')
+  // Deep link from the ⌘K palette: ?open=<id> opens that summary directly.
+  const deepOpen = searchParams.get('open')
+  const openedDeepRef = useRef('')
+  useEffect(() => {
+    if (!deepOpen || status !== 'ready' || openedDeepRef.current === deepOpen) return
+    openedDeepRef.current = deepOpen
+    void openDetail(deepOpen)
+  }, [deepOpen, status])
 
   // Reload by bumping the key; the effect owns the fetch (keeps the
   // react-hooks/set-state-in-effect rule honest — no sync setState in effect).

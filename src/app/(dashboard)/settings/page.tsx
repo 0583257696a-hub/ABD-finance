@@ -1,6 +1,7 @@
 ﻿'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { Link2, Unlink } from 'lucide-react'
 import {
   applyBrandingSettings,
@@ -49,6 +50,14 @@ export default function SettingsPage() {
   const [confirmReset, setConfirmReset] = useState(false)
   // Six anchor-sections became three tabs (QA proposal §1.3ה): מיתוג · חיבורים · שאלונים.
   const [section, setSection] = useState<'brand' | 'connections' | 'questionnaires'>('brand')
+  // Deep link from the ⌘K palette / sidebar: ?section=connections
+  const requestedSection = useSearchParams().get('section')
+  useEffect(() => {
+    if (requestedSection === 'brand' || requestedSection === 'connections' || requestedSection === 'questionnaires') {
+      const timer = window.setTimeout(() => setSection(requestedSection), 0)
+      return () => window.clearTimeout(timer)
+    }
+  }, [requestedSection])
   const toast = useToast()
   const selectedTheme = useMemo(() => settingsFromTheme(settings.themeId), [settings.themeId])
   const generatedThemes = useMemo(() => buildLogoThemes(logoPalette), [logoPalette])

@@ -92,6 +92,36 @@ export default function MeetingsPage() {
   const [spontaneousTitle, setSpontaneousTitle] = useState('')
   const [starting, setStarting] = useState(false)
 
+  // Deep links from the ⌘K palette: ?start=1 opens the "start meeting" chooser,
+  // ?schedule=1 jumps to the scheduling form, ?focus=<id> scrolls to that meeting.
+  const deepStart = searchParams.get('start')
+  const deepSchedule = searchParams.get('schedule')
+  const deepFocus = searchParams.get('focus')
+  useEffect(() => {
+    if (deepStart) { const timer = window.setTimeout(() => setStartChoice('choose'), 0); return () => window.clearTimeout(timer) }
+  }, [deepStart])
+  useEffect(() => {
+    if (!deepSchedule) return
+    const timer = window.setTimeout(() => {
+      const input = document.getElementById('meeting-field-clientName') as HTMLInputElement | null
+      input?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      input?.focus()
+    }, 120)
+    return () => window.clearTimeout(timer)
+  }, [deepSchedule])
+  useEffect(() => {
+    if (!deepFocus || !meetings.length) return
+    const timer = window.setTimeout(() => {
+      const row = document.getElementById(`meeting-${deepFocus}`)
+      if (!row) return
+      row.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      row.style.outline = '2px solid var(--abd-primary)'
+      row.style.outlineOffset = '2px'
+      window.setTimeout(() => { row.style.outline = ''; row.style.outlineOffset = '' }, 2400)
+    }, 150)
+    return () => window.clearTimeout(timer)
+  }, [deepFocus, meetings.length])
+
   const calendarNotice = searchParams.get('calendarConnected') ? `${searchParams.get('calendarConnected')} חובר בהצלחה.`
     : searchParams.get('calendarError') || ''
 
@@ -684,7 +714,7 @@ export default function MeetingsPage() {
             {upcoming.length ? (
               <div style={{ display: 'grid', gap: 10 }}>
                 {upcoming.map(meeting => (
-                  <article key={meeting.id} style={meetingRowStyle}>
+                  <article key={meeting.id} id={`meeting-${meeting.id}`} style={meetingRowStyle}>
                     <div style={{ minWidth: 0 }}>
                       <strong style={{ display: 'block', color: 'var(--text-heading)' }}>{meeting.title}</strong>
                       <span style={metaStyle}>{meeting.client_name} · {formatWhen(meeting.starts_at)}{meeting.location ? ` · ${meeting.location}` : ''}</span>
@@ -724,7 +754,7 @@ export default function MeetingsPage() {
               <h2 style={sectionTitleStyle}><History size={17} style={iconStyle} /> היסטוריית פגישות ({past.length})</h2>
               <div style={{ display: 'grid', gap: 8, marginTop: 8 }}>
                 {past.map(meeting => (
-                  <div key={meeting.id} style={{ ...meetingRowStyle, opacity: 0.85 }}>
+                  <div key={meeting.id} id={`meeting-${meeting.id}`} style={{ ...meetingRowStyle, opacity: 0.85 }}>
                     <div style={{ minWidth: 0 }}>
                       <strong style={{ color: 'var(--text-heading)' }}>{meeting.title}</strong>
                       <span style={metaStyle}> · {meeting.client_name} · {formatWhen(meeting.starts_at)}</span>
