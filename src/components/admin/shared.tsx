@@ -5,6 +5,7 @@ import type { CSSProperties, ReactNode } from 'react'
 import { Dialog } from '@/components/ui/Dialog'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { useToast } from '@/components/ui/Toast'
+import { formatDate as formatDateShared, formatDateTime } from '@/lib/format-date'
 
 /**
  * Shared types + small building blocks for the admin panel tabs. Every tab
@@ -163,12 +164,7 @@ export const PLAN_FEATURES: Array<{ key: string; label: string }> = [
 ]
 
 export function formatDate(iso?: string | null, withTime = false): string {
-  if (!iso) return '—'
-  const date = new Date(iso)
-  if (Number.isNaN(date.getTime())) return '—'
-  return withTime
-    ? date.toLocaleString('he-IL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
-    : date.toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: 'numeric' })
+  return withTime ? formatDateTime(iso) : formatDateShared(iso)
 }
 
 export function planName(plans: Plan[] | undefined, id: string): string {
@@ -240,7 +236,8 @@ export function StatusPill({ status, map }: { status: string; map: Record<string
 }
 
 export function KpiTile({ label, value, note, tone = 'neutral' }: { label: string; value: number | string; note?: string; tone?: 'neutral' | 'success' | 'warning' | 'destructive' | 'accent' }) {
-  const color = tone === 'success' ? 'var(--success)' : tone === 'warning' ? 'var(--warning, #B45309)' : tone === 'destructive' ? 'var(--destructive)' : tone === 'accent' ? 'var(--abd-accent)' : 'var(--text-heading)'
+  // Text tones use the *-text tokens (dark variants) — the plain green failed contrast at 2.54:1 (QA P2-15).
+  const color = tone === 'success' ? 'var(--success-text, #065F46)' : tone === 'warning' ? 'var(--warning-text, #92400E)' : tone === 'destructive' ? 'var(--destructive-text, #991B1B)' : tone === 'accent' ? 'var(--abd-accent)' : 'var(--text-heading)'
   return (
     <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--separator)', borderRadius: 'var(--radius-lg)', padding: '14px 16px', display: 'grid', gap: 4, minWidth: 0 }}>
       <span style={{ color: 'var(--text-muted)', fontSize: 12.5, fontWeight: 600 }}>{label}</span>

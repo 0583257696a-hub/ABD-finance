@@ -679,7 +679,9 @@ function parseRetirementWorkbook(workbook: XLSX.WorkBook, fileName: string): Imp
     client: clientRows[0] ? parseClient(clientRows[0]) : undefined,
     funds,
     insurancePolicies,
-    messages: [`${fileName}: נטענו ${funds.length} קופות ו-${insurancePolicies.length} כיסויים/פוליסות`],
+    messages: [funds.length || insurancePolicies.length
+      ? `${fileName}: נטענו ${funds.length} קופות ו-${insurancePolicies.length} כיסויים/פוליסות`
+      : `${fileName}: לא זוהו נתוני קופות בגיליון — בדוק שזהו קובץ ייצוא נתמך (מסלקה / הר הביטוח / אקסל תיק)`],
   }
 }
 
@@ -1555,7 +1557,9 @@ async function parseClearinghouseZip(file: File): Promise<ImportResult> {
     client,
     funds,
     insurancePolicies,
-    messages: [`${file.name}: נטענו ${funds.length} קופות ו-${insurancePolicies.length} פוליסות/כיסויים ממסלקה`],
+    messages: [funds.length || insurancePolicies.length
+      ? `${file.name}: נטענו ${funds.length} קופות ו-${insurancePolicies.length} פוליסות/כיסויים ממסלקה`
+      : `${file.name}: לא נמצאו קופות או פוליסות בקובץ — ודא שזהו קובץ מסלקה פנסיונית תקין (ZIP/XML שהתקבל מהמסלקה)`],
     derivedFactor: firstPositive(...funds.map(fund => Number(fund.guaranteedCoefficient || 0)), 140),
   }
 }
@@ -1564,7 +1568,9 @@ async function parseXmlFile(file: File): Promise<ImportResult> {
   const zip = new JSZip()
   zip.file(file.name, await file.text())
   const blob = await zip.generateAsync({ type: 'blob' })
-  return parseClearinghouseZip(new File([blob], `${file.name}.zip`))
+  // The wrapper zip is an implementation detail — messages must name the file the user picked.
+  const parsed = await parseClearinghouseZip(new File([blob], `${file.name}.zip`))
+  return { ...parsed, messages: parsed.messages.map(message => message.replace(`${file.name}.zip`, file.name)) }
 }
 
 async function parseExcelFile(file: File): Promise<ImportResult> {

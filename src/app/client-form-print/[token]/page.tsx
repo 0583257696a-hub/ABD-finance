@@ -1,7 +1,7 @@
 'use client'
 
 import { use, useEffect, useState } from 'react'
-import { buildBaseQuestions, parseQuestions, type QuestionnaireQuestion } from '@/lib/questionnaires'
+import { describeAnswers, type DescribedAnswer } from '@/lib/questionnaires'
 
 /**
  * Print-optimized view of a submitted questionnaire, for the advisor.
@@ -20,8 +20,6 @@ type ClientForm = {
   questions_json: string | null
   submitted_at: string | null
 }
-
-const YES_NO_LABELS: Record<string, string> = { yes: 'כן', no: 'לא', unknown: 'לא בטוח/ה' }
 
 export default function ClientFormPrintPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = use(params)
@@ -47,15 +45,12 @@ export default function ClientFormPrintPage({ params }: { params: Promise<{ toke
   if (state === 'error' || !form) return <main dir="rtl" style={centerStyle}>השאלון לא נמצא או שאין הרשאה לצפות בו. ודא שאתה מחובר למערכת.</main>
 
   const answers: Record<string, string> = form.payload_json ? JSON.parse(form.payload_json) : {}
-  const snapshot = parseQuestions(form.questions_json)
-  const questions = snapshot.length ? snapshot : buildBaseQuestions()
-  const answered = questions.filter(question => answers[question.id])
-
-  const sections: Array<{ section: string; items: QuestionnaireQuestion[] }> = []
-  for (const question of answered) {
+  const rows = describeAnswers(form.questions_json, answers)
+  const sections: Array<{ section: string; items: DescribedAnswer[] }> = []
+  for (const row of rows) {
     const last = sections[sections.length - 1]
-    if (last && last.section === question.section) last.items.push(question)
-    else sections.push({ section: question.section, items: [question] })
+    if (last && last.section === row.section) last.items.push(row)
+    else sections.push({ section: row.section, items: [row] })
   }
 
   return (
@@ -79,12 +74,10 @@ export default function ClientFormPrintPage({ params }: { params: Promise<{ toke
           <h2 style={{ fontSize: 15, fontWeight: 700, color: '#111827', borderBottom: '1px solid #D1D5DB', paddingBottom: 4, marginBottom: 10 }}>{section}</h2>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13.5 }}>
             <tbody>
-              {items.map(question => (
-                <tr key={question.id}>
-                  <td style={{ padding: '6px 0', color: '#6B7280', width: '45%', verticalAlign: 'top' }}>{question.label}</td>
-                  <td style={{ padding: '6px 0', color: '#111827', fontWeight: 600, whiteSpace: 'pre-wrap' }}>
-                    {question.type === 'yes-no' ? (YES_NO_LABELS[answers[question.id]] || answers[question.id]) : answers[question.id]}
-                  </td>
+              {items.map(row => (
+                <tr key={row.id}>
+                  <td style={{ padding: '6px 0', color: '#6B7280', width: '45%', verticalAlign: 'top' }}>{row.label}</td>
+                  <td style={{ padding: '6px 0', color: '#111827', fontWeight: 600, whiteSpace: 'pre-wrap' }}><bdi>{row.value}</bdi></td>
                 </tr>
               ))}
             </tbody>

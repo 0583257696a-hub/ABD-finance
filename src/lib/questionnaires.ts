@@ -130,6 +130,17 @@ const LEGACY_FIELD_LABELS: Record<string, string> = {
 
 export type DescribedAnswer = { id: string; section: string; label: string; value: string }
 
+const MONEY_LABEL = /הכנסה|הוצאה|הוצאות|נכס|סכום|שכר|חיסכון|הפקדה|יתרה|צבירה|תיק|קצבה|פנסיה|משכנתא|הלוואה|₪/
+
+/** Numeric answers get thousands separators, and a ₪ when the question is about money (10000 → ₪10,000). */
+function formatAnswerValue(question: QuestionnaireQuestion, raw: string): string {
+  if (question.type !== 'number') return raw
+  const number = Number(raw.replace(/[^\d.-]/g, ''))
+  if (!Number.isFinite(number)) return raw
+  const formatted = number.toLocaleString('he-IL', { maximumFractionDigits: 2 })
+  return MONEY_LABEL.test(question.label) ? `₪${formatted}` : formatted
+}
+
 /**
  * Turns a submitted answers map into display rows using the question
  * snapshot the form was sent with (falls back to the base questionnaire).
@@ -144,15 +155,19 @@ export function describeAnswers(questionsJson: string | null | undefined, answer
   for (const question of questions) {
     const raw = String(answers[question.id] ?? '').trim()
     if (!raw) continue
-    rows.push({ id: question.id, section: question.section, label: question.label, value: question.type === 'yes-no' ? (YES_NO_LABELS[raw] || raw) : raw })
+    rows.push({ id: question.id, section: question.section, label: question.label, value: question.type === 'yes-no' ? (YES_NO_LABELS[raw] || raw) : formatAnswerValue(question, raw) })
   }
   // Answers whose question isn't in the snapshot: legacy fixed-form ids get
   // their old labels; anything else gets a generic label — never a raw id.
-  for (const [id, value] of Object.entries(answers)) {
-    const raw = String(value ?? '').trim()
+  for (const [id, answer] of Object.entries(answers)) {
+    const raw = String(answer ?? '').trim()
     if (byId.has(id) || !raw) continue
     const legacy = LEGACY_FIELD_LABELS[id]
-    rows.push({ id, section: legacy ? 'פרטים מהשאלון' : 'שדות נוספים', label: legacy || 'שדה נוסף', value: id.startsWith('has') ? (YES_NO_LABELS[raw] || raw) : raw })
+    const numeric = /^[0-9]{3,}([.][0-9]+)?$/.test(raw) && !/year|Year|phone|Phone/.test(id)
+    const value = id.startsWith('has')
+      ? (YES_NO_LABELS[raw] || raw)
+      : numeric ? formatAnswerValue({ id, section: '', label: legacy || '', type: 'number', required: false } as QuestionnaireQuestion, raw) : raw
+    rows.push({ id, section: legacy ? 'פרטים מהשאלון' : 'שדות נוספים', label: legacy || 'שדה נוסף', value })
   }
   return rows
 }

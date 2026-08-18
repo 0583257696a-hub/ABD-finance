@@ -68,6 +68,12 @@ export function MeetingSummaryDocument({ doc, variant = 'screen' }: { doc: Meeti
         </section>
       ))}
 
+      {/* Same professional disclaimer as the live document — the archived copy / PDF is what
+          the client actually receives, so it must carry it too (QA P2-1). */}
+      <p style={{ ...text, fontSize: 12.5, color: print ? '#6B7280' : 'var(--text-muted)', borderTop: print ? '1px solid #D1D5DB' : '1px solid var(--separator)', paddingTop: 10, marginTop: 4 }}>
+        המידע המוצג נועד לסייע בארגון וסיכום מידע בלבד ואינו מהווה ייעוץ פנסיוני, ביטוחי, משפטי, השקעות או מס. האחריות לבדיקת הנתונים וקבלת ההחלטות חלה על המשתמש.
+      </p>
+
       {screenshots.length ? (
         <section style={section}>
           <h3 style={heading}>צילומי מסך</h3>

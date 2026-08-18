@@ -162,7 +162,6 @@ export default function AdminPanelPage() {
         </nav>
         <div style={{ marginTop: 'auto', display: 'grid', gap: 6, paddingTop: 16 }}>
           <Link href="/" style={backLinkStyle}><ArrowRight size={14} /> חזרה למערכת</Link>
-          <span style={{ color: 'var(--text-muted)', fontSize: 11.5, padding: '0 10px', direction: 'ltr', textAlign: 'right' }}>{ADMIN_PANEL_VERSION}</span>
         </div>
       </aside>
 

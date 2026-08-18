@@ -22,7 +22,7 @@ export function AdminDashboard({ stats, users, tickets, onGo }: {
   return (
     <div style={{ display: 'grid', gap: 18 }}>
       {stats ? (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: 10 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10 }}>
           <KpiTile label="משתמשים פעילים" value={stats.usersActive} note={`מתוך ${stats.usersTotal}`} tone="success" />
           <KpiTile label="ממתינים לאישור" value={stats.usersPending} note="דורשים טיפול" tone={stats.usersPending ? 'warning' : 'neutral'} />
           <KpiTile label="חסומים" value={stats.usersBlocked} tone={stats.usersBlocked ? 'destructive' : 'neutral'} />

@@ -17,6 +17,7 @@ import { useSession } from 'next-auth/react'
 import { BRANDING_EVENT, readBrandingSettings, type BrandingSettings } from '@/lib/branding'
 import NotificationsBell from './NotificationsBell'
 import { SupportSheet } from '@/components/features/SupportSheet'
+import { clearClientDataStorage } from '@/lib/client-data-keys'
 
 type NavItem = { tab: string; icon: typeof CalendarClock; label: string }
 
@@ -74,6 +75,8 @@ export default function Sidebar() {
   }
 
   function logout() {
+    // Logging out on a shared machine must not leave the last client's file in the browser (QA P0-4).
+    clearClientDataStorage()
     window.location.href = '/api/auth/logout'
   }
 

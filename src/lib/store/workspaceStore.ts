@@ -10,6 +10,8 @@ import type { CalcState, CompoundInputs } from '@/types/simulation'
 import type { MeetingSummaryData, NeedsAssessmentData } from '@/types/summary'
 import type { TableLayout } from '@/types/table'
 
+import { clearClientDataStorage } from '@/lib/client-data-keys'
+
 export const WORKSPACE_SNAPSHOT_KEY = 'abd-workspace-v2'
 export const LEGACY_FUNDS_KEY = 'abd_next_funds'
 export const LEGACY_INSURANCE_KEY = 'abd_next_insurance'
@@ -247,23 +249,10 @@ export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
     writeJson(LEGACY_INFRASTRUCTURE_IDS_KEY, state.infrastructureSelectedIds)
   },
   resetWorkspace: () => {
-    if (typeof window !== 'undefined') {
-      [
-        WORKSPACE_SNAPSHOT_KEY,
-        LEGACY_FUNDS_KEY,
-        LEGACY_INSURANCE_KEY,
-        LEGACY_CLIENT_KEY,
-        LEGACY_NEEDS_KEY,
-        LEGACY_RECOMMENDATIONS_KEY,
-        LEGACY_INFRASTRUCTURE_IDS_KEY,
-        // Calculator inputs derived from the client (Phoenix/compound) — a new
-        // client must not inherit the previous one's birth date or accumulation.
-        'abd_next_phoenix_inputs',
-        'abd_next_phoenix_selected_parts',
-        'abd_next_phoenix_autofill_sig',
-        'abd_next_simulations_compound_inputs',
-      ].forEach(key => localStorage.removeItem(key))
-    }
+    // Clears EVERY client-data key (single list in lib/client-data-keys.ts) —
+    // not just the store's own mirrors — so a new client never inherits the
+    // previous one's funds, calculator inputs or Smart Agent findings.
+    clearClientDataStorage()
     set({ ...initialState, hydrated: true })
   },
   applyImportedDataset: dataset => {

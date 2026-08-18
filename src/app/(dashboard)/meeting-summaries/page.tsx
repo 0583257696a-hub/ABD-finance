@@ -10,6 +10,8 @@ import { StatusBadge } from '@/components/ui/StatusBadge'
 import { Button } from '@/components/ui/Button'
 import { Sheet } from '@/components/ui/Sheet'
 import { Dialog } from '@/components/ui/Dialog'
+import { SearchField } from '@/components/ui/SearchField'
+import { formatDate as formatDateShared, formatTime as formatTimeShared } from '@/lib/format-date'
 import { MeetingSummaryDocument } from '@/components/features/MeetingSummaryDocument'
 import { parseSummaryDocument, summaryHasContent } from '@/lib/meeting-summary-doc'
 
@@ -45,15 +47,11 @@ function sourceLabel(source: string): string {
 }
 
 function formatDate(iso: string | null): string {
-  if (!iso) return '-'
-  const date = new Date(iso)
-  return Number.isNaN(date.getTime()) ? '-' : date.toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: 'numeric' })
+  return formatDateShared(iso, '-')
 }
 
 function formatTime(iso: string | null): string {
-  if (!iso) return ''
-  const date = new Date(iso)
-  return Number.isNaN(date.getTime()) ? '' : date.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })
+  return formatTimeShared(iso, '')
 }
 
 function openSummaryPdf(id: string) {
@@ -68,6 +66,7 @@ export default function MeetingSummariesHistoryPage() {
   const [detailLoading, setDetailLoading] = useState(false)
   const [toDelete, setToDelete] = useState<SummaryListItem | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [search, setSearch] = useState('')
   const justSaved = searchParams.get('justSaved')
 
   // Reload by bumping the key; the effect owns the fetch (keeps the
@@ -120,6 +119,11 @@ export default function MeetingSummariesHistoryPage() {
   }
 
   const parsed = openSummary ? parseSummaryDocument(openSummary.summary_json) : null
+  const visible = summaries.filter(summary => {
+    const q = search.trim().toLowerCase()
+    if (!q) return true
+    return [summary.client_name, summary.title, formatDate(summary.meeting_ended_at || summary.created_at), sourceLabel(summary.source)].some(value => String(value || '').toLowerCase().includes(q))
+  })
 
   return (
     <div dir="rtl" style={{ fontFamily: 'var(--font-main)' }}>
@@ -135,9 +139,14 @@ export default function MeetingSummariesHistoryPage() {
         </div>
       )}
 
-      {summaries.length ? (
+      {summaries.length > 0 && (
+        <div style={{ maxWidth: 420, marginBottom: 12 }}>
+          <SearchField value={search} onChange={setSearch} placeholder="חיפוש לפי שם לקוח, נושא או תאריך…" />
+        </div>
+      )}
+      {visible.length ? (
         <div style={{ display: 'grid', gap: 10 }}>
-          {summaries.map(summary => {
+          {visible.map(summary => {
             const endedAt = summary.meeting_ended_at || summary.created_at
             const clientName = summary.client_name?.trim()
             return (
@@ -159,7 +168,7 @@ export default function MeetingSummariesHistoryPage() {
                   </span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }} onClick={event => event.stopPropagation()}>
-                  <StatusBadge tone="neutral" label={sourceLabel(summary.source)} />
+                  <span title={summary.source === 'spontaneous' || !summary.source ? 'פגישה שנפתחה ידנית, ללא זימון מהיומן' : 'מקור הפגישה ביומן המחובר'}><StatusBadge tone="neutral" label={sourceLabel(summary.source)} /></span>
                   <Button variant="secondary" size="sm" onClick={() => openSummaryPdf(summary.id)} aria-label="הורדת הסיכום כ-PDF">
                     <Download size={15} /> PDF
                   </Button>
@@ -171,6 +180,8 @@ export default function MeetingSummariesHistoryPage() {
             )
           })}
         </div>
+      ) : status === 'ready' && summaries.length ? (
+        <Surface style={{ padding: 24 }}><EmptyState icon={<FileText size={30} />} title="לא נמצאו סיכומים" description="נסה חיפוש אחר." /></Surface>
       ) : status === 'ready' ? (
         <Surface style={{ padding: 24 }}>
           <EmptyState icon={<FileText size={30} />} title="אין סיכומים בארכיון" description='סיכום נשמר כאן אוטומטית כשלוחצים "סיים פגישה" בתוך פגישה פעילה.' />

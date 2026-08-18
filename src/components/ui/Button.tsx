@@ -7,7 +7,8 @@ type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'destructive'
 type ButtonSize = 'sm' | 'md' | 'lg'
 
 const sizeStyle: Record<ButtonSize, CSSProperties> = {
-  sm: { minHeight: 32, padding: '0 12px', fontSize: 13, gap: 6, borderRadius: 'var(--radius-sm)' },
+  // 36px: still compact, but a real touch target (QA P3-3; WCAG 2.5.8 minimum is 24, 44 recommended for primary actions).
+  sm: { minHeight: 36, padding: '0 12px', fontSize: 13, gap: 6, borderRadius: 'var(--radius-sm)' },
   md: { minHeight: 40, padding: '0 16px', fontSize: 14, gap: 8, borderRadius: 'var(--radius-md)' },
   lg: { minHeight: 48, padding: '0 20px', fontSize: 15, gap: 8, borderRadius: 'var(--radius-md)' },
 }

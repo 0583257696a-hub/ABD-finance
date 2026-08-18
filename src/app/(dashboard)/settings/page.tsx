@@ -17,6 +17,8 @@ import { Toolbar } from '@/components/ui/Toolbar'
 import { Button } from '@/components/ui/Button'
 import { Surface } from '@/components/ui/Surface'
 import { StatusBadge } from '@/components/ui/StatusBadge'
+import { Dialog } from '@/components/ui/Dialog'
+import { useToast } from '@/components/ui/Toast'
 import QuestionnaireManager from '@/components/features/QuestionnaireManager'
 
 type ProviderStatus = {
@@ -44,6 +46,8 @@ export default function SettingsPage() {
   const [settings, setSettings] = useState<BrandingSettings>(defaultBrandingSettings)
   const [logoPalette, setLogoPalette] = useState<string[]>([])
   const [saved, setSaved] = useState(false)
+  const [confirmReset, setConfirmReset] = useState(false)
+  const toast = useToast()
   const selectedTheme = useMemo(() => settingsFromTheme(settings.themeId), [settings.themeId])
   const generatedThemes = useMemo(() => buildLogoThemes(logoPalette), [logoPalette])
   const [providers, setProviders] = useState<ProviderStatus[]>([])
@@ -147,16 +151,27 @@ export default function SettingsPage() {
 
   function resetBranding() {
     persist(defaultBrandingSettings)
+    setConfirmReset(false)
+    toast('המיתוג אופס לברירת המחדל.', 'success')
   }
 
   return (
     <div dir="rtl" style={pageStyle}>
+      <Dialog
+        open={confirmReset}
+        title="לאפס את המיתוג?"
+        description="הלוגו, הצבעים, שם החברה והיועץ, נוסחי הפתיחה והסיום וערכת הנושא יחזרו לברירת המחדל. הפעולה לא ניתנת לביטול."
+        confirmLabel="אפס מיתוג"
+        destructive
+        onConfirm={resetBranding}
+        onCancel={() => setConfirmReset(false)}
+      />
       <Toolbar
         title="הגדרות תצוגה ומיתוג"
         actions={
           <>
             <span style={saveBadgeStyle}>{saved ? 'נשמר אוטומטית' : 'שמירה אוטומטית פעילה'}</span>
-            <Button variant="secondary" size="sm" onClick={resetBranding}>איפוס מיתוג</Button>
+            <Button variant="secondary" size="sm" onClick={() => setConfirmReset(true)}>איפוס מיתוג</Button>
           </>
         }
       />
@@ -308,7 +323,7 @@ export default function SettingsPage() {
               </aside>
               <div style={previewContentStyle}>
                 <div style={{ ...previewHeroStyle, background: settings.cardColor }}>
-                  <div>
+                  <div style={{ display: 'grid', gap: 2 }}>
                     <strong style={{ color: settings.headingColor }}>{settings.companyName || 'שם חברה'}</strong>
                     <span>{settings.advisorName || 'שם יועץ'}</span>
                   </div>
@@ -483,7 +498,7 @@ const sectionHeaderStyle: React.CSSProperties = { display: 'flex', justifyConten
 const sectionTitleStyle: React.CSSProperties = { color: 'var(--abd-primary)', fontSize: 22, fontWeight: 900, marginBottom: 8 }
 const miniTitleStyle: React.CSSProperties = { margin: '0 0 12px', color: 'var(--abd-primary)', fontSize: 18, fontWeight: 900 }
 const themeBadgeStyle: React.CSSProperties = { border: '1px solid var(--separator)', borderRadius: 999, padding: '8px 12px', color: 'var(--abd-primary)', background: 'var(--bg-canvas)' }
-const themeGridStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(5, minmax(136px, 1fr))', gap: 10, marginBottom: 14 }
+const themeGridStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(136px, 1fr))', gap: 10, marginBottom: 14 }
 const themeCardStyle: React.CSSProperties = { display: 'grid', alignContent: 'start', gap: 8, textAlign: 'right', border: '1px solid var(--separator)', borderRadius: 14, padding: 10, background: 'var(--bg-surface)', color: 'var(--abd-primary)', fontFamily: 'var(--font-main)', cursor: 'pointer', minHeight: 112 }
 const themeTextStyle: React.CSSProperties = { display: 'grid', gap: 2, lineHeight: 1.25 }
 const themeDisplayOptionsStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginTop: 14, padding: 12, border: '1px solid var(--separator)', borderRadius: 16, background: 'var(--bg-canvas)' }

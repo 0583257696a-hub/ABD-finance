@@ -4,7 +4,9 @@
 @tailwind utilities;
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
-html { direction: rtl; }
+html { direction: rtl; scroll-padding-top: 88px; }
+/* Anything focused/scrolled-to sits below the sticky toolbars (QA P1-10). */
+h1, h2, h3, label, [id] { scroll-margin-top: 88px; }
 body {
   font-family: var(--font-main);
   background: var(--bg-shell);
@@ -197,3 +199,32 @@ body[data-animations="on"] tbody tr:hover td {
     text-decoration: none !important;
   }
 }
+
+
+/* --- Meeting workspace on narrow screens (QA P1-8): the side nav becomes a
+   horizontally scrollable tab bar; content gets the full width. Uses data
+   attributes because the page is styled inline and cannot carry media
+   queries itself. --- */
+@media (max-width: 820px) {
+  [data-meeting-body] { flex-direction: column !important; }
+  [data-meeting-nav] {
+    width: auto !important;
+    display: flex !important;
+    overflow-x: auto;
+    gap: 4px !important;
+    padding: 8px 10px !important;
+    border-left: 0 !important;
+    border-bottom: 1px solid var(--separator);
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  [data-meeting-nav]::-webkit-scrollbar { display: none; }
+  [data-meeting-nav] > button { flex: 0 0 auto; white-space: nowrap; min-height: 40px; }
+  [data-meeting-content] { padding: 12px !important; }
+  [data-meeting-header] { padding: 8px 12px !important; gap: 8px !important; flex-wrap: wrap; }
+}
+/* Settings / any card grid: never let a grid child force horizontal page scroll (QA P1-6). */
+main [style*="grid-template-columns"] > * { min-width: 0; max-width: 100%; }
+
+/* Room for the floating accessibility widget so it never covers the last rows of a list (QA P3-5). */
+@media screen { main { padding-bottom: 96px; } }

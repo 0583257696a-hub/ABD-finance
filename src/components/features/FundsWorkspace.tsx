@@ -18,6 +18,8 @@ import { ManufacturerLogo as SharedManufacturerLogo } from '@/components/shared/
 import { buildInfrastructureRows, isInfrastructureFund } from '@/lib/infrastructure'
 import { DataTable, type DataTableColumn } from '@/components/ui/DataTable'
 import { Sheet } from '@/components/ui/Sheet'
+import { Dialog } from '@/components/ui/Dialog'
+import { useToast } from '@/components/ui/Toast'
 import { DEFAULT_RATIONALE, formatRecommendationLine, isAutoRationale, recommendationKind } from '@/lib/recommendation-text'
 
 type FundActivityView = 'employers' | 'deposits' | 'beneficiaries'
@@ -414,6 +416,9 @@ export default function FundsWorkspace() {
   const [infrastructureIds, setInfrastructureIds] = useState<string[]>([])
   const [tableResetSignal, setTableResetSignal] = useState(0)
   const [status, setStatus] = useState('מוכן לייבוא קבצים')
+  const [statusTone, setStatusTone] = useState<'neutral' | 'success' | 'error'>('neutral')
+  const [confirmClear, setConfirmClear] = useState(false)
+  const toast = useToast()
   const [selectedFund, setSelectedFund] = useState<FundRecord | null>(null)
   const [needsOpen, setNeedsOpen] = useState(false)
   const [consolidationPickerOpen, setConsolidationPickerOpen] = useState(false)
@@ -644,6 +649,7 @@ export default function FundsWorkspace() {
 
   async function handleFiles(files: FileList | null) {
     if (!files?.length) return
+    setStatusTone('neutral')
     setStatus(`מייבא ${files.length} קבצים...`)
     try {
       const currentClient = storeClient || readStoredClient()
@@ -658,9 +664,16 @@ export default function FundsWorkspace() {
       }
       if (imported.client) localStorage.setItem(CLIENT_KEY, JSON.stringify(imported.client))
       applyImportedDataset({ workbookName: files[0]?.name, client: imported.client, funds: nextFunds, insurancePolicies: imported.insurancePolicies })
-      setStatus(imported.messages.join(' | ') || 'הייבוא הסתיים')
+      const loaded = imported.funds.length + imported.insurancePolicies.length
+      const message = imported.messages.join(' | ') || 'הייבוא הסתיים'
+      // A file that produced nothing is a FAILURE for the user, whatever the parser thinks — say so in red.
+      setStatusTone(loaded ? 'success' : 'error')
+      setStatus(loaded ? message : `${message}. אפשר לנסות קובץ אחר.`)
+      toast(loaded ? `נטענו ${imported.funds.length} קופות ו-${imported.insurancePolicies.length} פוליסות` : 'לא נמצאו נתונים בקובץ שנבחר', loaded ? 'success' : 'error')
     } catch (error) {
+      setStatusTone('error')
       setStatus(error instanceof Error ? error.message : 'ייבוא הקבצים נכשל')
+      toast(error instanceof Error ? error.message : 'ייבוא הקבצים נכשל', 'error')
     } finally {
       if (inputRef.current) inputRef.current.value = ''
     }
@@ -674,9 +687,9 @@ export default function FundsWorkspace() {
         <input ref={inputRef} hidden multiple type="file" accept=".zip,.xml,.xlsx,.xls,.xlsm" onChange={event => void handleFiles(event.target.files)} />
         <section style={welcomeShellStyle}>
           <div style={welcomeTopStripStyle}>
-            <div>
+            <div style={{ display: 'grid', gap: 2 }}>
               <strong>סביבת עבודה חדשה</strong>
-              <span>ייבוא נתוני לקוח והתחלת תהליך פרישה</span>
+              <span style={{ color: '#6F8DB5', fontSize: 13 }}>ייבוא נתוני לקוח והתחלת תהליך פרישה</span>
             </div>
             <button type="button" onClick={() => inputRef.current?.click()} style={welcomeStripButtonStyle}>
               <Upload size={16} /> ייבוא קבצים
@@ -686,12 +699,13 @@ export default function FundsWorkspace() {
           <div style={welcomeHeroGridStyle}>
             <div style={welcomeUploadCardStyle}>
               <div style={welcomeUploadIconStyle}><Upload size={30} /></div>
-              <h2 style={{ margin: 0, color: 'var(--abd-primary)', fontSize: 34, fontWeight: 900 }}>התחלת עבודה</h2>
+              <h2 style={{ margin: 0, color: 'var(--abd-primary)', fontSize: 24, fontWeight: 900 }}>ייבוא נתוני הלקוח</h2>
+              <p style={{ margin: 0, color: '#6F8DB5', fontSize: 14, lineHeight: 1.7, maxWidth: 420 }}>קובץ מסלקה (ZIP/XML), הר הביטוח או אקסל תיק. אפשר לגרור כמה קבצים יחד — המערכת מאחדת אותם לתיק אחד.</p>
               <button type="button" onClick={() => inputRef.current?.click()} style={welcomePrimaryCtaStyle}>
                 <Upload size={19} /> בחירת קבצים
               </button>
-              <div style={welcomeStatusStyle}>
-                <strong>{status}</strong>
+              <div style={{ ...welcomeStatusStyle, ...(statusTone === 'error' ? { borderColor: 'var(--destructive)', color: 'var(--destructive-text, #991B1B)', background: 'var(--destructive-bg, #FEF2F2)' } : statusTone === 'success' ? { borderColor: 'var(--success)', color: 'var(--success-text, #065F46)', background: 'var(--success-bg, #ECFDF5)' } : {}) }} role="status" aria-live="polite">
+                <strong>{statusTone === 'error' ? '⚠ ' : ''}{status}</strong>
                 <span>נתמך: zip / xml / xlsx / xls / xlsm</span>
               </div>
             </div>
@@ -700,13 +714,14 @@ export default function FundsWorkspace() {
               <div style={welcomeLogoFrameStyle}>
                 <img src="/assets/abd-finance-logo.png" alt="ABD Finance" style={welcomeLogoStyle} />
               </div>
-              <h1 style={welcomeTitleStyle}>מערכת עבודה פיננסית</h1>
-              <div style={welcomeFeatureGridStyle}>
-                <article style={welcomeFeatureStyle}><Briefcase size={19} /><strong>דשבורד קופות</strong></article>
-                <article style={welcomeFeatureStyle}><Shield size={19} /><strong>בדיקת לקוח</strong></article>
-                <article style={welcomeFeatureStyle}><BarChart2 size={19} /><strong>תשואות והשוואות</strong></article>
-                <article style={welcomeFeatureStyle}><FileText size={19} /><strong>סיכום פגישה</strong></article>
-              </div>
+              <h1 style={welcomeTitleStyle}>מה קורה אחרי הייבוא</h1>
+              <ul style={{ ...welcomeFeatureGridStyle, listStyle: 'none', padding: 0, margin: 0 }}>
+                <li style={welcomeFeatureStyle}><Briefcase size={17} /><span><strong>דשבורד קופות</strong> — כל הקופות, דמי הניהול והמסלולים בטבלה אחת</span></li>
+                <li style={welcomeFeatureStyle}><Shield size={17} /><span><strong>בדיקת לקוח</strong> — בירור צרכים וזיהוי חריגות בתיק</span></li>
+                <li style={welcomeFeatureStyle}><BarChart2 size={17} /><span><strong>תשואות והשוואות</strong> — מול השוק, לפי מסלול ויצרן</span></li>
+                <li style={welcomeFeatureStyle}><FileText size={17} /><span><strong>סיכום פגישה</strong> — מסמך חי שנבנה מהנתונים ומההמלצות</span></li>
+              </ul>
+              <p style={{ margin: 0, color: '#6F8DB5', fontSize: 13 }}>מחשבונים, סימולציות, תשואות השוק והערות זמינים כבר עכשיו מתפריט הפגישה.</p>
             </div>
           </div>
         </section>
@@ -716,16 +731,25 @@ export default function FundsWorkspace() {
 
   return (
     <div dir="rtl" style={pageStyle}>
+      <Dialog
+        open={confirmClear}
+        title="לנקות את כל הקופות?"
+        description={`${funds.length} הקופות שנטענו יוסרו מסביבת העבודה, יחד עם הבחירות וההמלצות שמבוססות עליהן. הפעולה לא ניתנת לביטול — אפשר לייבא את הקבצים מחדש.`}
+        confirmLabel="נקה קופות"
+        destructive
+        onConfirm={() => { persistFunds([]); setConfirmClear(false); toast('הקופות נוקו מסביבת העבודה.', 'success') }}
+        onCancel={() => setConfirmClear(false)}
+      />
       <header style={headerStyle}>
         <div>
           <h1 style={titleStyle}>דשבורד קופות</h1>
-          <p style={mutedStyle}>{status}</p>
+          <p style={{ ...mutedStyle, ...(statusTone === 'error' ? { color: 'var(--destructive-text, #991B1B)', fontWeight: 700 } : statusTone === 'success' ? { color: 'var(--success-text, #065F46)' } : {}) }} role="status" aria-live="polite">{statusTone === 'error' ? '⚠ ' : ''}{status}</p>
         </div>
         <div style={actionsStyle}>
           <input ref={inputRef} hidden multiple type="file" accept=".zip,.xml,.xlsx,.xls,.xlsm" onChange={event => void handleFiles(event.target.files)} />
           <button type="button" onClick={() => inputRef.current?.click()} style={primaryButtonStyle}><Upload size={17} /> ייבוא קבצים</button>
           <button type="button" onClick={() => setNeedsOpen(true)} style={ghostButtonStyle}>בירור צרכים</button>
-          <button type="button" onClick={() => persistFunds([])} style={ghostButtonStyle}>ניקוי קופות</button>
+          <button type="button" onClick={() => setConfirmClear(true)} style={ghostButtonStyle}>ניקוי קופות</button>
         </div>
       </header>
 
@@ -1781,18 +1805,18 @@ function PersonalInput({
 }
 
 const pageStyle: React.CSSProperties = { fontFamily: 'var(--font-main)' }
-const welcomeShellStyle: React.CSSProperties = { position: 'fixed', inset: 0, zIndex: 1000, minHeight: '100vh', display: 'grid', gridTemplateRows: 'auto 1fr auto', gap: 22, padding: 'clamp(18px, 3vw, 42px)', background: 'radial-gradient(circle at 76% 18%, rgba(37,99,235,.14), transparent 32%), linear-gradient(135deg, #FFFFFF 0%, #F7FBFF 46%, #EEF7FF 100%)', border: 0, borderRadius: 0, boxShadow: 'none', overflow: 'auto' }
+const welcomeShellStyle: React.CSSProperties = { display: 'grid', gap: 18, padding: 'clamp(16px, 2.5vw, 28px)', background: 'radial-gradient(circle at 76% 18%, rgba(37,99,235,.10), transparent 32%), linear-gradient(135deg, #FFFFFF 0%, #F7FBFF 46%, #EEF7FF 100%)', border: '1px solid #D7EAFB', borderRadius: 20 }
 const welcomeTopStripStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 18, padding: '14px 16px', border: '1px solid #D7EAFB', borderRadius: 20, background: 'rgba(255,255,255,.82)', color: 'var(--abd-primary)', boxShadow: '0 10px 28px rgba(27,58,107,.06)' }
 const welcomeStripButtonStyle: React.CSSProperties = { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 38, border: 0, borderRadius: 12, background: 'var(--abd-accent)', color: '#fff', fontFamily: 'var(--font-main)', fontWeight: 900, padding: '0 14px', cursor: 'pointer' }
-const welcomeHeroGridStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'minmax(380px, .82fr) minmax(520px, 1.18fr)', gap: 34, alignItems: 'center' }
+const welcomeHeroGridStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 24, alignItems: 'start' }
 const welcomeBrandStyle: React.CSSProperties = { display: 'grid', justifyItems: 'center', textAlign: 'center', gap: 18, color: 'var(--abd-primary)' }
-const welcomeLogoFrameStyle: React.CSSProperties = { width: 'min(420px, 70vw)', aspectRatio: '1.68 / 1', display: 'grid', placeItems: 'center', borderRadius: 18, background: 'linear-gradient(180deg, #FFFFFF 0%, #F0F7FF 100%)', boxShadow: '0 24px 70px rgba(27,58,107,.12)' }
-const welcomeLogoStyle: React.CSSProperties = { width: '72%', maxHeight: 240, objectFit: 'contain', filter: 'drop-shadow(0 18px 24px rgba(27,58,107,.10))' }
-const welcomeTitleStyle: React.CSSProperties = { margin: 0, fontSize: 'clamp(46px, 5.6vw, 82px)', lineHeight: 1.02, fontWeight: 900, color: 'var(--abd-primary)', letterSpacing: 0 }
+const welcomeLogoFrameStyle: React.CSSProperties = { width: 'min(220px, 50vw)', aspectRatio: '1.68 / 1', display: 'grid', placeItems: 'center', borderRadius: 18, background: 'linear-gradient(180deg, #FFFFFF 0%, #F0F7FF 100%)', boxShadow: '0 24px 70px rgba(27,58,107,.12)' }
+const welcomeLogoStyle: React.CSSProperties = { width: '72%', maxHeight: 120, objectFit: 'contain', filter: 'drop-shadow(0 18px 24px rgba(27,58,107,.10))' }
+const welcomeTitleStyle: React.CSSProperties = { margin: 0, fontSize: 'clamp(22px, 2.4vw, 30px)', lineHeight: 1.02, fontWeight: 900, color: 'var(--abd-primary)', letterSpacing: 0 }
 const welcomeTextStyle: React.CSSProperties = { maxWidth: 760, margin: 0, color: '#6F8DB5', lineHeight: 1.85, fontSize: 18, fontWeight: 800 }
-const welcomeFeatureGridStyle: React.CSSProperties = { width: '100%', display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 14, marginTop: 4 }
-const welcomeFeatureStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'auto 1fr', alignItems: 'center', gap: '5px 10px', padding: 17, border: '1px solid #D7EAFB', borderRadius: 18, background: 'rgba(255,255,255,.82)', color: 'var(--abd-primary)', boxShadow: 'var(--shadow-card)', textAlign: 'right' }
-const welcomeUploadCardStyle: React.CSSProperties = { minHeight: 370, display: 'grid', gap: 16, alignContent: 'center', justifyItems: 'center', textAlign: 'center', padding: 'clamp(26px, 4vw, 48px)', border: '1px dashed #9CCDF5', borderRadius: 30, background: 'linear-gradient(180deg, rgba(255,255,255,.96) 0%, rgba(248,251,255,.94) 100%)', boxShadow: '0 24px 64px rgba(27, 58, 107, .12)' }
+const welcomeFeatureGridStyle: React.CSSProperties = { width: '100%', display: 'grid', gap: 8, marginTop: 4, textAlign: 'start' }
+const welcomeFeatureStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'auto 1fr', alignItems: 'start', gap: '2px 10px', color: 'var(--abd-primary)', fontSize: 14 }
+const welcomeUploadCardStyle: React.CSSProperties = { minHeight: 0, display: 'grid', gap: 16, alignContent: 'center', justifyItems: 'center', textAlign: 'center', padding: 'clamp(26px, 4vw, 48px)', border: '1px dashed #9CCDF5', borderRadius: 30, background: 'linear-gradient(180deg, rgba(255,255,255,.96) 0%, rgba(248,251,255,.94) 100%)', boxShadow: '0 24px 64px rgba(27, 58, 107, .12)' }
 const welcomeUploadIconStyle: React.CSSProperties = { width: 72, height: 72, borderRadius: 24, display: 'grid', placeItems: 'center', color: 'var(--abd-primary)', background: 'linear-gradient(180deg, #EAF4FF 0%, #D8ECFF 100%)', border: '1px solid #CFE6FA', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.7)' }
 const welcomePrimaryCtaStyle: React.CSSProperties = { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 52, minWidth: 190, border: 0, borderRadius: 15, background: 'var(--abd-accent)', color: '#fff', fontFamily: 'var(--font-main)', fontWeight: 900, padding: '0 18px', cursor: 'pointer', fontSize: 17, boxShadow: '0 14px 28px rgba(37,99,235,.22)' }
 const welcomeStatusStyle: React.CSSProperties = { display: 'grid', gap: 5, padding: '12px 16px', border: '1px solid #D7EAFB', borderRadius: 16, background: '#FFFFFF', color: 'var(--abd-primary)' }

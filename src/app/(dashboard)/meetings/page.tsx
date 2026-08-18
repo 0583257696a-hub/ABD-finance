@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Calendar, CalendarPlus, FileText, Link2, Mail, Send, Unlink, Zap } from 'lucide-react'
+import { Calendar, CalendarPlus, FileText, History, Link2, Mail, Send, Unlink, Zap } from 'lucide-react'
 import { Toolbar } from '@/components/ui/Toolbar'
 import { Button } from '@/components/ui/Button'
 import { Surface } from '@/components/ui/Surface'
@@ -12,6 +12,9 @@ import { Sheet } from '@/components/ui/Sheet'
 import { Dialog } from '@/components/ui/Dialog'
 import { useWorkspaceStore } from '@/lib/store/workspaceStore'
 import { describeAnswers } from '@/lib/questionnaires'
+import { formatDateTime } from '@/lib/format-date'
+import { useToast } from '@/components/ui/Toast'
+import { WORKSPACE_MEETING_ID_KEY } from '@/lib/client-data-keys'
 
 type ProviderStatus = {
   id: 'google_calendar' | 'microsoft_outlook' | 'calendly'
@@ -60,8 +63,7 @@ type ClientForm = {
 
 
 function formatWhen(iso: string) {
-  const date = new Date(iso)
-  return Number.isNaN(date.getTime()) ? '-' : date.toLocaleString('he-IL', { dateStyle: 'short', timeStyle: 'short' })
+  return formatDateTime(iso, '-')
 }
 
 export default function MeetingsPage() {
@@ -70,6 +72,9 @@ export default function MeetingsPage() {
   const [meetings, setMeetings] = useState<Meeting[]>([])
   const [forms, setForms] = useState<ClientForm[]>([])
   const [status, setStatus] = useState('')
+  const toast = useToast()
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({})
+  const [meetingToCancel, setMeetingToCancel] = useState<Meeting | null>(null)
   const [busy, setBusy] = useState(false)
   const [openFormToken, setOpenFormToken] = useState('')
 
@@ -196,6 +201,8 @@ export default function MeetingsPage() {
       resetWorkspace()
       applyQuestionnaireIfAny(meeting.client_name, meeting.client_email)
     }
+    // Bind the (fresh or prefilled) workspace to THIS meeting — the meeting page wipes it otherwise.
+    localStorage.setItem(WORKSPACE_MEETING_ID_KEY, meeting.id)
     router.push(`/meeting/${meeting.id}`)
   }
 
@@ -243,6 +250,7 @@ export default function MeetingsPage() {
             event.participants.find(person => person.email)?.email || '',
           )
         }
+        localStorage.setItem(WORKSPACE_MEETING_ID_KEY, data.id)
         router.push(`/meeting/${data.id}`)
       } else {
         setStatus('פתיחת הפגישה נכשלה.')
@@ -273,6 +281,7 @@ export default function MeetingsPage() {
       const data = await response.json() as { ok?: boolean; id?: string; reused?: boolean }
       if (data.ok && data.id) {
         if (!data.reused) resetWorkspace()
+        localStorage.setItem(WORKSPACE_MEETING_ID_KEY, data.id)
         router.push(`/meeting/${data.id}`)
       } else {
         setStatus('פתיחת הפגישה נכשלה.')
@@ -295,8 +304,27 @@ export default function MeetingsPage() {
     await loadProviders()
   }
 
+  function validateMeetingForm(sendInvite: boolean) {
+    const errors: Record<string, string> = {}
+    if (!clientName.trim()) errors.clientName = 'שם הלקוח חובה.'
+    if (!date) errors.date = 'בחר תאריך.'
+    if (!time) errors.time = 'בחר שעה.'
+    const email = clientEmail.trim()
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) errors.clientEmail = 'כתובת אימייל לא תקינה.'
+    if (sendInvite && !email) errors.clientEmail = 'כדי לשלוח זימון צריך אימייל לקוח.'
+    const minutes = Number(durationMinutes)
+    if (durationMinutes && (!Number.isFinite(minutes) || minutes < 5 || minutes > 600)) errors.durationMinutes = 'משך בין 5 ל-600 דקות.'
+    setFormErrors(errors)
+    const first = Object.keys(errors)[0]
+    if (first) {
+      document.getElementById(`meeting-field-${first}`)?.focus()
+      toast('יש שדות שדורשים תיקון בטופס הפגישה.', 'error')
+    }
+    return !first
+  }
+
   async function createMeeting(sendInvite: boolean) {
-    if (!date || !time) { setStatus('בחר תאריך ושעה לפגישה.'); return }
+    if (!validateMeetingForm(sendInvite)) return
     const startsAt = new Date(`${date}T${time}:00`)
     const endsAt = new Date(startsAt.getTime() + (Number(durationMinutes) || 60) * 60000)
     setBusy(true)
@@ -309,9 +337,9 @@ export default function MeetingsPage() {
       })
       const data = await response.json() as { ok?: boolean; id?: string; error?: string }
       if (!response.ok || !data.ok) {
-        setStatus(response.status === 401
+        toast(response.status === 401
           ? 'נדרשת התחברות למערכת כדי לשמור פגישות.'
-          : data.error === 'd1-unavailable' ? 'שמירה נכשלה — אין חיבור D1 בסביבה הנוכחית.' : 'יצירת הפגישה נכשלה.')
+          : data.error === 'd1-unavailable' ? 'שמירה נכשלה — אין חיבור D1 בסביבה הנוכחית.' : 'יצירת הפגישה נכשלה.', 'error')
         return
       }
       let message = 'הפגישה נשמרה.'
@@ -328,8 +356,11 @@ export default function MeetingsPage() {
           message += invite.ok ? ' זימון נשלח ללקוח עם קובץ יומן.' : invite.queued ? ' הזימון נכנס לתור (אין חיבור מייל בסביבה זו).' : ' שליחת הזימון נכשלה.'
         }
       }
-      setStatus(message)
-      setClientName(''); setClientEmail(''); setLocation(''); setNotes('')
+      toast(message, message.includes('נכשל') ? 'error' : 'success')
+      setStatus('')
+      setFormErrors({})
+      // Full reset — a half-cleared form reads as an unfinished state. Title/duration keep their defaults.
+      setClientName(''); setClientEmail(''); setLocation(''); setNotes(''); setDate(''); setTime('')
       await refresh()
     } finally {
       setBusy(false)
@@ -345,7 +376,7 @@ export default function MeetingsPage() {
         body: JSON.stringify({ action: 'send-invite', id: meeting.id }),
       })
       const data = await response.json() as { ok?: boolean; queued?: boolean }
-      setStatus(data.ok ? `זימון נשלח אל ${meeting.client_email}.` : data.queued ? 'הזימון נכנס לתור (אין חיבור מייל בסביבה זו).' : 'שליחת הזימון נכשלה.')
+      toast(data.ok ? `זימון נשלח אל ${meeting.client_email}.` : data.queued ? 'הזימון נכנס לתור (אין חיבור מייל בסביבה זו).' : 'שליחת הזימון נכשלה.', data.ok ? 'success' : 'error')
       await refresh()
     } finally {
       setBusy(false)
@@ -353,11 +384,13 @@ export default function MeetingsPage() {
   }
 
   async function setMeetingStatus(meeting: Meeting, nextStatus: Meeting['status']) {
-    await fetch('/api/meetings', {
+    const response = await fetch('/api/meetings', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'set-status', id: meeting.id, status: nextStatus }),
-    })
+    }).catch(() => null)
+    if (response?.ok) toast(nextStatus === 'cancelled' ? `הפגישה עם ${meeting.client_name || meeting.title} בוטלה.` : 'סטטוס הפגישה עודכן.', 'success')
+    else toast('עדכון הסטטוס נכשל.', 'error')
     await refresh()
   }
 
@@ -436,7 +469,7 @@ export default function MeetingsPage() {
         actions={<Button variant="primary" onClick={openStartFlow}><Zap size={15} style={iconStyle} /> התחל פגישה</Button>}
       />
 
-      {status && <div style={noticeStyle}>{status}</div>}
+      {status && <div style={noticeStyle} role="status" aria-live="polite">{status}</div>}
       {calendarNotice && <div style={noticeStyle}>{calendarNotice}</div>}
 
       {startChoice !== 'closed' && (
@@ -544,13 +577,13 @@ export default function MeetingsPage() {
         <Surface style={{ padding: 20 }}>
           <h2 style={sectionTitleStyle}><CalendarPlus size={17} style={iconStyle} /> פגישה חדשה</h2>
           <div style={{ display: 'grid', gap: 12 }}>
-            <Field label="שם לקוח"><input value={clientName} onChange={event => setClientName(event.target.value)} style={inputStyle} /></Field>
-            <Field label="אימייל לקוח"><input dir="ltr" type="email" value={clientEmail} onChange={event => setClientEmail(event.target.value)} style={inputStyle} /></Field>
+            <Field label="שם לקוח *" error={formErrors.clientName} id="meeting-field-clientName"><input id="meeting-field-clientName" required aria-required="true" aria-invalid={Boolean(formErrors.clientName)} aria-describedby={formErrors.clientName ? "meeting-field-clientName-error" : undefined} value={clientName} onChange={event => { setClientName(event.target.value); if (formErrors.clientName) setFormErrors(current => ({ ...current, clientName: "" })) }} placeholder="ישראל ישראלי" style={inputStyle} /></Field>
+            <Field label="אימייל לקוח" error={formErrors.clientEmail} id="meeting-field-clientEmail"><input id="meeting-field-clientEmail" dir="ltr" type="email" inputMode="email" autoComplete="off" aria-invalid={Boolean(formErrors.clientEmail)} aria-describedby={formErrors.clientEmail ? "meeting-field-clientEmail-error" : undefined} value={clientEmail} onChange={event => { setClientEmail(event.target.value); if (formErrors.clientEmail) setFormErrors(current => ({ ...current, clientEmail: "" })) }} placeholder="name@example.com" style={inputStyle} /></Field>
             <Field label="נושא"><input value={title} onChange={event => setTitle(event.target.value)} style={inputStyle} /></Field>
             <div style={rowStyle}>
-              <Field label="תאריך"><input type="date" value={date} onChange={event => setDate(event.target.value)} style={inputStyle} /></Field>
-              <Field label="שעה"><input type="time" value={time} onChange={event => setTime(event.target.value)} style={inputStyle} /></Field>
-              <Field label="משך (דקות)"><input dir="ltr" inputMode="numeric" value={durationMinutes} onChange={event => setDurationMinutes(event.target.value)} style={inputStyle} /></Field>
+              <Field label="תאריך *" error={formErrors.date} id="meeting-field-date"><input id="meeting-field-date" type="date" required aria-required="true" aria-invalid={Boolean(formErrors.date)} value={date} onChange={event => { setDate(event.target.value); if (formErrors.date) setFormErrors(current => ({ ...current, date: "" })) }} style={inputStyle} /></Field>
+              <Field label="שעה *" error={formErrors.time} id="meeting-field-time"><input id="meeting-field-time" type="time" required aria-required="true" aria-invalid={Boolean(formErrors.time)} value={time} onChange={event => { setTime(event.target.value); if (formErrors.time) setFormErrors(current => ({ ...current, time: "" })) }} style={inputStyle} /></Field>
+              <Field label="משך (דקות)" error={formErrors.durationMinutes} id="meeting-field-durationMinutes"><input id="meeting-field-durationMinutes" dir="ltr" inputMode="numeric" aria-invalid={Boolean(formErrors.durationMinutes)} value={durationMinutes} onChange={event => setDurationMinutes(event.target.value)} style={inputStyle} /></Field>
             </div>
             <Field label="מיקום / קישור לשיחה"><input value={location} onChange={event => setLocation(event.target.value)} style={inputStyle} /></Field>
             <Field label="הערות"><textarea rows={2} value={notes} onChange={event => setNotes(event.target.value)} style={{ ...inputStyle, resize: 'vertical' }} /></Field>
@@ -582,7 +615,7 @@ export default function MeetingsPage() {
                       <Button size="sm" variant="secondary" disabled={busy || !meeting.client_email} onClick={() => void sendInvite(meeting)}>
                         <Send size={13} style={iconStyle} /> {meeting.invite_sent_at ? 'שלח שוב' : 'שלח זימון'}
                       </Button>
-                      <Button size="sm" variant="ghost" onClick={() => void setMeetingStatus(meeting, 'cancelled')}>בוטלה</Button>
+                      <Button size="sm" variant="ghost" style={{ color: 'var(--destructive)' }} onClick={() => setMeetingToCancel(meeting)}>בטל פגישה</Button>
                     </div>
                   </article>
                 ))}
@@ -590,23 +623,24 @@ export default function MeetingsPage() {
             ) : (
               <EmptyState title="אין פגישות קרובות" description="צור פגישה חדשה ושלח ללקוח זימון עם קובץ יומן." />
             )}
-            {past.length > 0 && (
-              <details style={{ marginTop: 12 }}>
-                <summary style={{ ...metaStyle, cursor: 'pointer' }}>היסטוריה ({past.length})</summary>
-                <div style={{ display: 'grid', gap: 8, marginTop: 8 }}>
-                  {past.map(meeting => (
-                    <div key={meeting.id} style={{ ...meetingRowStyle, opacity: 0.75 }}>
-                      <div>
-                        <strong style={{ color: 'var(--text-heading)' }}>{meeting.title}</strong>
-                        <span style={metaStyle}> · {meeting.client_name} · {formatWhen(meeting.starts_at)}</span>
-                      </div>
-                      <StatusBadge tone={meeting.status === 'done' ? 'success' : 'destructive'} label={meeting.status === 'done' ? 'התקיימה' : 'בוטלה'} />
-                    </div>
-                  ))}
-                </div>
-              </details>
-            )}
           </Surface>
+
+          {past.length > 0 && (
+            <Surface style={{ padding: 20 }}>
+              <h2 style={sectionTitleStyle}><History size={17} style={iconStyle} /> היסטוריית פגישות ({past.length})</h2>
+              <div style={{ display: 'grid', gap: 8, marginTop: 8 }}>
+                {past.map(meeting => (
+                  <div key={meeting.id} style={{ ...meetingRowStyle, opacity: 0.85 }}>
+                    <div style={{ minWidth: 0 }}>
+                      <strong style={{ color: 'var(--text-heading)' }}>{meeting.title}</strong>
+                      <span style={metaStyle}> · {meeting.client_name} · {formatWhen(meeting.starts_at)}</span>
+                    </div>
+                    <StatusBadge tone={meeting.status === 'done' ? 'success' : 'destructive'} label={meeting.status === 'done' ? 'התקיימה' : 'בוטלה'} />
+                  </div>
+                ))}
+              </div>
+            </Surface>
+          )}
 
           <Surface style={{ padding: 20 }}>
             <h2 style={sectionTitleStyle}><FileText size={17} style={iconStyle} /> שאלוני הכנה</h2>
@@ -627,9 +661,9 @@ export default function MeetingsPage() {
                                 {(index === 0 || all[index - 1].section !== row.section) && (
                                   <span style={{ color: 'var(--text-muted)', fontSize: 11.5, fontWeight: 700, marginTop: index === 0 ? 0 : 6 }}>{row.section}</span>
                                 )}
-                                <div style={{ display: 'flex', gap: 6, minWidth: 0 }}>
-                                  <dt style={{ fontWeight: 700, color: 'var(--text-heading)', flexShrink: 0 }}>{row.label}:</dt>
-                                  <dd style={{ color: 'var(--text-body)', overflowWrap: 'anywhere', whiteSpace: 'pre-wrap' }}>{row.value}</dd>
+                                <div style={{ display: 'grid', gridTemplateColumns: 'minmax(120px, 40%) 1fr', gap: 8, alignItems: 'baseline' }}>
+                                  <dt style={{ fontWeight: 700, color: 'var(--text-heading)', overflowWrap: 'break-word' }}>{row.label}</dt>
+                                  <dd style={{ color: 'var(--text-body)', whiteSpace: 'pre-wrap', minWidth: 0, overflowWrap: 'break-word', margin: 0 }}><bdi>{row.value}</bdi></dd>
                                 </div>
                               </div>
                             ))}
@@ -663,6 +697,16 @@ export default function MeetingsPage() {
         </div>
       </section>
 
+      <Dialog
+        open={Boolean(meetingToCancel)}
+        title="לבטל את הפגישה?"
+        description={`הפגישה "${meetingToCancel?.title || ''}" עם ${meetingToCancel?.client_name || 'הלקוח'} ב-${meetingToCancel ? formatWhen(meetingToCancel.starts_at) : ''} תסומן כמבוטלת ותעבור להיסטוריה. הלקוח לא מקבל הודעה אוטומטית.`}
+        confirmLabel="בטל פגישה"
+        cancelLabel="השאר"
+        destructive
+        onConfirm={() => { if (meetingToCancel) { void setMeetingStatus(meetingToCancel, 'cancelled'); setMeetingToCancel(null) } }}
+        onCancel={() => setMeetingToCancel(null)}
+      />
       <Dialog
         open={Boolean(formToDelete)}
         title="למחוק את השאלון?"
@@ -709,8 +753,14 @@ export default function MeetingsPage() {
   )
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return <label style={fieldStyle}><span>{label}</span>{children}</label>
+function Field({ label, children, error, id }: { label: string; children: React.ReactNode; error?: string; id?: string }) {
+  return (
+    <label style={fieldStyle}>
+      <span>{label}</span>
+      {children}
+      {error && <span id={id ? `${id}-error` : undefined} role="alert" style={{ color: 'var(--destructive)', fontWeight: 600, fontSize: 12.5 }}>{error}</span>}
+    </label>
+  )
 }
 
 const layoutStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'minmax(320px, 420px) 1fr', gap: 18, alignItems: 'start' }

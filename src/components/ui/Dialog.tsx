@@ -37,6 +37,23 @@ export function Dialog({
     return () => document.removeEventListener('keydown', onKey)
   }, [open, onCancel])
 
+  // Lock the page behind the overlay: scrolling past the end of the panel
+  // must not scroll the document (QA P1-9). Compensates for the scrollbar so
+  // the layout doesn't jump. Restored exactly on close.
+  useEffect(() => {
+    if (!open || typeof document === 'undefined') return
+    const body = document.body
+    const previousOverflow = body.style.overflow
+    const previousPadding = body.style.paddingRight
+    const scrollbar = window.innerWidth - document.documentElement.clientWidth
+    body.style.overflow = 'hidden'
+    if (scrollbar > 0) body.style.paddingRight = scrollbar + "px"
+    return () => {
+      body.style.overflow = previousOverflow
+      body.style.paddingRight = previousPadding
+    }
+  }, [open])
+
   if (!open) return null
 
   // Rendered into <body> via portal: overlays are position:fixed, and a fixed

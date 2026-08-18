@@ -244,18 +244,22 @@ function buildAutoFacts(params: {
   const capital = selectedFunds.reduce((sum, fund) => sum + fundCapital(fund), 0)
   const importedPension = selectedFunds.reduce((sum, fund) => sum + num(fund.importedPension), 0)
   const needsTotals = getNeedsTotals(params.needsAssessment)
-  return [
+  // Client-facing facts only. Internal counters ("פוליסות שנבחרו לסיכום: 0") are
+  // UI bookkeeping, not information for the client — they appear only when
+  // they carry a real number, and the two core retirement figures say
+  // WHAT TO DO instead of showing a dash (QA P2-2 / P2-3).
+  const facts: MeetingFact[] = [
     { id: 'auto-client-name', isAuto: true, label: 'שם הלקוח', value: clientName(params.client) },
-    { id: 'auto-client-id', isAuto: true, label: 'תעודת זהות', value: params.client?.idNumber || 'לא עודכן' },
-    { id: 'auto-funds-count', isAuto: true, label: 'מספר קופות בדוח', value: String(params.funds.length) },
-    { id: 'auto-insurance-count', isAuto: true, label: 'מספר פוליסות ביטוח', value: String(params.insurancePolicies.length) },
-    { id: 'auto-selected-insurance-count', isAuto: true, label: 'פוליסות שנבחרו לסיכום', value: String(params.selectedInsurancePolicyIds.length) },
-    { id: 'auto-pension-target-count', isAuto: true, label: 'קופות שסומנו לחישוב קצבה', value: String(selectedFunds.length) },
-    { id: 'auto-pension-capital', isAuto: true, label: 'הון לקצבה', value: moneyOrDash(capital) },
-    { id: 'auto-estimated-pension', isAuto: true, label: 'קצבה משוערת', value: moneyOrDash(importedPension || capital / 140) },
-    { id: 'auto-guarantee-track', isAuto: true, label: 'מסלול הבטחה גלובלי', value: guaranteeLabel(params.activeTrack) },
-    { id: 'auto-needs-balance', isAuto: true, label: 'מאזן חודשי מבירור צרכים', value: money(needsTotals.balance) },
-  ] satisfies MeetingFact[]
+    { id: 'auto-client-id', isAuto: true, label: 'תעודת זהות', value: params.client?.idNumber || '' },
+    { id: 'auto-funds-count', isAuto: true, label: 'מספר קופות בדוח', value: params.funds.length ? String(params.funds.length) : '' },
+    { id: 'auto-insurance-count', isAuto: true, label: 'מספר פוליסות ביטוח', value: params.insurancePolicies.length ? String(params.insurancePolicies.length) : '' },
+    { id: 'auto-pension-target-count', isAuto: true, label: 'קופות שסומנו לחישוב קצבה', value: selectedFunds.length ? String(selectedFunds.length) : '' },
+    { id: 'auto-pension-capital', isAuto: true, label: 'הון לקצבה', value: num(capital) > 0 ? money(capital) : (params.funds.length ? 'טרם חושב — יש לסמן קופות לחישוב קצבה בטבלת הקופות' : '') },
+    { id: 'auto-estimated-pension', isAuto: true, label: 'קצבה משוערת', value: num(importedPension || capital / 140) > 0 ? money(importedPension || capital / 140) : (params.funds.length ? 'טרם חושבה — נגזרת מהקופות שיסומנו לקצבה' : '') },
+    { id: 'auto-guarantee-track', isAuto: true, label: 'מסלול הבטחה', value: selectedFunds.length ? guaranteeLabel(params.activeTrack) : '' },
+    { id: 'auto-needs-balance', isAuto: true, label: 'מאזן חודשי מבירור צרכים', value: needsTotals.income || needsTotals.expenses ? money(needsTotals.balance) : '' },
+  ]
+  return facts
 }
 
 function buildAutoRecommendations(funds: Fund[], trackingDeals: Record<string, unknown>[], trackingRisks: Record<string, unknown>[]) {

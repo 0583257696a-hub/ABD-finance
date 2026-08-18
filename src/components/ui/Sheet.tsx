@@ -70,6 +70,23 @@ export function Sheet({
     return () => document.removeEventListener('keydown', onKey)
   }, [open, onClose])
 
+  // Lock the page behind the overlay: scrolling past the end of the panel
+  // must not scroll the document (QA P1-9). Compensates for the scrollbar so
+  // the layout doesn't jump. Restored exactly on close.
+  useEffect(() => {
+    if (!open || typeof document === 'undefined') return
+    const body = document.body
+    const previousOverflow = body.style.overflow
+    const previousPadding = body.style.paddingRight
+    const scrollbar = window.innerWidth - document.documentElement.clientWidth
+    body.style.overflow = 'hidden'
+    if (scrollbar > 0) body.style.paddingRight = scrollbar + "px"
+    return () => {
+      body.style.overflow = previousOverflow
+      body.style.paddingRight = previousPadding
+    }
+  }, [open])
+
   // Backdrop close must only fire for a click that STARTED on the backdrop.
   // A `click` event is dispatched on whatever element receives mouseup, so
   // drag-selecting text inside an input (mousedown inside the panel, mouseup
@@ -141,7 +158,7 @@ export function Sheet({
             <X size={18} />
           </IconButton>
         </header>
-        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: 20 }}>{children}</div>
+        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overscrollBehavior: 'contain', padding: 20 }}>{children}</div>
         {footer && (
           <footer style={{ padding: '14px 20px', borderTop: '1px solid var(--separator)', flexShrink: 0 }}>{footer}</footer>
         )}

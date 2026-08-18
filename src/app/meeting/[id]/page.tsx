@@ -29,6 +29,8 @@ import SmartAgentPage from '@/app/(dashboard)/smart-agent/page'
 import MeetingSummaryPage from '@/app/(dashboard)/meeting-summary/page'
 import { Button } from '@/components/ui/Button'
 import { useWorkspaceStore } from '@/lib/store/workspaceStore'
+import { clearClientDataStorage, WORKSPACE_MEETING_ID_KEY } from '@/lib/client-data-keys'
+import { Dialog } from '@/components/ui/Dialog'
 
 /**
  * Meeting Workspace — the MeetingShell. Architecturally separate from
@@ -95,6 +97,9 @@ export default function MeetingWorkspacePage({ params }: { params: Promise<{ id:
   const [notes, setNotes] = useState('')
   const [tick, setTick] = useState(0)
   const [ending, setEnding] = useState(false)
+  const [endError, setEndError] = useState('')
+  const [confirmLogout, setConfirmLogout] = useState(false)
+  const resetWorkspace = useWorkspaceStore(state => state.resetWorkspace)
 
   const meetingSummary = useWorkspaceStore(state => state.meetingSummary)
   const workspaceClient = useWorkspaceStore(state => state.client)
@@ -108,45 +113,85 @@ export default function MeetingWorkspacePage({ params }: { params: Promise<{ id:
       const found = data.meetings.find(item => item.id === id)
       if (cancelled) return
       if (!found) { setLoadState('error'); return }
+      // Workspace ↔ meeting binding: the client file in the browser belongs to
+      // exactly one meeting. If it was loaded for a different meeting (or for
+      // none), wipe it — a spontaneous meeting must never open on the previous
+      // client's funds. The meetings page sets the marker when it starts a
+      // meeting (after prefill), so a legit prefill survives this check.
+      try {
+        const bound = localStorage.getItem(WORKSPACE_MEETING_ID_KEY)
+        if (bound !== id) {
+          resetWorkspace()
+          localStorage.setItem(WORKSPACE_MEETING_ID_KEY, id)
+        }
+      } catch { /* storage unavailable — nothing to guard */ }
       setMeeting(found)
       setNotes(found.notes || '')
       setLoadState('ready')
       if (!found.started_at) {
+        const startedAt = new Date().toISOString()
+        // Reflect the start locally right away — the timer runs off started_at.
+        setMeeting(current => current ? { ...current, started_at: startedAt } : current)
         await fetch('/api/meetings', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ action: 'start-session', id }),
-        })
+        }).catch(() => {})
       }
     }).catch(() => { if (!cancelled) setLoadState('error') })
     return () => { cancelled = true }
-  }, [id])
+  }, [id, resetWorkspace])
 
   useEffect(() => {
     const interval = setInterval(() => setTick(current => current + 1), 1000)
     return () => clearInterval(interval)
   }, [])
 
-  const duration = useMemo(() => formatDuration(meeting?.started_at ?? new Date().toISOString()), [meeting?.started_at, tick])
+  // Computed from the start timestamp every tick (not an accumulating counter), so it stays right after the tab was in the background.
+  const duration = useMemo(() => formatDuration(meeting?.started_at ?? null), [meeting?.started_at, tick])
 
   async function endMeeting() {
     if (!meeting || ending) return
     setEnding(true)
+    setEndError('')
+    // Screenshots are base64 images — megabytes that D1 can't hold in one row
+    // (the summary column is capped) and that make the request crawl. Archive
+    // captions only; the images stay in the live document during the meeting.
+    const summaryForArchive = {
+      ...meetingSummary,
+      screenshots: (meetingSummary.screenshots || []).map(shot => ({ id: shot.id, caption: shot.caption || '', imageData: '' })),
+    }
+    const controller = new AbortController()
+    const timeout = window.setTimeout(() => controller.abort(), 20_000)
     try {
       const response = await fetch('/api/meetings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'end-session', id: meeting.id, summary: meetingSummary, clientName: workspaceClientName }),
+        body: JSON.stringify({ action: 'end-session', id: meeting.id, summary: summaryForArchive, clientName: workspaceClientName }),
+        signal: controller.signal,
       })
-      const data = await response.json() as { ok?: boolean; summaryId?: string }
+      const data = await response.json().catch(() => ({})) as { ok?: boolean; summaryId?: string; error?: string }
       if (data.ok) {
+        // The client's file has done its job — clear it from this browser.
+        clearClientDataStorage()
+        resetWorkspace()
         router.push(data.summaryId ? `/?tab=meeting-summaries&justSaved=${data.summaryId}` : '/?tab=meetings')
-      } else {
-        setEnding(false)
+        return
       }
-    } catch {
+      setEndError(data.error === 'not-found' ? 'הפגישה לא נמצאה בשרת.' : 'שמירת הסיכום נכשלה. הנתונים נשמרו בדפדפן — אפשר לנסות שוב.')
+    } catch (error) {
+      setEndError((error as Error)?.name === 'AbortError'
+        ? 'השרת לא הגיב תוך 20 שניות. הנתונים נשמרו בדפדפן — נסה שוב או בדוק את החיבור.'
+        : 'שגיאת רשת בסיום הפגישה. הנתונים נשמרו בדפדפן — נסה שוב.')
+    } finally {
+      window.clearTimeout(timeout)
       setEnding(false)
     }
+  }
+
+  function logout() {
+    clearClientDataStorage()
+    window.location.href = '/api/auth/logout'
   }
 
   async function saveNotes(value: string) {
@@ -175,7 +220,7 @@ export default function MeetingWorkspacePage({ params }: { params: Promise<{ id:
 
   return (
     <div style={shellStyle}>
-      <header style={headerStyle}>
+      <header style={headerStyle} data-meeting-header>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
           <span style={liveDotStyle} />
           <strong style={{ color: 'var(--text-heading)', fontSize: 15 }}>פגישה פעילה</strong>
@@ -186,25 +231,43 @@ export default function MeetingWorkspacePage({ params }: { params: Promise<{ id:
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexShrink: 0 }}>
           <span style={durationStyle}>{duration}</span>
-          <Button variant="secondary" size="sm" disabled title="הקלטה ותמלול — בקרוב">
-            <Mic size={14} style={{ marginLeft: 6 }} /> תמלול
+          <Button variant="secondary" size="sm" disabled title="הקלטה ותמלול — בקרוב" aria-disabled="true">
+            <Mic size={14} style={{ marginLeft: 6 }} /> תמלול (בקרוב)
           </Button>
           <Button variant="primary" size="sm" disabled={ending} onClick={() => void endMeeting()}>
             <Square size={13} style={{ marginLeft: 6 }} /> {ending ? 'מסיים…' : 'סיים פגישה'}
           </Button>
-          <Button variant="ghost" size="sm" title="התנתק מהמערכת" onClick={() => { window.location.href = '/api/auth/logout' }}>
+          <Button variant="ghost" size="sm" title="התנתק מהמערכת" onClick={() => setConfirmLogout(true)}>
             <LogOut size={14} style={{ marginLeft: 6 }} /> התנתק
           </Button>
         </div>
       </header>
+      {endError && (
+        <div role="alert" style={endErrorStyle}>
+          <span>{endError}</span>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <Button variant="secondary" size="sm" onClick={() => setEndError('')}>המשך בפגישה</Button>
+            <Button variant="primary" size="sm" onClick={() => void endMeeting()}>נסה שוב</Button>
+          </div>
+        </div>
+      )}
+      <Dialog
+        open={confirmLogout}
+        title="להתנתק באמצע הפגישה?"
+        description="ההתנתקות תנקה את נתוני הלקוח מהדפדפן. הסיכום לא יישמר בארכיון אלא אם תלחץ קודם על „סיים פגישה”."
+        confirmLabel="התנתק"
+        destructive
+        onConfirm={logout}
+        onCancel={() => setConfirmLogout(false)}
+      />
 
-      <div style={bodyStyle}>
-        <nav style={navStyle}>
+      <div style={bodyStyle} data-meeting-body>
+        <nav style={navStyle} data-meeting-nav aria-label="מקטעי הפגישה">
           {NAV.map(item => {
             const Icon = item.icon
             const active = tab === item.id
             return (
-              <button key={item.id} type="button" onClick={() => setTab(item.id)} style={navButtonStyle(active)}>
+              <button key={item.id} type="button" onClick={() => setTab(item.id)} style={navButtonStyle(active)} aria-current={active ? 'page' : undefined}>
                 <Icon size={16} />
                 <span>{item.label}</span>
               </button>
@@ -212,7 +275,7 @@ export default function MeetingWorkspacePage({ params }: { params: Promise<{ id:
           })}
         </nav>
 
-        <main style={contentStyle}>
+        <main style={contentStyle} data-meeting-content>
           {tab === 'overview' && <FundsWorkspace />}
           {tab === 'insurance' && <InsurancePage />}
           {tab === 'recommendations' && <RecommendationsPage />}
@@ -275,6 +338,7 @@ const shellStyle: React.CSSProperties = { minHeight: '100vh', display: 'flex', f
 const headerStyle: React.CSSProperties = { position: 'sticky', top: 0, zIndex: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, padding: '12px 20px', background: 'var(--bg-surface)', borderBottom: '1px solid var(--separator)' }
 const liveDotStyle: React.CSSProperties = { width: 9, height: 9, borderRadius: 999, background: 'var(--destructive)', flexShrink: 0, animation: 'pulse 2s ease-in-out infinite' }
 const durationStyle: React.CSSProperties = { color: 'var(--text-heading)', fontWeight: 700, fontVariantNumeric: 'tabular-nums', fontSize: 14, direction: 'ltr' }
+const endErrorStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', margin: '10px 20px 0', padding: '10px 14px', borderRadius: 'var(--radius-lg)', background: 'var(--destructive-bg, #FEE2E2)', color: 'var(--destructive-text, #991B1B)', border: '1px solid var(--separator)', fontWeight: 600, fontSize: 13.5 }
 const bodyStyle: React.CSSProperties = { display: 'flex', flex: 1, minHeight: 0 }
 const navStyle: React.CSSProperties = { width: 190, flexShrink: 0, display: 'grid', gap: 2, alignContent: 'start', padding: 14, background: 'var(--bg-surface-sunken)', borderLeft: '1px solid var(--separator)' }
 const contentStyle: React.CSSProperties = { flex: 1, minWidth: 0, padding: 20, overflow: 'auto' }

@@ -9,18 +9,7 @@ const IDLE_TIMEOUT_MS = 20 * 60 * 1000
 const ACTIVITY_THROTTLE_MS = 10_000
 const CHECK_INTERVAL_MS = 30_000
 
-// Client-data-bearing keys beyond what resetWorkspace() already clears
-// (compound/Phoenix simulation inputs are seeded from a specific client's
-// real numbers; returns favorites reference a specific client's fund IDs).
-// Pure UI prefs (column widths, active-tab memory, sidebar collapse) are
-// deliberately left alone — clearing those on every timeout would just be
-// friction with no privacy benefit.
-const EXTRA_CLIENT_DATA_KEYS = [
-  'abd_next_simulations_compound_inputs',
-  'abd_next_phoenix_inputs',
-  'abd_next_phoenix_selected_parts',
-  'abd_returns_favorites',
-]
+// Which keys count as client data lives in lib/client-data-keys.ts (used by resetWorkspace()).
 
 const EXEMPT_PATH_PREFIXES = ['/login', '/register', '/forgot-password', '/reset-password', '/client-form', '/pending-approval']
 
@@ -69,8 +58,7 @@ export default function ClientDataGuard() {
     if (isExempt || !hasClientData) return
 
     function forceReauth() {
-      EXTRA_CLIENT_DATA_KEYS.forEach(key => localStorage.removeItem(key))
-      resetWorkspace()
+      resetWorkspace() // clears every client-data key (lib/client-data-keys.ts)
       localStorage.removeItem(LAST_ACTIVE_KEY)
       window.location.href = '/api/auth/logout'
     }
