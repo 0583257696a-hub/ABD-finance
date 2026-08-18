@@ -162,7 +162,9 @@ export const googleCalendarAdapter: CalendarAdapter = {
 
   createEvent: async (userEmail, input: CreateEventInput) => {
     const token = await accessToken(userEmail)
-    const response = await fetch(`${API_BASE}/calendars/primary/events`, {
+    // conferenceDataVersion=1 + a createRequest makes Google attach a Meet link
+    // to the event; it comes back as hangoutLink / conferenceData.entryPoints.
+    const response = await fetch(`${API_BASE}/calendars/primary/events${input.createVideoLink ? '?conferenceDataVersion=1' : ''}`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -172,6 +174,7 @@ export const googleCalendarAdapter: CalendarAdapter = {
         start: { dateTime: input.startsAt },
         end: { dateTime: input.endsAt },
         attendees: input.participantEmails.map(email => ({ email })),
+        ...(input.createVideoLink ? { conferenceData: { createRequest: { requestId: crypto.randomUUID(), conferenceSolutionKey: { type: 'hangoutsMeet' } } } } : {}),
       }),
     })
     if (!response.ok) throw new CalendarError('PROVIDER_UNAVAILABLE', `Google Calendar create failed (${response.status}).`, 'google_calendar')

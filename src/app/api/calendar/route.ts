@@ -52,6 +52,7 @@ export async function POST(request: Request) {
     location?: string
     notes?: string
     participantEmails?: string[]
+    createVideoLink?: boolean
   }
 
   if (!body.provider) return NextResponse.json({ error: 'missing-provider' }, { status: 400 })
@@ -69,6 +70,7 @@ export async function POST(request: Request) {
       location: sanitizeText(body.location, 300),
       notes: sanitizeText(body.notes, 2000),
       participantEmails: (body.participantEmails || []).map(email => sanitizeText(email, 200)).filter(email => email.includes('@')).slice(0, 20),
+      createVideoLink: Boolean(body.createVideoLink),
     })
     return NextResponse.json({ ok: true, meeting })
   } catch (error) {

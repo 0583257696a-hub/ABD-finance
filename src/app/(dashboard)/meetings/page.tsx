@@ -44,6 +44,7 @@ type Meeting = {
   starts_at: string
   ends_at: string
   location: string
+  meeting_url?: string | null
   notes: string
   status: 'scheduled' | 'done' | 'cancelled'
   invite_sent_at: string | null
@@ -105,6 +106,9 @@ export default function MeetingsPage() {
   const [sendInviteOnSave, setSendInviteOnSave] = useState(true)
   const [sendQuestionnaireOnSave, setSendQuestionnaireOnSave] = useState(false)
   const [location, setLocation] = useState('')
+  // "איפה?" — one click instead of leaving the app to create a video link.
+  type Venue = 'office' | 'phone' | 'google_meet' | 'other'
+  const [venue, setVenue] = useState<Venue>('office')
   const [notes, setNotes] = useState('')
 
   // Pre-fill from the active client so the advisor doesn't retype what the app already knows.
@@ -334,10 +338,31 @@ export default function MeetingsPage() {
     setBusy(true)
     setStatus('')
     try {
+      // Venue → location text; Google Meet also creates the calendar event with a Meet link.
+      let resolvedLocation = venue === 'office' ? 'במשרד' : venue === 'phone' ? 'שיחת טלפון' : location
+      let meetingUrl = ''
+      let externalEventId = ''
+      let source: string | undefined
+      if (venue === 'google_meet') {
+        const calendarResponse = await fetch('/api/calendar', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ provider: 'google_calendar', title, startsAt: startsAt.toISOString(), endsAt: endsAt.toISOString(), notes, participantEmails: clientEmail ? [clientEmail] : [], createVideoLink: true }),
+        })
+        const calendar = await calendarResponse.json().catch(() => ({})) as { ok?: boolean; meeting?: { meetingUrl?: string; externalEventId?: string }; message?: string }
+        if (!calendarResponse.ok || !calendar.ok || !calendar.meeting?.meetingUrl) {
+          toast(calendar.message || 'יצירת קישור Google Meet נכשלה — ודא שיומן Google מחובר בהגדרות.', 'error')
+          return
+        }
+        meetingUrl = calendar.meeting.meetingUrl
+        externalEventId = calendar.meeting.externalEventId || ''
+        source = 'google_calendar'
+        resolvedLocation = meetingUrl
+      }
       const response = await fetch('/api/meetings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ clientName, clientEmail, title, startsAt: startsAt.toISOString(), endsAt: endsAt.toISOString(), location, notes }),
+        body: JSON.stringify({ clientName, clientEmail, title, startsAt: startsAt.toISOString(), endsAt: endsAt.toISOString(), location: resolvedLocation, notes, meetingUrl, externalEventId, source }),
       })
       const data = await response.json() as { ok?: boolean; id?: string; error?: string }
       if (!response.ok || !data.ok) {
@@ -369,7 +394,7 @@ export default function MeetingsPage() {
       setStatus('')
       setFormErrors({})
       // Full reset — a half-cleared form reads as an unfinished state. Title/duration keep their defaults.
-      setClientName(''); setClientEmail(''); setLocation(''); setNotes(''); setDate(''); setTime('')
+      setClientName(''); setClientEmail(''); setLocation(''); setNotes(''); setDate(''); setTime('10:00'); setVenue('office')
       await refresh()
     } finally {
       setBusy(false)
@@ -595,7 +620,22 @@ export default function MeetingsPage() {
               <Field label="שעה *" error={formErrors.time} id="meeting-field-time"><input id="meeting-field-time" type="time" required aria-required="true" aria-invalid={Boolean(formErrors.time)} value={time} onChange={event => { setTime(event.target.value); if (formErrors.time) setFormErrors(current => ({ ...current, time: "" })) }} style={inputStyle} /></Field>
               <Field label="משך (דקות)" error={formErrors.durationMinutes} id="meeting-field-durationMinutes"><input id="meeting-field-durationMinutes" dir="ltr" inputMode="numeric" aria-invalid={Boolean(formErrors.durationMinutes)} value={durationMinutes} onChange={event => setDurationMinutes(event.target.value)} style={inputStyle} /></Field>
             </div>
-            <Field label="מיקום / קישור לשיחה"><input value={location} onChange={event => setLocation(event.target.value)} style={inputStyle} /></Field>
+            <div style={{ display: 'grid', gap: 6 }}>
+              <span style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--text-heading)' }}>איפה?</span>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {([['office', 'במשרד'], ['phone', 'טלפון'], ['google_meet', 'Google Meet'], ['other', 'קישור אחר']] as const).map(([id, label]) => {
+                  const googleConnected = providers.some(provider => provider.id === 'google_calendar' && provider.connected)
+                  const disabled = id === 'google_meet' && !googleConnected
+                  return (
+                    <button key={id} type="button" disabled={disabled} onClick={() => setVenue(id)} title={disabled ? 'חבר יומן Google בהגדרות → חיבורים כדי ליצור קישור Meet בלחיצה' : undefined} style={{ ...venueChipStyle, ...(venue === id ? venueChipActiveStyle : {}), ...(disabled ? { opacity: .5, cursor: 'not-allowed' } : {}) }} aria-pressed={venue === id}>
+                      {label}
+                    </button>
+                  )
+                })}
+              </div>
+              {venue === 'google_meet' && <span style={{ color: 'var(--text-muted)', fontSize: 12.5 }}>קישור Meet ייווצר ביומן Google שלך ויצורף לזימון.</span>}
+              {venue === 'other' && <input value={location} onChange={event => setLocation(event.target.value)} placeholder="קישור Zoom / Teams או כתובת" dir="auto" style={inputStyle} />}
+            </div>
             <Field label="הערות"><textarea rows={2} value={notes} onChange={event => setNotes(event.target.value)} style={{ ...inputStyle, resize: 'vertical' }} /></Field>
             <div style={{ display: 'grid', gap: 8, padding: '10px 12px', background: 'var(--bg-surface-sunken)', borderRadius: 'var(--radius-md)' }}>
               <label style={checkRowStyle}><input type="checkbox" checked={sendInviteOnSave} onChange={event => setSendInviteOnSave(event.target.checked)} /> לשלוח ללקוח זימון עם קובץ יומן</label>
@@ -622,7 +662,17 @@ export default function MeetingsPage() {
                       {meeting.confirmed_at && <span style={{ ...metaStyle, color: 'var(--success-text)' }}>✓ הלקוח אישר הגעה</span>}
                     </div>
                     <div style={{ display: 'flex', gap: 6, flexShrink: 0, flexWrap: 'wrap' }}>
-                      <Button size="sm" variant="primary" onClick={() => startLocalMeeting(meeting)}>התחל פגישה</Button>
+                      {(() => {
+                        const url = meeting.meeting_url || (/^https?:\/\//.test(meeting.location || '') ? meeting.location : '')
+                        return url ? (
+                          <>
+                            <Button size="sm" variant="primary" onClick={() => { window.open(url, '_blank', 'noopener'); startLocalMeeting(meeting) }} title="פותח את שיחת הווידאו ומתחיל את סביבת העבודה עם הלקוח">הצטרף והתחל</Button>
+                            <Button size="sm" variant="ghost" onClick={() => { void navigator.clipboard?.writeText(url); toast('הקישור הועתק', 'success') }} title={url}>העתק קישור</Button>
+                          </>
+                        ) : (
+                          <Button size="sm" variant="primary" onClick={() => startLocalMeeting(meeting)}>התחל פגישה</Button>
+                        )
+                      })()}
                       <Button size="sm" variant="secondary" disabled={busy || !meeting.client_email} onClick={() => void sendInvite(meeting)}>
                         <Send size={13} style={iconStyle} /> {meeting.invite_sent_at ? 'שלח שוב' : 'שלח זימון'}
                       </Button>
@@ -780,6 +830,8 @@ const iconStyle: React.CSSProperties = { flexShrink: 0 }
 const fieldStyle: React.CSSProperties = { display: 'grid', gap: 6, color: 'var(--text-heading)', fontWeight: 600, fontSize: 13.5 }
 const inputStyle: React.CSSProperties = { minHeight: 40, border: '1px solid var(--separator)', borderRadius: 'var(--radius-md)', padding: '8px 12px', fontFamily: 'var(--font-main)', fontSize: 14, background: 'var(--bg-canvas)', color: 'var(--text-heading)', width: '100%' }
 const rowStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }
+const venueChipStyle: React.CSSProperties = { border: '1px solid var(--separator-strong, var(--separator))', background: 'var(--bg-surface)', color: 'var(--text-heading)', borderRadius: 999, padding: '6px 12px', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, cursor: 'pointer' }
+const venueChipActiveStyle: React.CSSProperties = { background: 'var(--abd-accent)', color: '#fff', borderColor: 'var(--abd-accent)' }
 const checkRowStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 8, fontSize: 13.5, color: 'var(--text-heading)', cursor: 'pointer' }
 const inlineLinkStyle: React.CSSProperties = { border: 0, background: 'transparent', color: 'var(--abd-accent)', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, cursor: 'pointer', padding: 0, textDecoration: 'underline' }
 const noticeStyle: React.CSSProperties = { background: 'var(--bg-surface-sunken)', color: 'var(--text-heading)', border: '1px solid var(--separator)', borderRadius: 'var(--radius-lg)', padding: 12, marginBottom: 16, fontWeight: 600 }

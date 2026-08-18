@@ -18,6 +18,13 @@ export const metadata: Metadata = {
     title: 'Smart Meeting',
   },
   icons: {
+    // Brand favicon (generated from public/icons/icon-512.png) — replaces the framework default.
+    icon: [
+      { url: '/favicon.ico', sizes: 'any' },
+      { url: '/icons/favicon-32.png', type: 'image/png', sizes: '32x32' },
+      { url: '/icons/favicon-16.png', type: 'image/png', sizes: '16x16' },
+    ],
+    shortcut: '/favicon.ico',
     apple: '/icons/apple-touch-icon.png',
   },
   other: {

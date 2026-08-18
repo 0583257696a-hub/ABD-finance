@@ -47,7 +47,7 @@ function isExcludedFromPrecache(entry: PrecacheEntry | string): boolean {
  * user on a stale build is pulled forward automatically on their next
  * navigation, with no "update now" prompt they'd have to notice.
  */
-const APP_CACHE_VERSION = '2026-08-17-3'
+const APP_CACHE_VERSION = '2026-08-18-1'
 
 const serwist = new Serwist({
   precacheEntries: self.__SW_MANIFEST?.filter(entry => !isExcludedFromPrecache(entry)),

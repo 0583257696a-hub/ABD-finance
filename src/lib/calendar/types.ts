@@ -117,6 +117,8 @@ export type CreateEventInput = {
   location?: string
   notes?: string
   participantEmails: string[]
+  /** Ask the provider to attach its own video meeting (Google Meet / Teams). Adapters that can't just ignore it. */
+  createVideoLink?: boolean
 }
 
 /**

@@ -208,6 +208,11 @@ export async function POST(request: Request) {
     location: sanitizeText(body.location, 300) || '',
     notes: sanitizeText(body.notes, 2000) || '',
     status: 'scheduled',
+    // When the meeting was also created in the advisor's calendar (e.g. with a
+    // Google Meet link) keep the linkage so the card can offer "הצטרף והתחל".
+    source: body.source || 'spontaneous',
+    external_event_id: sanitizeText(body.externalEventId, 300) || null,
+    meeting_url: sanitizeText(body.meetingUrl, 500) || null,
   })
   if (!ok) return NextResponse.json({ error: 'd1-unavailable' }, { status: 503 })
   return NextResponse.json({ ok: true, id })
