@@ -32,6 +32,10 @@ import type { ExtractedSuggestions } from '@/lib/transcript-types'
 
 const SEGMENT_MS = 30_000
 
+function newId(prefix: string) {
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
+}
+
 type RecState = 'idle' | 'recording' | 'paused'
 
 export function RecordingPanel({ open, onOpenChange, meetingId, clientName }: { open: boolean; onOpenChange: (open: boolean) => void; meetingId: string; clientName: string }) {
@@ -54,6 +58,7 @@ export function RecordingPanel({ open, onOpenChange, meetingId, clientName }: { 
   const recorderRef = useRef<MediaRecorder | null>(null)
   const segmentTimer = useRef<number | null>(null)
   const stateRef = useRef<RecState>('idle')
+  const startSegmentRef = useRef<() => void>(() => {})
   const fileInputRef = useRef<HTMLInputElement>(null)
   const transcript = summary.transcript || ''
 
@@ -98,12 +103,13 @@ export function RecordingPanel({ open, onOpenChange, meetingId, clientName }: { 
     recorder.onstop = () => {
       const blob = new Blob(parts, { type: recorder.mimeType || 'audio/webm' })
       void transcribeBlob(blob)
-      if (stateRef.current === 'recording') startSegment()
+      if (stateRef.current === 'recording') startSegmentRef.current()
     }
     recorder.start()
     recorderRef.current = recorder
     segmentTimer.current = window.setTimeout(() => { if (recorder.state === 'recording') recorder.stop() }, SEGMENT_MS)
   }, [transcribeBlob])
+  useEffect(() => { startSegmentRef.current = startSegment }, [startSegment])
 
   async function beginRecording() {
     setError('')
@@ -172,18 +178,18 @@ export function RecordingPanel({ open, onOpenChange, meetingId, clientName }: { 
 
   function addFact(fact: { label: string; value: string }, key: string) {
     const current = useWorkspaceStore.getState().meetingSummary
-    setMeetingSummary({ ...current, facts: [...(current.facts || []), { id: `fact-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, isAuto: false, label: fact.label, value: fact.value }] })
+    setMeetingSummary({ ...current, facts: [...(current.facts || []), { id: newId('fact'), isAuto: false, label: fact.label, value: fact.value }] })
     markApplied(key); toast('נוסף לעובדות המרכזיות', 'success')
   }
   function addDecision(text: string, key: string) {
     const current = useWorkspaceStore.getState().meetingSummary
-    setMeetingSummary({ ...current, recommendations: [...(current.recommendations || []), { id: `rec-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, text, isAuto: false }] })
+    setMeetingSummary({ ...current, recommendations: [...(current.recommendations || []), { id: newId('rec'), text, isAuto: false }] })
     markApplied(key); toast('נוסף להמלצות/החלטות', 'success')
   }
   function addTask(task: { text: string; owner?: string; due?: string }, key: string) {
     const current = useWorkspaceStore.getState().meetingSummary
     const suffix = [task.owner === 'client' ? 'באחריות הלקוח' : '', task.due ? `עד ${task.due}` : ''].filter(Boolean).join(', ')
-    setMeetingSummary({ ...current, manualFollowUps: [...(current.manualFollowUps || []), { id: `fu-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, text: suffix ? `${task.text} (${suffix})` : task.text, isAuto: false }] })
+    setMeetingSummary({ ...current, manualFollowUps: [...(current.manualFollowUps || []), { id: newId('fu'), text: suffix ? `${task.text} (${suffix})` : task.text, isAuto: false }] })
     markApplied(key); toast('נוסף למשימות המשך', 'success')
   }
   function addConcern(text: string, key: string) {

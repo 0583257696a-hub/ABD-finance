@@ -42,11 +42,19 @@ export async function POST(request: Request) {
         { role: 'system', content: SYSTEM },
         { role: 'user', content: `תמליל:\n${scrubIdentifiers(transcript)}` },
       ],
-      max_tokens: 1200,
-    }) as { response?: string } | string
-    const raw = typeof response === 'string' ? response : String(response?.response || '')
-    const jsonText = raw.slice(raw.indexOf('{'), raw.lastIndexOf('}') + 1)
-    const parsed = JSON.parse(jsonText) as Partial<ExtractedSuggestions>
+      max_tokens: 1600,
+      response_format: { type: 'json_object' },
+    }) as { response?: string | Record<string, unknown> } | string
+    let parsed: Partial<ExtractedSuggestions>
+    if (typeof response !== 'string' && response?.response && typeof response.response === 'object') {
+      parsed = response.response as Partial<ExtractedSuggestions>
+    } else {
+      const raw = typeof response === 'string' ? response : String(response?.response || '')
+      const start = raw.indexOf('{')
+      const end = raw.lastIndexOf('}')
+      if (start < 0 || end <= start) return NextResponse.json({ error: 'extract-failed', detail: 'model returned no JSON', raw: raw.slice(0, 200) }, { status: 502 })
+      parsed = JSON.parse(raw.slice(start, end + 1)) as Partial<ExtractedSuggestions>
+    }
     const clean = (list: unknown, max: number) => Array.isArray(list) ? list.map(item => sanitizeText(item, 300)).filter(Boolean).slice(0, max) : []
     const suggestions: ExtractedSuggestions = {
       facts: Array.isArray(parsed.facts)
