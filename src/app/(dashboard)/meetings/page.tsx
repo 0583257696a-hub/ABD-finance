@@ -16,6 +16,7 @@ import { formatDateTime } from '@/lib/format-date'
 import { useToast } from '@/components/ui/Toast'
 import { WORKSPACE_MEETING_ID_KEY } from '@/lib/client-data-keys'
 import { MeetingsSwitch } from '@/components/features/MeetingsSwitch'
+import { MeetingPrepSheet } from '@/components/features/MeetingPrepSheet'
 
 type ProviderStatus = {
   id: 'google_calendar' | 'microsoft_outlook' | 'calendly'
@@ -77,6 +78,7 @@ export default function MeetingsPage() {
   const toast = useToast()
   const [formErrors, setFormErrors] = useState<Record<string, string>>({})
   const [meetingToCancel, setMeetingToCancel] = useState<Meeting | null>(null)
+  const [prepMeeting, setPrepMeeting] = useState<Meeting | null>(null)
   const [busy, setBusy] = useState(false)
   const [openFormToken, setOpenFormToken] = useState('')
 
@@ -109,6 +111,23 @@ export default function MeetingsPage() {
   // "איפה?" — one click instead of leaving the app to create a video link.
   type Venue = 'office' | 'phone' | 'google_meet' | 'other'
   const [venue, setVenue] = useState<Venue>('office')
+  // Meeting templates (proposal §3.2): one click sets title, length and whether a
+  // preparation questionnaire goes out. Kept tiny on purpose — presets, not a system.
+  const MEETING_TEMPLATES = [
+    { id: 'retirement', label: 'תכנון פרישה', title: 'פגישת תכנון פרישה', minutes: '90', questionnaire: true },
+    { id: 'annual', label: 'בדיקה שנתית', title: 'בדיקה שנתית של התיק', minutes: '60', questionnaire: false },
+    { id: 'new', label: 'לקוח חדש', title: 'פגישת היכרות ובירור צרכים', minutes: '60', questionnaire: true },
+    { id: 'followup', label: 'המשך טיפול', title: 'פגישת המשך טיפול', minutes: '30', questionnaire: false },
+  ] as const
+  const [templateId, setTemplateId] = useState<string>('')
+  function applyTemplate(id: string) {
+    const template = MEETING_TEMPLATES.find(item => item.id === id)
+    if (!template) return
+    setTemplateId(id)
+    setTitle(template.title)
+    setDurationMinutes(template.minutes)
+    setSendQuestionnaireOnSave(template.questionnaire)
+  }
   const [notes, setNotes] = useState('')
 
   // Pre-fill from the active client so the advisor doesn't retype what the app already knows.
@@ -394,7 +413,7 @@ export default function MeetingsPage() {
       setStatus('')
       setFormErrors({})
       // Full reset — a half-cleared form reads as an unfinished state. Title/duration keep their defaults.
-      setClientName(''); setClientEmail(''); setLocation(''); setNotes(''); setDate(''); setTime('10:00'); setVenue('office')
+      setClientName(''); setClientEmail(''); setLocation(''); setNotes(''); setDate(''); setTime('10:00'); setVenue('office'); setTemplateId('')
       await refresh()
     } finally {
       setBusy(false)
@@ -612,6 +631,16 @@ export default function MeetingsPage() {
         <Surface style={{ padding: 20 }}>
           <h2 style={sectionTitleStyle}><CalendarPlus size={17} style={iconStyle} /> פגישה חדשה</h2>
           <div style={{ display: 'grid', gap: 12 }}>
+            <div style={{ display: 'grid', gap: 6 }}>
+              <span style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--text-heading)' }}>סוג פגישה</span>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {MEETING_TEMPLATES.map(template => (
+                  <button key={template.id} type="button" onClick={() => applyTemplate(template.id)} style={{ ...venueChipStyle, ...(templateId === template.id ? venueChipActiveStyle : {}) }} aria-pressed={templateId === template.id} title={template.title + ' · ' + template.minutes + ' דק׳' + (template.questionnaire ? ' · כולל שאלון הכנה' : '')}>
+                    {template.label}
+                  </button>
+                ))}
+              </div>
+            </div>
             <Field label="שם לקוח *" error={formErrors.clientName} id="meeting-field-clientName"><input id="meeting-field-clientName" required aria-required="true" aria-invalid={Boolean(formErrors.clientName)} aria-describedby={formErrors.clientName ? "meeting-field-clientName-error" : undefined} value={clientName} onChange={event => { setClientName(event.target.value); if (formErrors.clientName) setFormErrors(current => ({ ...current, clientName: "" })) }} placeholder="ישראל ישראלי" style={inputStyle} /></Field>
             <Field label="אימייל לקוח" error={formErrors.clientEmail} id="meeting-field-clientEmail"><input id="meeting-field-clientEmail" dir="ltr" type="email" inputMode="email" autoComplete="off" aria-invalid={Boolean(formErrors.clientEmail)} aria-describedby={formErrors.clientEmail ? "meeting-field-clientEmail-error" : undefined} value={clientEmail} onChange={event => { setClientEmail(event.target.value); if (formErrors.clientEmail) setFormErrors(current => ({ ...current, clientEmail: "" })) }} placeholder="name@example.com" style={inputStyle} /></Field>
             <Field label="נושא"><input value={title} onChange={event => setTitle(event.target.value)} style={inputStyle} /></Field>
@@ -662,6 +691,7 @@ export default function MeetingsPage() {
                       {meeting.confirmed_at && <span style={{ ...metaStyle, color: 'var(--success-text)' }}>✓ הלקוח אישר הגעה</span>}
                     </div>
                     <div style={{ display: 'flex', gap: 6, flexShrink: 0, flexWrap: 'wrap' }}>
+                      <Button size="sm" variant="secondary" onClick={() => setPrepMeeting(meeting)} title="תקציר של 30 שניות לפני הפגישה: מה סוכם בפעם הקודמת, משימות פתוחות, מה הלקוח מילא בשאלון">מוכן לפגישה</Button>
                       {(() => {
                         const url = meeting.meeting_url || (/^https?:\/\//.test(meeting.location || '') ? meeting.location : '')
                         return url ? (
@@ -758,6 +788,12 @@ export default function MeetingsPage() {
         </div>
       </section>
 
+      <MeetingPrepSheet
+        meeting={prepMeeting}
+        forms={forms}
+        onClose={() => setPrepMeeting(null)}
+        onStart={target => { setPrepMeeting(null); const url = target.meeting_url || (String(target.location || '').startsWith('http') ? target.location : ''); if (url) window.open(url, '_blank', 'noopener'); startLocalMeeting(target as Meeting) }}
+      />
       <Dialog
         open={Boolean(meetingToCancel)}
         title="לבטל את הפגישה?"

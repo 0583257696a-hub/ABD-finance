@@ -80,7 +80,11 @@ export function DataTable<T>({
     if (storageKey) localStorage.setItem(`${storageKey}_widths`, JSON.stringify(columnWidths))
   }, [columnWidths, storageKey])
 
-  const orderedColumns = columnOrder.map(key => columns.find(c => c.key === key)).filter((c): c is DataTableColumn<T> => Boolean(c))
+  // Persisted order may predate a newly added column — append unknown columns so they are never silently hidden.
+  const orderedColumns = [
+    ...columnOrder.map(key => columns.find(c => c.key === key)).filter((c): c is DataTableColumn<T> => Boolean(c)),
+    ...columns.filter(c => !columnOrder.includes(c.key)),
+  ]
   const sortColumn = columns.find(c => c.key === sortKey)
 
   const sortedRows = [...rows].sort((a, b) => {

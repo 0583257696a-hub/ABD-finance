@@ -20,6 +20,7 @@ import { DataTable, type DataTableColumn } from '@/components/ui/DataTable'
 import { Sheet } from '@/components/ui/Sheet'
 import { Dialog } from '@/components/ui/Dialog'
 import { feeAnomaly } from '@/lib/fee-caps'
+import { loadStoredFindings, portfolioRef, runAnalysis, type Finding } from '@/lib/smart-agent/engine'
 import { useToast } from '@/components/ui/Toast'
 import { DEFAULT_RATIONALE, formatRecommendationLine, isAutoRationale, recommendationKind } from '@/lib/recommendation-text'
 
@@ -92,7 +93,7 @@ const RECOMMENDATIONS_KEY = 'abd_next_recommendations'
 const INFRASTRUCTURE_IDS_KEY = 'abd_next_infrastructure_ids'
 const FUNDS_TABLE_STORAGE_KEY = 'abd_next_funds_table'
 
-const columns: Array<{ key: keyof FundRecord; label: string; numeric?: boolean; width: number; minWidth: number }> = [
+const columns: Array<{ key: keyof FundRecord | 'flags'; label: string; numeric?: boolean; width: number; minWidth: number }> = [
   { key: 'genderScore', label: 'יעד / מיועד לקצבה', width: 138, minWidth: 116 },
   { key: 'manufacturer', label: 'יצרן', width: 150, minWidth: 116 },
   { key: 'productType', label: 'סוג מוצר', width: 132, minWidth: 112 },
@@ -100,6 +101,7 @@ const columns: Array<{ key: keyof FundRecord; label: string; numeric?: boolean; 
   { key: 'standing', label: 'מעמד', width: 86, minWidth: 72 },
   { key: 'investmentTrack', label: 'מסלול השקעה', width: 270, minWidth: 180 },
   { key: 'managementFeeText', label: 'דמי ניהול', width: 180, minWidth: 142 },
+  { key: 'flags', label: 'דגלים', width: 190, minWidth: 140 },
   { key: 'status', label: 'סטטוס', width: 112, minWidth: 94 },
   { key: 'currentBalance', label: 'צבירה נוכחית', numeric: true, width: 138, minWidth: 118 },
 ]
@@ -600,6 +602,26 @@ export default function FundsWorkspace() {
     setTableResetSignal(current => current + 1)
   }
 
+  // Smart Agent findings ON the rows (proposal §1.2 / §5.6): the same detection
+  // engine the Smart Agent view runs, keyed back to each fund by its
+  // pseudonymous portfolioRef. Group findings (duplicates) live in the Smart
+  // Agent view; row chips show the per-fund ones. Dismissed/resolved hidden.
+  const findingsByFund = useMemo(() => {
+    const map = new Map<string, Finding[]>()
+    if (!funds.length) return map
+    try {
+      const stored = loadStoredFindings().findings
+      const result = runAnalysis(funds as unknown as Parameters<typeof runAnalysis>[0], [], stored)
+      const active = result.findings.filter(finding => finding.status !== 'DISMISSED' && finding.status !== 'RESOLVED')
+      for (const fund of funds) {
+        const ref = portfolioRef(fund.id)
+        const own = active.filter(finding => finding.portfolioRef === ref)
+        if (own.length) map.set(fund.id, own)
+      }
+    } catch { /* engine failure must never break the table */ }
+    return map
+  }, [funds])
+
   const dataTableColumns: DataTableColumn<FundRecord>[] = useMemo(() => columns.map(column => {
     const base = { key: String(column.key), label: column.label, numeric: column.numeric, width: column.width, minWidth: column.minWidth }
     switch (column.key) {
@@ -618,6 +640,26 @@ export default function FundsWorkspace() {
         }
       case 'manufacturer':
         return { ...base, render: (fund: FundRecord) => <SharedManufacturerLogo name={fund.manufacturer} /> }
+      case 'flags':
+        return {
+          ...base,
+          sortValue: (fund: FundRecord) => (findingsByFund.get(fund.id) || []).length,
+          render: (fund: FundRecord) => {
+            const items = findingsByFund.get(fund.id) || []
+            if (!items.length) return <span style={{ color: 'var(--text-tertiary, #9CA3AF)', fontSize: 12 }}>—</span>
+            const shown = items.slice(0, 2)
+            return (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                {shown.map(finding => (
+                  <span key={finding.id} title={`${finding.title}\n${finding.detail}`} style={{ ...flagChipStyle, ...(finding.severity === 'HIGH' ? flagChipHighStyle : finding.severity === 'MEDIUM' ? flagChipMediumStyle : {}) }}>
+                    {finding.severity === 'HIGH' ? '⚠ ' : ''}{finding.title}
+                  </span>
+                ))}
+                {items.length > shown.length && <span title={items.slice(2).map(f => f.title).join('\n')} style={flagChipStyle}>+{items.length - shown.length}</span>}
+              </div>
+            )
+          },
+        }
       case 'status':
         return { ...base, render: (fund: FundRecord) => <StatusBadge status={fund.status} /> }
       case 'currentBalance':
@@ -643,9 +685,9 @@ export default function FundsWorkspace() {
           },
         }
       default:
-        return { ...base, render: (fund: FundRecord) => String(fund[column.key] || 'אין נתון') }
+        return { ...base, render: (fund: FundRecord) => String((fund as Record<string, unknown>)[column.key] || 'אין נתון') }
     }
-  }), [infrastructureIds])
+  }), [infrastructureIds, findingsByFund])
 
   async function handleFiles(files: FileList | null) {
     if (!files?.length) return
@@ -1839,6 +1881,9 @@ const toolbarStyle: React.CSSProperties = { display: 'flex', alignItems: 'center
 const checkboxStyle: React.CSSProperties = { width: 16, height: 16, accentColor: 'var(--abd-accent)', cursor: 'pointer' }
 const pillStyle: React.CSSProperties = { display: 'inline-flex', justifyContent: 'center', minWidth: 86, border: '1px solid #B9DDF7', borderRadius: 999, padding: '6px 12px', color: 'var(--abd-primary)', fontWeight: 900, background: '#F8FBFF' }
 const targetButtonStyle = (value?: string): React.CSSProperties => ({ ...pillStyle, cursor: 'pointer', background: value === 'משוך קצבה' ? '#E5F8EE' : '#F8FBFF', borderColor: value === 'משוך קצבה' ? '#93E0B3' : '#B9DDF7', color: value === 'משוך קצבה' ? '#047857' : 'var(--abd-primary)' })
+const flagChipStyle: React.CSSProperties = { display: 'inline-flex', alignItems: 'center', maxWidth: '100%', borderRadius: 999, padding: '3px 9px', fontSize: 11.5, fontWeight: 700, background: 'var(--bg-surface-sunken)', color: 'var(--text-heading)', border: '1px solid var(--separator)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }
+const flagChipMediumStyle: React.CSSProperties = { background: 'var(--warning-bg, #FEF3C7)', color: 'var(--warning-text, #92400E)', borderColor: 'transparent' }
+const flagChipHighStyle: React.CSSProperties = { background: 'var(--destructive-bg, #FEE2E2)', color: 'var(--destructive-text, #991B1B)', borderColor: 'transparent' }
 const statusStyle: React.CSSProperties = { display: 'inline-flex', alignItems: 'center', borderRadius: 999, padding: '5px 11px', fontSize: 13, fontWeight: 900 }
 const modalGridStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', borderRadius: 18, overflow: 'hidden', background: '#F8FBFF', boxShadow: 'var(--shadow-card)' }
 const modalCellStyle: React.CSSProperties = { minHeight: 82, display: 'grid', gap: 6, alignContent: 'center', justifyItems: 'center', padding: 12, borderLeft: '1px solid #EDF4FC', borderBottom: '1px solid #EDF4FC', textAlign: 'center', color: 'var(--abd-primary)' }

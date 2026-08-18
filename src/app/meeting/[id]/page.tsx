@@ -27,14 +27,7 @@ import { clearClientDataStorage, WORKSPACE_MEETING_ID_KEY } from '@/lib/client-d
 import { Dialog } from '@/components/ui/Dialog'
 import { Sheet } from '@/components/ui/Sheet'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
-import { feeAnomaly } from '@/lib/fee-caps'
-
-function parseFee(value: string | number | undefined): number | null {
-  if (typeof value === 'number') return Number.isFinite(value) ? value : null
-  const match = String(value ?? '').match(/[\d.]+/)
-  const parsed = match ? Number(match[0]) : NaN
-  return Number.isFinite(parsed) ? parsed : null
-}
+import { loadStoredFindings, runAnalysis } from '@/lib/smart-agent/engine'
 
 /**
  * Meeting Workspace — the MeetingShell. Architecturally separate from
@@ -111,7 +104,14 @@ export default function MeetingWorkspacePage({ params }: { params: Promise<{ id:
   const storeFunds = useWorkspaceStore(state => state.funds)
   const storeInsurance = useWorkspaceStore(state => state.insurancePolicies)
   const storeDeals = useWorkspaceStore(state => state.trackingDeals)
-  const flagCount = useMemo(() => storeFunds.filter(fund => feeAnomaly(fund.productType, parseFee(fund.balanceFee), parseFee(fund.depositFee))).length, [storeFunds])
+  // Same detections as the row chips and the Smart Agent view (one engine), minus dismissed/resolved.
+  const flagCount = useMemo(() => {
+    if (!storeFunds.length && !storeInsurance.length) return 0
+    try {
+      const result = runAnalysis(storeFunds, storeInsurance, loadStoredFindings().findings)
+      return result.findings.filter(finding => finding.status !== 'DISMISSED' && finding.status !== 'RESOLVED').length
+    } catch { return 0 }
+  }, [storeFunds, storeInsurance])
   const stepStatus: Record<MeetingStep, string> = {
     portfolio: storeFunds.length || storeInsurance.length ? `${storeFunds.length} קופות${storeInsurance.length ? ` · ${storeInsurance.length} פוליסות` : ''}` : 'טרם יובא קובץ',
     analysis: storeFunds.length ? (flagCount ? `${flagCount} דגלים` : 'ללא דגלים') : '—',
