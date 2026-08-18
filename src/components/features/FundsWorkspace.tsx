@@ -19,6 +19,7 @@ import { buildInfrastructureRows, isInfrastructureFund } from '@/lib/infrastruct
 import { DataTable, type DataTableColumn } from '@/components/ui/DataTable'
 import { Sheet } from '@/components/ui/Sheet'
 import { Dialog } from '@/components/ui/Dialog'
+import { feeAnomaly } from '@/lib/fee-caps'
 import { useToast } from '@/components/ui/Toast'
 import { DEFAULT_RATIONALE, formatRecommendationLine, isAutoRationale, recommendationKind } from '@/lib/recommendation-text'
 
@@ -629,15 +630,14 @@ export default function FundsWorkspace() {
         return {
           ...base,
           render: (fund: FundRecord) => {
-            const balanceFee = parseFeePercent(fund.balanceFee)
-            // 2% is above the legal balance-fee cap for every common Israeli
-            // retirement product (gemel 1.05%, hishtalmut 2%) — anything above
-            // it is always worth a look, whether it's a real fee or a parsing error.
-            const isAnomalous = balanceFee != null && balanceFee > 2
-            if (!isAnomalous) return fund.managementFeeText || 'אין נתון'
+            // Per-product regulatory ceilings (lib/fee-caps.ts): a fee above the cap
+            // is flagged as "נתון חריג — לאימות" — real or a parsing artefact, the
+            // advisor must look before quoting it (QA P2-5).
+            const anomaly = feeAnomaly(fund.productType, parseFeePercent(fund.balanceFee), parseFeePercent(fund.depositFee))
+            if (!anomaly) return fund.managementFeeText || 'אין נתון'
             return (
-              <span style={{ color: 'var(--destructive-text)', fontWeight: 800 }} title="דמי ניהול מצבירה גבוהים מהתקרה הרגולטורית המקובלת — לבדוק">
-                ⚠ {fund.managementFeeText || `${balanceFee}%`}
+              <span style={{ color: 'var(--destructive-text)', fontWeight: 800 }} title={anomaly} aria-label={anomaly}>
+                ⚠ {fund.managementFeeText || 'אין נתון'}
               </span>
             )
           },
