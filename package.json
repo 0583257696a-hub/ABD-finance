@@ -32,12 +32,14 @@
     "jszip": "^3.10.1",
     "lucide-react": "^1.16.0",
     "mimetext": "^3.0.28",
-    "next": "16.2.6",
-    "next-auth": "^4.24.14",
+    "nanoid": "^6.0.1",
+    "next": "^16.3.4",
+    "next-auth": "^4.24.15",
     "react": "19.2.4",
     "react-chartjs-2": "^5.3.1",
     "react-dom": "19.2.4",
-    "xlsx": "^0.18.5",
+    "uuid": "^14.0.2",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
     "zustand": "^5.0.13"
   },
   "devDependencies": {
