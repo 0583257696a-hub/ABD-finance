@@ -75,7 +75,8 @@ function LoginPageInner() {
         <section style={loginCardStyle}>
           <div style={loginHeaderStyle}>
             <span style={eyebrowStyle}>כניסה מאובטחת</span>
-            <h2 style={loginTitleStyle}>כניסה למערכת</h2>
+            <h2 style={loginTitleStyle}>כניסה</h2>
+            <p style={{ margin: '4px 0 0', color: 'var(--text-muted)', fontSize: 13.5 }}>ברוך שובך. היכנס כדי להמשיך לפגישות שלך.</p>
             <p style={mutedStyle}>הזן את פרטי היועץ כדי להמשיך לסביבת העבודה.</p>
           </div>
 
@@ -114,7 +115,7 @@ function LoginPageInner() {
 
             {error && <p style={errorStyle}>{error}</p>}
             <button type="submit" disabled={loading} style={{ ...primaryButtonStyle, opacity: loading ? 0.72 : 1 }}>
-              {loading ? 'מתחבר...' : 'כניסה למערכת'}
+              {loading ? 'מתחבר…' : 'כניסה'}
               <ArrowLeft size={18} />
             </button>
 

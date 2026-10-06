@@ -215,7 +215,8 @@ export default function MeetingSummariesHistoryPage() {
       )}
 
       {summaries.length > 0 && (
-        <div style={{ maxWidth: 420, marginBottom: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, maxWidth: 560, marginBottom: 12 }}>
+          <span style={{ flexShrink: 0, padding: '5px 12px', borderRadius: 999, border: '1px solid var(--separator)', background: 'var(--bg-surface)', color: 'var(--text-body)', fontSize: 13, fontWeight: 500 }}><strong style={{ color: 'var(--text-heading)', fontWeight: 700 }}>{summaries.length}</strong> סיכומים</span>
           <SearchField value={search} onChange={setSearch} placeholder="חיפוש לפי שם לקוח, נושא או תאריך…" />
         </div>
       )}

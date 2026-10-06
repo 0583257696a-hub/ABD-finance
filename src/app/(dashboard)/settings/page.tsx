@@ -302,12 +302,14 @@ export default function SettingsPage() {
           {section === 'connections' && (
           <Surface id="calendar" style={cardStyle}>
             <h2 style={sectionTitleStyle}>חיבור יומן</h2>
+            <p style={{ margin: '0 0 12px', color: 'var(--text-muted)', fontSize: 13 }}>מקור לפגישות ב"מהיומן" ויצירת זימונים.</p>
             {providers.length ? (
-              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              <div style={{ display: 'grid', gap: 8 }}>
                 {providers.map(provider => (
                   <div key={provider.id} style={providerChipStyle}>
+                    <span aria-hidden style={providerAvatarStyle}>{provider.name.trim().charAt(0).toUpperCase()}</span>
+                    <span style={{ flex: 1, minWidth: 0, color: 'var(--text-heading)', fontWeight: 600, fontSize: 14 }}>{provider.name}</span>
                     <StatusBadge tone={provider.connected ? 'success' : provider.configured ? 'neutral' : 'warning'} label={provider.connected ? 'מחובר' : provider.configured ? 'לא מחובר' : 'לא מוגדר'} />
-                    <span style={{ color: 'var(--abd-primary)', fontWeight: 900, fontSize: 13.5 }}>{provider.name}</span>
                     {provider.configured && (
                       provider.connected
                         ? <Button size="sm" variant="ghost" onClick={() => void disconnectProvider(provider.id)}><Unlink size={12} style={{ marginInlineEnd: 4 }} /> נתק</Button>
@@ -518,7 +520,8 @@ function darken(color: string, amount: number) {
 }
 
 const pageStyle: React.CSSProperties = { fontFamily: 'var(--font-main)' }
-const providerChipStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', border: '1px solid var(--separator)', borderRadius: 999, background: 'var(--bg-canvas)' }
+const providerChipStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', border: '1px solid var(--separator)', borderRadius: 'var(--radius-md)', background: 'var(--bg-surface)' }
+const providerAvatarStyle: React.CSSProperties = { width: 34, height: 34, borderRadius: 10, display: 'grid', placeItems: 'center', flexShrink: 0, background: 'var(--bg-surface-sunken)', border: '1px solid var(--separator)', color: 'var(--text-heading)', fontWeight: 700, fontSize: 15, fontFamily: 'var(--font-main)' }
 const saveBadgeStyle: React.CSSProperties = { border: '1px solid var(--separator)', borderRadius: 999, padding: '9px 14px', background: 'var(--bg-surface)', color: 'var(--abd-primary)', fontWeight: 900 }
 const layoutStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: '180px 1fr', gap: 16, alignItems: 'start' }
 const sideTabsStyle: React.CSSProperties = { position: 'sticky', top: 86, display: 'grid', gap: 8, background: 'var(--bg-card)', border: '1px solid var(--separator)', borderRadius: 'var(--radius-card)', padding: 12, boxShadow: 'var(--shadow-card)' }
