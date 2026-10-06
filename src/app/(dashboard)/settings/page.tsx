@@ -302,7 +302,7 @@ export default function SettingsPage() {
           {section === 'connections' && (
           <Surface id="calendar" style={cardStyle}>
             <h2 style={sectionTitleStyle}>חיבור יומן</h2>
-            <p style={{ margin: '0 0 12px', color: 'var(--text-muted)', fontSize: 13 }}>מקור לפגישות ב"מהיומן" ויצירת זימונים.</p>
+            <p style={{ margin: '0 0 12px', color: 'var(--text-muted)', fontSize: 13 }}>מקור לפגישות ב&quot;מהיומן&quot; ויצירת זימונים.</p>
             {providers.length ? (
               <div style={{ display: 'grid', gap: 8 }}>
                 {providers.map(provider => (
