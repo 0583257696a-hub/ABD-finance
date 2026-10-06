@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { ScrollText, Trash2 } from 'lucide-react'
+import { ScrollText } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { SearchField } from '@/components/ui/SearchField'
 import { DataTable, type DataTableColumn } from '@/components/ui/DataTable'
@@ -84,7 +84,7 @@ export function AdminSecurity({ events, onChanged }: { events: AuditEvent[]; onC
         <div style={{ flex: '1 1 260px', maxWidth: 420 }}><SearchField value={search} onChange={setSearch} placeholder="חיפוש לפי פעולה, מבצע, יעד…" /></div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <span style={{ color: 'var(--text-muted)', fontSize: 12.5 }}>{events.length} רשומות אחרונות</span>
-          <Button variant="ghost" size="sm" disabled={!events.length || busy} onClick={() => setConfirmClear(true)}><Trash2 size={14} /> ניקוי לוג</Button>
+          <Button variant="ghost" size="sm" disabled={!events.length || busy} onClick={() => setConfirmClear(true)}>ניקוי לוג</Button>
         </div>
       </div>
 

@@ -4,7 +4,7 @@ import React from 'react'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Calendar, CalendarPlus, FileText, History, Link2, Mail, Send, Unlink, Zap } from 'lucide-react'
+import { Calendar, CalendarPlus, FileText, History, Link2, Mail, Zap } from 'lucide-react'
 import { Toolbar } from '@/components/ui/Toolbar'
 import { Button } from '@/components/ui/Button'
 import { Surface } from '@/components/ui/Surface'
@@ -601,7 +601,7 @@ export default function MeetingsPage() {
       <Toolbar
         title="פגישות"
         subtitle="מה מתוכנן, מה ממתין להכנה ומה נשאר פתוח אחרי הפגישה"
-        actions={<Button variant="primary" onClick={openStartFlow}><Zap size={15} style={iconStyle} /> התחל פגישה</Button>}
+        actions={<Button variant="primary" onClick={openStartFlow}>התחל פגישה</Button>}
       />
 
       <MeetingsSwitch active="meetings" />
@@ -656,7 +656,7 @@ export default function MeetingsPage() {
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
                     {providers.filter(provider => provider.configured).map(provider => (
                       <Button key={provider.id} variant="secondary" size="sm" onClick={() => connectProvider(provider.id)}>
-                        <Link2 size={13} style={iconStyle} /> חבר {provider.name}
+                        חבר {provider.name}
                       </Button>
                     ))}
                     {providers.every(provider => !provider.configured) && (
@@ -700,7 +700,7 @@ export default function MeetingsPage() {
                 <span style={{ color: 'var(--text-heading)', fontWeight: 600, fontSize: 13.5 }}>{provider.name}</span>
                 {provider.configured && (
                   provider.connected
-                    ? <Button size="sm" variant="ghost" onClick={() => void disconnectProvider(provider.id)}><Unlink size={12} style={iconStyle} /> נתק</Button>
+                    ? <Button size="sm" variant="ghost" onClick={() => void disconnectProvider(provider.id)}>נתק</Button>
                     : <Button size="sm" variant="ghost" onClick={() => connectProvider(provider.id)}>חבר</Button>
                 )}
               </div>
@@ -799,7 +799,7 @@ export default function MeetingsPage() {
                         )
                       })()}
                       <Button size="sm" variant="secondary" disabled={busy || !meeting.client_email} onClick={() => void sendInvite(meeting)}>
-                        <Send size={13} style={iconStyle} /> {meeting.invite_sent_at ? 'שלח שוב' : 'שלח זימון'}
+                        {meeting.invite_sent_at ? 'שלח שוב' : 'שלח זימון'}
                       </Button>
                       <Button size="sm" variant="ghost" style={{ color: 'var(--destructive)' }} onClick={() => setMeetingToCancel(meeting)}>בטל פגישה</Button>
                     </div>

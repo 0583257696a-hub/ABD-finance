@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { BriefcaseBusiness, Copy, Plus, Trash2 } from 'lucide-react'
+import { BriefcaseBusiness, Copy, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Sheet } from '@/components/ui/Sheet'
 import { Surface } from '@/components/ui/Surface'
@@ -48,7 +48,7 @@ export function AdminPlans({ infrastructure, users, onChanged }: {
     <div style={{ display: 'grid', gap: 14 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
         <p style={{ color: 'var(--text-muted)', fontSize: 13.5, margin: 0 }}>{plans.length} תוכניות · {plans.filter(plan => plan.status === 'active').length} פעילות</p>
-        <Button variant="primary" onClick={() => { setEditing(newPlan()); setIsNew(true) }}><Plus size={16} /> תוכנית חדשה</Button>
+        <Button variant="primary" onClick={() => { setEditing(newPlan()); setIsNew(true) }}>תוכנית חדשה</Button>
       </div>
 
       {plans.length ? (

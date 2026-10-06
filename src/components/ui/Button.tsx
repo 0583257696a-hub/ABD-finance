@@ -8,22 +8,25 @@ type ButtonSize = 'sm' | 'md' | 'lg'
 
 const sizeStyle: Record<ButtonSize, CSSProperties> = {
   // 36px: still compact, but a real touch target (QA P3-3; WCAG 2.5.8 minimum is 24, 44 recommended for primary actions).
-  sm: { minHeight: 36, padding: '0 12px', fontSize: 13, gap: 6, borderRadius: 'var(--radius-sm)' },
-  md: { minHeight: 40, padding: '0 16px', fontSize: 14, gap: 8, borderRadius: 'var(--radius-md)' },
-  lg: { minHeight: 48, padding: '0 20px', fontSize: 15, gap: 8, borderRadius: 'var(--radius-md)' },
+  // Spec update (Oct 2026): 6px corners, lower height, 1px bottom shadow — no cushion look.
+  sm: { minHeight: 32, padding: '0 12px', fontSize: 13, gap: 6, borderRadius: 'var(--radius-xs)' },
+  md: { minHeight: 36, padding: '0 14px', fontSize: 13.5, gap: 8, borderRadius: 'var(--radius-xs)' },
+  lg: { minHeight: 42, padding: '0 18px', fontSize: 14.5, gap: 8, borderRadius: 'var(--radius-xs)' },
 }
 
 function variantStyle(variant: ButtonVariant): CSSProperties {
   switch (variant) {
+    // Primary is INK, not the brand green — the green marks only the active step,
+    // selection, and the client document's branding (spec update, Oct 2026).
     case 'primary':
-      return { background: 'var(--abd-accent)', color: '#fff', border: '1px solid transparent' }
+      return { background: 'var(--btn-primary-bg, #1C1D1F)', color: 'var(--btn-primary-text, #fff)', border: '1px solid transparent', boxShadow: '0 1px 0 rgba(23,24,26,0.22)' }
     case 'secondary':
-      return { background: 'var(--bg-surface)', color: 'var(--abd-primary)', border: '1px solid var(--separator-strong)' }
+      return { background: 'var(--bg-surface)', color: 'var(--text-heading)', border: '1px solid var(--separator-strong)', boxShadow: '0 1px 0 rgba(23,24,26,0.06)' }
     case 'destructive':
-      return { background: 'var(--destructive-bg)', color: 'var(--destructive-text)', border: '1px solid transparent' }
+      return { background: 'var(--destructive-bg)', color: 'var(--destructive-text)', border: '1px solid transparent', boxShadow: '0 1px 0 rgba(23,24,26,0.08)' }
     case 'ghost':
     default:
-      return { background: 'transparent', color: 'var(--abd-primary)', border: '1px solid transparent' }
+      return { background: 'transparent', color: 'var(--text-heading)', border: '1px solid transparent' }
   }
 }
 

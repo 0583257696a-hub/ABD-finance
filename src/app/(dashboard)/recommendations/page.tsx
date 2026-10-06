@@ -14,7 +14,7 @@ import { Toolbar } from '@/components/ui/Toolbar'
 import { Button } from '@/components/ui/Button'
 import { Surface } from '@/components/ui/Surface'
 import { EmptyState } from '@/components/ui/EmptyState'
-import { ArrowDown, ArrowUp, Lightbulb, Plus, Sparkles, Trash2 } from 'lucide-react'
+import { ArrowDown, ArrowUp, Lightbulb, Sparkles, Trash2 } from 'lucide-react'
 import { DEFAULT_RATIONALE, formatRecommendationLine } from '@/lib/recommendation-text'
 import { loadStoredFindings, portfolioRef, runAnalysis, type Finding } from '@/lib/smart-agent/engine'
 
@@ -217,7 +217,7 @@ export default function RecommendationsPage() {
       <Toolbar
         title={`המלצות${recommendations.length ? ` · ${recommendations.length}` : ''}`}
         subtitle="מסודרות לפי הסדר שבו יופיעו בסיכום — שינוי סדר בחיצים. עריכה כאן מתעדכנת בסיכום."
-        actions={<Button variant="primary" onClick={() => setFormOpen(open => !open)}><Plus size={15} style={{ marginInlineEnd: 4 }} /> הוסף המלצה</Button>}
+        actions={<Button variant="primary" onClick={() => setFormOpen(open => !open)}>הוסף המלצה</Button>}
       />
 
       {formOpen && (

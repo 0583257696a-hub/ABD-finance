@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { LifeBuoy, Send, Trash2 } from 'lucide-react'
+import { LifeBuoy, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Sheet } from '@/components/ui/Sheet'
 import { SearchField } from '@/components/ui/SearchField'
@@ -154,7 +154,7 @@ function TicketSheet({ ticket, busy, onClose, onPatch, onDelete }: {
       subtitle={<span>{ticket.user_name ? `${ticket.user_name} · ` : ''}{ticket.user_email} · נפתחה {formatDate(ticket.created_at, true)} · #{ticket.id.slice(0, 8)}</span>}
       footer={
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
-          <Button variant="ghost" onClick={onDelete} style={{ color: 'var(--destructive)' }}><Trash2 size={15} /> מחיקת פנייה</Button>
+          <Button variant="ghost" onClick={onDelete} style={{ color: 'var(--destructive)' }}>מחיקת פנייה</Button>
           <Button variant="secondary" onClick={onClose}>סגירה</Button>
         </div>
       }
@@ -200,7 +200,7 @@ function TicketSheet({ ticket, busy, onClose, onPatch, onDelete }: {
               <textarea rows={4} value={reply} onChange={event => setReply(event.target.value)} style={{ ...inputStyle, resize: 'vertical' }} placeholder="שלום, בדקנו את הפנייה…" />
             </Field>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <Button variant="secondary" disabled={busy || !reply.trim()} onClick={async () => { const r = await onPatch({ reply, status: ticket.status === 'open' ? 'in_progress' : ticket.status }, 'התשובה נשמרה'); if (r) { setReply(''); if (!r.emailed) alert('התשובה נשמרה בשרשור, אך שליחת המייל למשתמש נכשלה. בדוק את הגדרות הדואר.') } }}><Send size={14} /> שלח תשובה</Button>
+              <Button variant="secondary" disabled={busy || !reply.trim()} onClick={async () => { const r = await onPatch({ reply, status: ticket.status === 'open' ? 'in_progress' : ticket.status }, 'התשובה נשמרה'); if (r) { setReply(''); if (!r.emailed) alert('התשובה נשמרה בשרשור, אך שליחת המייל למשתמש נכשלה. בדוק את הגדרות הדואר.') } }}>שלח תשובה</Button>
               <Button variant="primary" disabled={busy || !reply.trim()} onClick={async () => { const r = await onPatch({ reply, status: 'closed' }, 'התשובה נשלחה והפנייה נסגרה'); if (r) setReply('') }}>שלח וסגור</Button>
             </div>
           </div>

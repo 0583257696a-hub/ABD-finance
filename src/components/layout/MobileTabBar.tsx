@@ -32,7 +32,7 @@ export default function MobileTabBar() {
         ארכיון
       </Link>
       <Link href="/?tab=meetings&start=1" aria-label="התחל פגישה" style={{ ...item(false), flex: '0 0 auto', padding: '0 6px' }}>
-        <span style={{ width: 46, height: 46, marginTop: -16, borderRadius: 999, display: 'grid', placeItems: 'center', background: 'var(--abd-primary)', color: '#fff', boxShadow: 'var(--shadow-floating)' }}>
+        <span style={{ width: 46, height: 46, marginTop: -16, borderRadius: 999, display: 'grid', placeItems: 'center', background: 'var(--btn-primary-bg, #1C1D1F)', color: 'var(--btn-primary-text, #fff)', boxShadow: 'var(--shadow-floating)' }}>
           <Zap size={21} />
         </span>
       </Link>

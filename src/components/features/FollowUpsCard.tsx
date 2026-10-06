@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { CheckSquare, ListChecks, Plus, Trash2 } from 'lucide-react'
+import { CheckSquare, ListChecks, Trash2 } from 'lucide-react'
 import { Surface } from '@/components/ui/Surface'
 import { Button } from '@/components/ui/Button'
 import { EmptyState } from '@/components/ui/EmptyState'
@@ -126,7 +126,7 @@ export function FollowUpsCard({ compact = false, clientName }: { compact?: boole
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(120px, 180px) auto', gap: 8, marginTop: 12, alignItems: 'center' }}>
         <input value={newText} onChange={event => setNewText(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') void add() }} placeholder="משימה חדשה…" style={inputStyle} />
         {!clientName && <input value={newClient} onChange={event => setNewClient(event.target.value)} placeholder="לקוח (לא חובה)" style={inputStyle} />}
-        <Button size="sm" variant="secondary" disabled={busy || !newText.trim()} onClick={() => void add()}><Plus size={14} /> הוסף</Button>
+        <Button size="sm" variant="secondary" disabled={busy || !newText.trim()} onClick={() => void add()}>הוסף</Button>
       </div>
     </Surface>
   )

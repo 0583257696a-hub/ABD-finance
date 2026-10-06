@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { CrmConnectionCard } from '@/components/features/CrmConnectionCard'
-import { Link2, Unlink } from 'lucide-react'
+import {  } from 'lucide-react'
 import {
   applyBrandingSettings,
   defaultBrandingSettings,
@@ -312,8 +312,8 @@ export default function SettingsPage() {
                     <StatusBadge tone={provider.connected ? 'success' : provider.configured ? 'neutral' : 'warning'} label={provider.connected ? 'מחובר' : provider.configured ? 'לא מחובר' : 'לא מוגדר'} />
                     {provider.configured && (
                       provider.connected
-                        ? <Button size="sm" variant="ghost" onClick={() => void disconnectProvider(provider.id)}><Unlink size={12} style={{ marginInlineEnd: 4 }} /> נתק</Button>
-                        : <Button size="sm" variant="ghost" onClick={() => connectProvider(provider.id)}><Link2 size={12} style={{ marginInlineEnd: 4 }} /> חבר</Button>
+                        ? <Button size="sm" variant="ghost" onClick={() => void disconnectProvider(provider.id)}>נתק</Button>
+                        : <Button size="sm" variant="ghost" onClick={() => connectProvider(provider.id)}>חבר</Button>
                     )}
                   </div>
                 ))}

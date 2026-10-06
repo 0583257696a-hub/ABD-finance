@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { Radar, RefreshCw, ShieldCheck } from 'lucide-react'
+import { Radar, ShieldCheck } from 'lucide-react'
 import { Toolbar } from '@/components/ui/Toolbar'
 import { Button } from '@/components/ui/Button'
 import { Surface } from '@/components/ui/Surface'
@@ -165,7 +165,7 @@ export default function SmartAgentPage() {
         subtitle="מנוע זיהוי חריגות דטרמיניסטי — מציף ממצאים עובדתיים לבחינת הסוכן, לא המלצות"
         actions={(
           <Button variant="primary" size="sm" onClick={analyze}>
-            <RefreshCw size={14} style={{ marginLeft: 6 }} /> הרץ ניתוח
+            הרץ ניתוח
           </Button>
         )}
       />

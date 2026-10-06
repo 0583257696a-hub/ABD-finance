@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Mic, MicOff, Pause, Play, Sparkles, Square, Upload } from 'lucide-react'
+import { Mic, MicOff } from 'lucide-react'
 import { Sheet } from '@/components/ui/Sheet'
 import { Button } from '@/components/ui/Button'
 import { Dialog } from '@/components/ui/Dialog'
@@ -229,12 +229,12 @@ export function RecordingPanel({ open, onOpenChange, meetingId, clientName }: { 
             </strong>
             {transcribing > 0 && <span style={{ color: 'var(--text-muted)', fontSize: 12.5 }}>מתמלל {transcribing} מקטע…</span>}
             <span style={{ flex: 1 }} />
-            {recState === 'idle' && <Button variant="primary" size="sm" onClick={() => setConsentOpen(true)}><Mic size={14} /> התחל הקלטה</Button>}
-            {recState === 'recording' && <Button variant="secondary" size="sm" onClick={pause}><Pause size={14} /> השהה</Button>}
-            {recState === 'paused' && <Button variant="primary" size="sm" onClick={resume}><Play size={14} /> המשך</Button>}
-            {recState !== 'idle' && <Button variant="ghost" size="sm" onClick={stop}><Square size={13} /> עצור</Button>}
+            {recState === 'idle' && <Button variant="primary" size="sm" onClick={() => setConsentOpen(true)}>התחל הקלטה</Button>}
+            {recState === 'recording' && <Button variant="secondary" size="sm" onClick={pause}>השהה</Button>}
+            {recState === 'paused' && <Button variant="primary" size="sm" onClick={resume}>המשך</Button>}
+            {recState !== 'idle' && <Button variant="ghost" size="sm" onClick={stop}>עצור</Button>}
             <input ref={fileInputRef} hidden type="file" accept="audio/*,video/webm" onChange={event => { const file = event.target.files?.[0]; if (file) void transcribeBlob(file); event.currentTarget.value = '' }} />
-            <Button variant="ghost" size="sm" onClick={() => fileInputRef.current?.click()} title="תמלול הקלטה קיימת (שיחת טלפון, הקלטה מהנייד)"><Upload size={14} /> העלה הקלטה</Button>
+            <Button variant="ghost" size="sm" onClick={() => fileInputRef.current?.click()} title="תמלול הקלטה קיימת (שיחת טלפון, הקלטה מהנייד)">העלה הקלטה</Button>
           </div>
           {summary.recordingConsentAt && <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: 12.5 }}>✓ הלקוח אישר הקלטה ב-{new Date(summary.recordingConsentAt).toLocaleString('he-IL')} — נרשם ביומן הביקורת.</p>}
           {error && <p role="alert" style={{ margin: 0, color: 'var(--destructive-text, #991B1B)', fontWeight: 600, fontSize: 13.5 }}>{error}</p>}
@@ -242,7 +242,7 @@ export function RecordingPanel({ open, onOpenChange, meetingId, clientName }: { 
           <section>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 6 }}>
               <h3 style={h3}>תמליל</h3>
-              <Button variant="secondary" size="sm" disabled={extracting || transcript.trim().length < 20} onClick={() => void extract()}><Sparkles size={14} /> {extracting ? 'מפיק…' : 'הפק הצעות מהשיחה'}</Button>
+              <Button variant="secondary" size="sm" disabled={extracting || transcript.trim().length < 20} onClick={() => void extract()}>{extracting ? 'מפיק…' : 'הפק הצעות מהשיחה'}</Button>
             </div>
             <label style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'flex-end', fontSize: 12, color: 'var(--text-muted)', cursor: 'pointer' }}>
               <input type="checkbox" checked={autoScroll} onChange={event => setAutoScroll(event.target.checked)} style={{ width: 13, height: 13 }} />

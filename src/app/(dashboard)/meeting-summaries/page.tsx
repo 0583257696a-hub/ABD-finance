@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { FileText, Download, Trash2, Send, MessageCircle, Database } from 'lucide-react'
+import { FileText, Trash2 } from 'lucide-react'
 import { useSession } from 'next-auth/react'
 import { useToast } from '@/components/ui/Toast'
 import { Toolbar } from '@/components/ui/Toolbar'
@@ -241,21 +241,21 @@ export default function MeetingSummariesHistoryPage() {
   const viewerActions = openSummary ? (
     <>
       <Button variant="primary" onClick={() => { setSendTo(''); setSendOpen(true) }} title="שולח את הסיכום ללקוח במייל, מהכתובת שלך">
-        <Send size={15} /> שלח ללקוח
+        שלח ללקוח
       </Button>
       <Button variant="secondary" onClick={() => openSummaryPdf(openSummary.id)}>
-        <Download size={16} /> PDF
+        PDF
       </Button>
       <Button variant="secondary" onClick={shareWhatsApp} title="פותח וואטסאפ עם תמצית הסיכום (המלצות והמשך טיפול) — בוחרים את איש הקשר שם">
-        <MessageCircle size={16} /> וואטסאפ
+        וואטסאפ
       </Button>
       {crmConnected && (
         <Button variant="secondary" disabled={crmBusy} onClick={() => void syncToCrm()} title="שולח את הלקוח, הסיכום כהערה ומשימות ההמשך ל-CRM המחובר (לפי ההגדרות)">
-          <Database size={16} /> {crmBusy ? 'שולח…' : 'שלח ל-CRM'}
+          {crmBusy ? 'שולח…' : 'שלח ל-CRM'}
         </Button>
       )}
       <Button variant="ghost" size="sm" style={{ marginInlineStart: 'auto', color: 'var(--destructive)' }} onClick={() => setToDelete(openSummary)}>
-        <Trash2 size={15} /> מחק
+        מחק
       </Button>
     </>
   ) : null
@@ -308,7 +308,7 @@ export default function MeetingSummariesHistoryPage() {
                 <div style={{ display: wide && openSummary ? 'none' : 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }} onClick={event => event.stopPropagation()}>
                   <span title={summary.source === 'spontaneous' || !summary.source ? 'פגישה שנפתחה ידנית, ללא זימון מהיומן' : 'מקור הפגישה ביומן המחובר'}><StatusBadge tone="neutral" label={sourceLabel(summary.source)} /></span>
                   <Button variant="secondary" size="sm" onClick={() => openSummaryPdf(summary.id)} aria-label="הורדת הסיכום כ-PDF">
-                    <Download size={15} /> PDF
+                    PDF
                   </Button>
                   <Button variant="ghost" size="sm" onClick={() => setToDelete(summary)} aria-label="מחיקת הסיכום">
                     <Trash2 size={15} />

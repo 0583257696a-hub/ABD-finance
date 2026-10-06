@@ -2,18 +2,7 @@
 
 import { use, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import {
-  ArrowLeft,
-  BarChart2,
-  FileText,
-  Home,
-  Lightbulb,
-  LogOut,
-  Mic,
-  Settings,
-  Square,
-  StickyNote,
-} from 'lucide-react'
+import { ArrowLeft, BarChart2, FileText, Home, Lightbulb, Settings } from 'lucide-react'
 import FundsWorkspace from '@/components/features/FundsWorkspace'
 import InsurancePage from '@/app/(dashboard)/insurance/page'
 import RecommendationsPage from '@/app/(dashboard)/recommendations/page'
@@ -283,19 +272,19 @@ export default function MeetingWorkspacePage({ params }: { params: Promise<{ id:
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexShrink: 0 }}>
           <span style={durationStyle}>{duration}</span>
           <Button variant="secondary" size="sm" onClick={() => setRecordingOpen(true)} title="הקלטה ותמלול — באישור הלקוח">
-            <Mic size={14} style={{ marginLeft: 6 }} /> הקלטה
+            הקלטה
           </Button>
           <Button variant="secondary" size="sm" onClick={() => setNotesOpen(true)} title="הערות פגישה (קיצור: N)">
-            <StickyNote size={14} style={{ marginLeft: 6 }} /> הערות
+            הערות
           </Button>
           <Button variant="ghost" size="sm" onClick={() => setDetailsOpen(true)} title="פרטי הפגישה" aria-label="פרטי הפגישה">
             <Settings size={15} />
           </Button>
           <Button variant="primary" size="sm" disabled={ending} onClick={() => setConfirmEnd(true)}>
-            <Square size={13} style={{ marginLeft: 6 }} /> {ending ? 'מסיים…' : 'סיים פגישה'}
+            {ending ? 'מסיים…' : 'סיים פגישה'}
           </Button>
           <Button variant="ghost" size="sm" title="התנתק מהמערכת" onClick={() => setConfirmLogout(true)}>
-            <LogOut size={14} style={{ marginLeft: 6 }} /> התנתק
+            התנתק
           </Button>
         </div>
       </header>

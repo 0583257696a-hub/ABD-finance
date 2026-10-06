@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { FileText, Pencil, Plus, Trash2 } from 'lucide-react'
+import { FileText, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Sheet } from '@/components/ui/Sheet'
 import { Dialog } from '@/components/ui/Dialog'
@@ -164,7 +164,7 @@ export default function QuestionnaireManager() {
           שאלונים שנשלחים ללקוח לפני פגישה. כל שאלון מבוסס על בירור הצרכים והפרטים האישיים, וניתן להוסיף שאלות משלך.
         </p>
         <Button variant="primary" size="sm" disabled={busy} onClick={() => void createTemplate()}>
-          <Plus size={14} style={{ marginInlineEnd: 4 }} /> צור שאלון חדש
+          צור שאלון חדש
         </Button>
       </div>
 
@@ -187,11 +187,11 @@ export default function QuestionnaireManager() {
           </div>
           <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
             <Button size="sm" variant="secondary" onClick={() => openEditor(template)}>
-              <Pencil size={13} style={{ marginInlineEnd: 4 }} /> ערוך
+              ערוך
             </Button>
             {!template.is_default && (
               <Button size="sm" variant="ghost" onClick={() => setDeleting(template)}>
-                <Trash2 size={13} style={{ marginInlineEnd: 4 }} /> מחק
+                מחק
               </Button>
             )}
           </div>

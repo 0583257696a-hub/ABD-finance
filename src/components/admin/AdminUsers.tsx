@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { Trash2, ShieldCheck, ShieldOff, KeyRound, Check, Ban, RotateCcw, Clock } from 'lucide-react'
+import { Trash2, ShieldCheck, Check } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Sheet } from '@/components/ui/Sheet'
 import { SearchField } from '@/components/ui/SearchField'
@@ -215,7 +215,7 @@ function UserSheet({ user, agencies, plans, isSelf, busy, onClose, onAct, onAssi
       footer={
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
           <Button variant="ghost" onClick={onDelete} disabled={isSelf} title={isSelf ? 'לא ניתן למחוק את עצמך' : undefined} style={{ color: 'var(--destructive)' }}>
-            <Trash2 size={15} /> מחיקת משתמש וכל נתוניו
+            מחיקת משתמש וכל נתוניו
           </Button>
           <Button variant="secondary" onClick={onClose}>סגירה</Button>
         </div>
@@ -244,13 +244,13 @@ function UserSheet({ user, agencies, plans, isSelf, busy, onClose, onAct, onAssi
         <section>
           <h3 style={h3Style}>גישה למערכת</h3>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            {user.status === 'pending_approval' && <Button variant="primary" size="sm" disabled={busy} onClick={() => void onAct({ action: 'approve' }, 'המשתמש אושר')}><Check size={14} /> אשר משתמש</Button>}
-            {user.status !== 'blocked' && <Button variant="secondary" size="sm" disabled={busy || isSelf} onClick={() => void onAct({ action: 'block' }, 'המשתמש נחסם')}><Ban size={14} /> חסום</Button>}
-            {user.status === 'blocked' && <Button variant="primary" size="sm" disabled={busy} onClick={() => void onAct({ action: 'unblock' }, 'החסימה הוסרה')}><RotateCcw size={14} /> הסר חסימה</Button>}
-            <Button variant="secondary" size="sm" disabled={busy} onClick={() => void onAct({ action: 'extend_trial' }, 'תקופת הניסיון הוארכה ב-14 יום')}><Clock size={14} /> הארך ניסיון 14 יום</Button>
+            {user.status === 'pending_approval' && <Button variant="primary" size="sm" disabled={busy} onClick={() => void onAct({ action: 'approve' }, 'המשתמש אושר')}>אשר משתמש</Button>}
+            {user.status !== 'blocked' && <Button variant="secondary" size="sm" disabled={busy || isSelf} onClick={() => void onAct({ action: 'block' }, 'המשתמש נחסם')}>חסום</Button>}
+            {user.status === 'blocked' && <Button variant="primary" size="sm" disabled={busy} onClick={() => void onAct({ action: 'unblock' }, 'החסימה הוסרה')}>הסר חסימה</Button>}
+            <Button variant="secondary" size="sm" disabled={busy} onClick={() => void onAct({ action: 'extend_trial' }, 'תקופת הניסיון הוארכה ב-14 יום')}>הארך ניסיון 14 יום</Button>
             {user.role === 'admin'
-              ? <Button variant="secondary" size="sm" disabled={busy || isSelf} onClick={() => void onAct({ action: 'set_role', role: 'advisor' }, 'הרשאת מנהל הוסרה')}><ShieldOff size={14} /> הסר הרשאת מנהל</Button>
-              : <Button variant="secondary" size="sm" disabled={busy} onClick={() => void onAct({ action: 'set_role', role: 'admin' }, 'המשתמש הוגדר כמנהל מערכת')}><ShieldCheck size={14} /> הפוך למנהל מערכת</Button>}
+              ? <Button variant="secondary" size="sm" disabled={busy || isSelf} onClick={() => void onAct({ action: 'set_role', role: 'advisor' }, 'הרשאת מנהל הוסרה')}>הסר הרשאת מנהל</Button>
+              : <Button variant="secondary" size="sm" disabled={busy} onClick={() => void onAct({ action: 'set_role', role: 'admin' }, 'המשתמש הוגדר כמנהל מערכת')}>הפוך למנהל מערכת</Button>}
           </div>
           {user.trialEndsAt && <p style={hintStyle}>תקופת הניסיון מסתיימת: {formatDate(user.trialEndsAt)}</p>}
         </section>
@@ -298,7 +298,7 @@ function UserSheet({ user, agencies, plans, isSelf, busy, onClose, onAct, onAssi
             <Field label="סיסמה חדשה" hint="לפחות 8 תווים. המשתמש יתבקש להשתמש בה בכניסה הבאה.">
               <input type="text" autoComplete="off" value={password} onChange={event => setPassword(event.target.value)} style={inputStyle} dir="ltr" />
             </Field>
-            <Button variant="secondary" disabled={busy || password.length < 8} onClick={async () => { const ok = await onAct({ action: 'reset_password', password }, 'הסיסמה עודכנה'); if (ok) setPassword('') }}><KeyRound size={14} /> עדכן סיסמה</Button>
+            <Button variant="secondary" disabled={busy || password.length < 8} onClick={async () => { const ok = await onAct({ action: 'reset_password', password }, 'הסיסמה עודכנה'); if (ok) setPassword('') }}>עדכן סיסמה</Button>
           </div>
         </section>
       </div>

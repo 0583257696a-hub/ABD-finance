@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { CheckCircle2, ExternalLink, Link2, RefreshCw, Unlink, XCircle } from 'lucide-react'
+import { CheckCircle2, ExternalLink, Link2, XCircle } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { Dialog } from '@/components/ui/Dialog'
@@ -125,8 +125,8 @@ export function CrmConnectionCard() {
             {connected.accountLabel && <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>{connected.accountLabel}</span>}
             {connected.lastSyncAt && <span style={{ color: 'var(--text-muted)', fontSize: 12.5 }}>· סנכרון אחרון {formatDate(connected.lastSyncAt)}</span>}
             <span style={{ marginInlineStart: 'auto', display: 'flex', gap: 6 }}>
-              <Button size="sm" variant="secondary" disabled={busy} onClick={() => void test(connected.provider)}><RefreshCw size={13} /> בדיקת חיבור</Button>
-              <Button size="sm" variant="ghost" disabled={busy} onClick={() => setConfirmDisconnect(connected.provider)}><Unlink size={13} /> נתק</Button>
+              <Button size="sm" variant="secondary" disabled={busy} onClick={() => void test(connected.provider)}>בדיקת חיבור</Button>
+              <Button size="sm" variant="ghost" disabled={busy} onClick={() => setConfirmDisconnect(connected.provider)}>נתק</Button>
             </span>
           </div>
           {connected.lastError && <p style={{ margin: 0, color: 'var(--destructive-text, #c0392b)', fontSize: 13 }}>שגיאה אחרונה: {connected.lastError}</p>}

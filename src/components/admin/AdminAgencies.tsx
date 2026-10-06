@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { Building2, Plus, Trash2, UserMinus, UserPlus } from 'lucide-react'
+import { Building2, Trash2, UserMinus } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Sheet } from '@/components/ui/Sheet'
 import { SearchField } from '@/components/ui/SearchField'
@@ -77,7 +77,7 @@ export function AdminAgencies({ agencies, users, plans, onChanged }: {
     <div style={{ display: 'grid', gap: 14 }}>
       <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'space-between' }}>
         <div style={{ flex: '1 1 260px', maxWidth: 420 }}><SearchField value={search} onChange={setSearch} placeholder="חיפוש סוכנות, מנהל או עובד…" /></div>
-        <Button variant="primary" onClick={() => setCreating(true)}><Plus size={16} /> סוכנות חדשה</Button>
+        <Button variant="primary" onClick={() => setCreating(true)}>סוכנות חדשה</Button>
       </div>
 
       {filtered.length ? (
@@ -95,7 +95,7 @@ export function AdminAgencies({ agencies, users, plans, onChanged }: {
             icon={<Building2 size={28} />}
             title={search ? 'לא נמצאו סוכנויות' : 'אין סוכנויות עדיין'}
             description={search ? 'נסה חיפוש אחר.' : 'צור סוכנות ושייך אליה מנהל ועובדים. משתמשים שנרשמו כ"מנהל סוכנות" או "עובד סוכנות" ניתן לשייך מתוך כרטיס הסוכנות או מכרטיס המשתמש.'}
-            action={<Button variant="primary" onClick={() => setCreating(true)}><Plus size={16} /> סוכנות חדשה</Button>}
+            action={<Button variant="primary" onClick={() => setCreating(true)}>סוכנות חדשה</Button>}
           />
         </Surface>
       )}
@@ -190,7 +190,7 @@ function AgencySheet({ agency, users, plans, busy, onClose, onSave, onAssign, on
       subtitle={agency ? <span>נוצרה {formatDate(agency.created_at)} · {agency.members.length} חברים</span> : 'מלא את פרטי הסוכנות ולחץ שמור. לאחר מכן ניתן לשייך מנהל ועובדים.'}
       footer={
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
-          {agency ? <Button variant="ghost" onClick={onDelete} style={{ color: 'var(--destructive)' }}><Trash2 size={15} /> מחיקת סוכנות</Button> : <span />}
+          {agency ? <Button variant="ghost" onClick={onDelete} style={{ color: 'var(--destructive)' }}>מחיקת סוכנות</Button> : <span />}
           <div style={{ display: 'flex', gap: 8 }}>
             <Button variant="secondary" onClick={onClose}>סגירה</Button>
             <Button variant="primary" disabled={busy || !draft.name.trim() || !dirty} onClick={() => void onSave({ ...draft, name: draft.name.trim() })}>{agency ? 'שמור שינויים' : 'צור סוכנות'}</Button>
@@ -240,7 +240,7 @@ function AgencySheet({ agency, users, plans, busy, onClose, onSave, onAssign, on
                   <option value="manager">מנהל</option>
                 </select>
               </Field>
-              <Button variant="secondary" disabled={busy || !pickUserId} onClick={async () => { await onAssign(pickUserId, pickRole); setPickUserId('') }}><UserPlus size={15} /> שייך</Button>
+              <Button variant="secondary" disabled={busy || !pickUserId} onClick={async () => { await onAssign(pickUserId, pickRole); setPickUserId('') }}>שייך</Button>
             </div>
             <p style={{ color: 'var(--text-muted)', fontSize: 12.5, margin: 0 }}>משתמש יכול להשתייך לסוכנות אחת בלבד — שיוך לסוכנות זו מעביר אותו ממקום קודם.</p>
           </section>
