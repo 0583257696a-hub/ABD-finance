@@ -37,7 +37,10 @@
   --shadow-card:       none;
   --shadow-hover:      0 12px 32px rgba(23,24,26,0.12);
   --radius-card:       14px;
-  --radius-btn:        10px;
+  --radius-btn:        6px;
+  /* Primary button is INK, not the brand green (button spec v2). Dark mode inverts below. */
+  --btn-primary-bg:    #1C1D1F;
+  --btn-primary-text:  #FFFFFF;
   --font-main:         'IBM Plex Sans Hebrew', 'Arial Hebrew', sans-serif;
   --font-serif:        'Frank Ruhl Libre', 'Times New Roman', serif;
 
@@ -87,6 +90,8 @@
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
+    --btn-primary-bg:      #E8E8EA;
+    --btn-primary-text:    #17181A;
     --bg-canvas:           #121314;
     --bg-surface:          #1B1C1E;
     --bg-surface-elevated: #232426;
@@ -100,6 +105,8 @@
 }
 
 :root[data-theme="dark"] {
+  --btn-primary-bg:      #E8E8EA;
+  --btn-primary-text:    #17181A;
   --bg-canvas:           #121314;
   --bg-surface:          #1B1C1E;
   --bg-surface-elevated: #232426;
