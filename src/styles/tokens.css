@@ -1,47 +1,54 @@
-@import url('https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Hebrew:wght@300;400;500;600;700&family=Frank+Ruhl+Libre:wght@400;500;700&display=swap');
 
+/*
+ * Design System 1.0 — "פגישה חכמה" (Redesign PDF, Oct 2026).
+ * Warm neutrals carry 90% of the UI; one accent ("אורן" #1F5A4E) marks the
+ * primary action, focus and the active step — hierarchy, not decoration.
+ * Status is never color alone (always icon or text beside it).
+ * One floating shadow only; cards separate with borders, not shadows.
+ */
 :root {
   /* --- Legacy/brand tokens: also set at runtime by applyBrandingSettings()
      (src/lib/branding.ts) via inline style on :root, which always wins over
      any stylesheet rule incl. @media — these do NOT get a dark-mode variant
      here, that requires branding.ts itself to pick dark defaults (follow-up). */
-  --abd-primary:       #1F2937;
-  --abd-accent:        #64748B;
-  --abd-accent-light:  #F1F2F4;
-  --abd-accent-mid:    #D6D9DE;
-  --bg-shell:          #F3F4F6;
+  --abd-primary:       #1F5A4E;
+  --abd-accent:        #1F5A4E;
+  --abd-accent-light:  #1F5A4E14;
+  --abd-accent-mid:    #1F5A4E33;
+  --bg-shell:          #FBFAF8;
   --bg-card:           #FFFFFF;
-  --bg-sidebar:        #FAFAFA;
-  --bg-sidebar-hover:  #EEEFF1;
-  --bg-sidebar-active: #E9EAED;
-  --text-heading:      #111827;
-  --text-body:         #374151;
-  --text-muted:        #6B7280;
-  --text-sidebar:      #6B7280;
-  --status-active:     #10B981;
-  --status-active-bg:  #ECFDF5;
-  --status-active-text:#065F46;
-  --status-warning:    #F59E0B;
-  --status-warning-bg: #FFFBEB;
-  --status-warning-text:#92400E;
-  --status-danger:     #EF4444;
-  --status-danger-bg:  #FEF2F2;
-  --status-danger-text:#991B1B;
-  --shadow-card:       0 2px 12px rgba(15,25,41,0.06);
-  --shadow-hover:      0 8px 28px rgba(15,25,41,0.12);
-  --radius-card:       16px;
+  --bg-sidebar:        #FFFFFF;
+  --bg-sidebar-hover:  #F2F0EB;
+  --bg-sidebar-active: #1F5A4E14;
+  --text-heading:      #17181A;
+  --text-body:         #45474B;
+  --text-muted:        #6E7075;
+  --text-sidebar:      #45474B;
+  --status-active:     #1F7A4D;
+  --status-active-bg:  #E8F3EC;
+  --status-active-text:#145C38;
+  --status-warning:    #B45309;
+  --status-warning-bg: #FBF3E4;
+  --status-warning-text:#8A4B08;
+  --status-danger:     #B3362C;
+  --status-danger-bg:  #FAECEA;
+  --status-danger-text:#8F2B23;
+  --shadow-card:       none;
+  --shadow-hover:      0 12px 32px rgba(23,24,26,0.12);
+  --radius-card:       14px;
   --radius-btn:        10px;
-  --font-main:         'Heebo', 'Arial Hebrew', sans-serif;
+  --font-main:         'IBM Plex Sans Hebrew', 'Arial Hebrew', sans-serif;
+  --font-serif:        'Frank Ruhl Libre', 'Times New Roman', serif;
 
-  /* --- New semantic layer for the redesign. Not touched by branding.ts,
-     so these DO get real light/dark variants below. --- */
+  /* --- Semantic layer (gets real light/dark variants below) --- */
   --bg-canvas:          var(--bg-shell);
   --bg-surface:         var(--bg-card);
   --bg-surface-elevated:#FFFFFF;
-  --bg-surface-sunken:  #F8FAFC;
-  --text-tertiary:      #94A3B8;
-  --separator:          rgba(15, 25, 41, 0.08);
-  --separator-strong:   #E5E5EA;
+  --bg-surface-sunken:  #F5F3EF;
+  --text-tertiary:      #8E9095;
+  --separator:          #E4E1DB;
+  --separator-strong:   #D8D4CC;
   --success:            var(--status-active);
   --success-bg:         var(--status-active-bg);
   --success-text:       var(--status-active-text);
@@ -52,22 +59,25 @@
   --destructive-bg:     var(--status-danger-bg);
   --destructive-text:   var(--status-danger-text);
 
-  /* Liquid Glass — used only on sidebar/toolbar/popover/sheet, never on cards */
-  --glass-bg:           rgba(255, 255, 255, 0.72);
-  --glass-border:       rgba(255, 255, 255, 0.4);
+  /* Glass kept for sidebar/toolbar/popover/sheet surfaces only */
+  --glass-bg:           rgba(255, 255, 255, 0.78);
+  --glass-border:       rgba(23, 24, 26, 0.06);
   --glass-blur:         20px;
-  --glass-bg-dark:      rgba(15, 25, 41, 0.72);
+  --glass-bg-dark:      rgba(18, 19, 20, 0.78);
   --glass-border-dark:  rgba(255, 255, 255, 0.08);
 
-  --radius-sm: 8px;
+  /* Radii per spec: tag 6 · field 10 · card 14 · sheet 16 */
+  --radius-xs: 6px;
+  --radius-sm: 10px;
   --radius-md: 14px;
-  --radius-lg: 20px;
-  --radius-xl: 28px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
 
-  --shadow-1:        0 1px 3px rgba(15,25,41,0.06);
-  --shadow-2:        0 4px 16px rgba(15,25,41,0.08);
-  --shadow-3:        0 12px 32px rgba(15,25,41,0.12);
-  --shadow-floating: 0 20px 50px rgba(15,25,41,0.16);
+  /* One shadow for floating layers; everything else uses borders */
+  --shadow-1:        none;
+  --shadow-2:        0 12px 32px rgba(23,24,26,0.12);
+  --shadow-3:        0 12px 32px rgba(23,24,26,0.12);
+  --shadow-floating: 0 12px 32px rgba(23,24,26,0.12);
 
   --duration-fast: 150ms;
   --duration-base: 240ms;
@@ -77,26 +87,26 @@
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg-canvas:           #0B0B0C;
-    --bg-surface:          #1C1C1E;
-    --bg-surface-elevated: #2C2C2E;
-    --bg-surface-sunken:   #131314;
-    --text-tertiary:       #8E8E93;
-    --separator:           rgba(255,255,255,0.08);
-    --separator-strong:    #3A3A3C;
+    --bg-canvas:           #121314;
+    --bg-surface:          #1B1C1E;
+    --bg-surface-elevated: #232426;
+    --bg-surface-sunken:   #17181A;
+    --text-tertiary:       #8E9095;
+    --separator:           rgba(255,255,255,0.09);
+    --separator-strong:    #3A3B3E;
     --glass-bg:            var(--glass-bg-dark);
     --glass-border:        var(--glass-border-dark);
   }
 }
 
 :root[data-theme="dark"] {
-  --bg-canvas:           #0B0F17;
-  --bg-surface:          #151B27;
-  --bg-surface-elevated: #1C2432;
-  --bg-surface-sunken:   #10151F;
-  --text-tertiary:       #64748B;
-  --separator:           rgba(255,255,255,0.08);
-  --separator-strong:    #2A3547;
+  --bg-canvas:           #121314;
+  --bg-surface:          #1B1C1E;
+  --bg-surface-elevated: #232426;
+  --bg-surface-sunken:   #17181A;
+  --text-tertiary:       #8E9095;
+  --separator:           rgba(255,255,255,0.09);
+  --separator-strong:    #3A3B3E;
   --glass-bg:            var(--glass-bg-dark);
   --glass-border:        var(--glass-border-dark);
 }

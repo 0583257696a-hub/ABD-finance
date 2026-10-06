@@ -1,7 +1,8 @@
 export const USER_SETTINGS_KEY = 'abd_user_settings'
 export const BRANDING_EVENT = 'abd-branding-change'
 
-export type ThemeId = 'abd-blue' | 'emerald' | 'royal' | 'graphite' | 'wine' | 'sand'
+export type ThemeId =
+  | 'oren' | 'abd-blue' | 'emerald' | 'royal' | 'graphite' | 'wine' | 'sand'
 
 export type BrandingSettings = {
   companyName: string
@@ -36,6 +37,18 @@ export const themePresets: Array<{
   headingColor: string
   bodyColor: string
 }> = [
+  {
+    id: 'oren',
+    name: 'אורן',
+    description: 'מערכת העיצוב 1.0 — ניטרלי חם עם מבטא ירוק אחד',
+    primaryColor: '#1F5A4E',
+    accentColor: '#1F5A4E',
+    shellColor: '#FBFAF8',
+    cardColor: '#FFFFFF',
+    sidebarColor: '#FFFFFF',
+    headingColor: '#17181A',
+    bodyColor: '#45474B',
+  },
   {
     id: 'abd-blue',
     name: 'ABD כחול',
@@ -115,15 +128,15 @@ export const defaultBrandingSettings: BrandingSettings = {
   advisorName: '',
   emailSignature: 'בברכה,\nABD Finance',
   logoData: '',
-  themeId: 'graphite',
-  primaryColor: '#1F2937',
-  accentColor: '#64748B',
-  shellColor: '#F3F4F6',
+  themeId: 'oren',
+  primaryColor: '#1F5A4E',
+  accentColor: '#1F5A4E',
+  shellColor: '#FBFAF8',
   cardColor: '#FFFFFF',
-  sidebarColor: '#FAFAFA',
-  headingColor: '#111827',
-  bodyColor: '#374151',
-  zebraRowColor: '#F3F4F6',
+  sidebarColor: '#FFFFFF',
+  headingColor: '#17181A',
+  bodyColor: '#45474B',
+  zebraRowColor: '#F5F3EF',
   tableDensity: 'normal',
   borderRadius: 'normal',
   showAnimations: true,

@@ -1,5 +1,7 @@
 'use client'
 
+import React from 'react'
+
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Calendar, CalendarPlus, FileText, History, Link2, Mail, Send, Unlink, Zap } from 'lucide-react'
@@ -65,6 +67,26 @@ type ClientForm = {
   submitted_at: string | null
 }
 
+
+/** "היום · יום ג׳, 6 באוקטובר" / "מחר · …" / weekday+date — group header for the upcoming list. */
+function dayLabel(iso: string): string {
+  const date = new Date(iso)
+  const today = new Date(); today.setHours(0, 0, 0, 0)
+  const that = new Date(date); that.setHours(0, 0, 0, 0)
+  const days = Math.round((that.getTime() - today.getTime()) / 86_400_000)
+  const full = date.toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long' })
+  if (days === 0) return `היום · ${full}`
+  if (days === 1) return `מחר · ${full}`
+  return full
+}
+
+/** "בעוד 18 דק׳" when the meeting starts within 2 hours (design spec p.2). */
+function startsIn(iso: string, now: number): string {
+  const diff = Math.round((new Date(iso).getTime() - now) / 60_000)
+  if (diff <= 0 || diff > 120) return ''
+  if (diff >= 60) return `בעוד ${Math.floor(diff / 60)} ש׳ ${diff % 60 ? `ו-${diff % 60} דק׳` : ''}`.trim()
+  return `בעוד ${diff} דק׳`
+}
 
 function formatWhen(iso: string) {
   return formatDateTime(iso, '-')
@@ -545,15 +567,49 @@ export default function MeetingsPage() {
   const upcoming = useMemo(() => meetings.filter(meeting => meeting.status === 'scheduled'), [meetings])
   const past = useMemo(() => meetings.filter(meeting => meeting.status !== 'scheduled'), [meetings])
 
+  // Header stat chips (design spec p.2): N היום · N השבוע · N משימות באיחור.
+  const [overdueTasks, setOverdueTasks] = useState(0)
+  const [clockNow, setClockNow] = useState(0)
+  useEffect(() => {
+    const kick = window.setTimeout(() => setClockNow(Date.now()), 0)
+    const timer = window.setInterval(() => setClockNow(Date.now()), 60_000)
+    return () => { window.clearTimeout(kick); window.clearInterval(timer) }
+  }, [])
+  useEffect(() => {
+    let cancelled = false
+    fetch('/api/follow-ups').then(async response => {
+      if (!response.ok) return
+      const data = await response.json() as { followUps?: Array<{ status: string; due_date: string | null }> }
+      const today = new Date().toISOString().slice(0, 10)
+      const count = (data.followUps || []).filter(item => item.status === 'open' && item.due_date && item.due_date < today).length
+      if (!cancelled) setOverdueTasks(count)
+    }).catch(() => null)
+    return () => { cancelled = true }
+  }, [])
+  const todayCount = useMemo(() => {
+    if (!clockNow) return 0
+    const today = new Date(clockNow).toDateString()
+    return upcoming.filter(meeting => new Date(meeting.starts_at).toDateString() === today).length
+  }, [upcoming, clockNow])
+  const weekCount = useMemo(() => {
+    if (!clockNow) return 0
+    return upcoming.filter(meeting => { const t = new Date(meeting.starts_at).getTime(); return t >= clockNow - 6 * 3_600_000 && t <= clockNow + 7 * 86_400_000 }).length
+  }, [upcoming, clockNow])
+
   return (
     <div dir="rtl" style={{ fontFamily: 'var(--font-main)' }}>
       <Toolbar
-        title="פגישות ושאלונים"
-        subtitle="התחלת פגישה, זימון עם קובץ יומן אוניברסלי, ושליחת שאלון הכנה ללקוח"
+        title="פגישות"
+        subtitle="מה מתוכנן, מה ממתין להכנה ומה נשאר פתוח אחרי הפגישה"
         actions={<Button variant="primary" onClick={openStartFlow}><Zap size={15} style={iconStyle} /> התחל פגישה</Button>}
       />
 
       <MeetingsSwitch active="meetings" />
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', margin: '10px 0 14px' }}>
+        <span style={statChipStyle}><strong style={statNumStyle}>{todayCount}</strong> היום</span>
+        <span style={statChipStyle}><strong style={statNumStyle}>{weekCount}</strong> השבוע</span>
+        {overdueTasks > 0 && <span style={{ ...statChipStyle, background: 'var(--destructive-bg)', borderColor: 'transparent', color: 'var(--destructive-text)' }}><strong style={{ ...statNumStyle, color: 'var(--destructive-text)' }}>{overdueTasks}</strong> משימות באיחור</span>}
+      </div>
       {status && <div style={noticeStyle} role="status" aria-live="polite">{status}</div>}
       {calendarNotice && <div style={noticeStyle}>{calendarNotice}</div>}
 
@@ -713,11 +769,19 @@ export default function MeetingsPage() {
             <h2 style={sectionTitleStyle}><Mail size={17} style={iconStyle} /> פגישות קרובות</h2>
             {upcoming.length ? (
               <div style={{ display: 'grid', gap: 10 }}>
-                {upcoming.map(meeting => (
-                  <article key={meeting.id} id={`meeting-${meeting.id}`} style={meetingRowStyle}>
-                    <div style={{ minWidth: 0 }}>
-                      <strong style={{ display: 'block', color: 'var(--text-heading)' }}>{meeting.title}</strong>
-                      <span style={metaStyle}>{meeting.client_name} · {formatWhen(meeting.starts_at)}{meeting.location ? ` · ${meeting.location}` : ''}</span>
+                {upcoming.map((meeting, index) => (
+                  <React.Fragment key={meeting.id}>
+                    {(index === 0 || dayLabel(upcoming[index - 1].starts_at) !== dayLabel(meeting.starts_at)) && (
+                      <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--text-muted)', marginTop: index === 0 ? 0 : 6 }}>{dayLabel(meeting.starts_at)}</div>
+                    )}
+                  <article id={`meeting-${meeting.id}`} style={meetingRowStyle}>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, flexShrink: 0, minWidth: 56, paddingInlineEnd: 12, borderInlineEnd: '1px solid var(--separator)' }}>
+                      <strong style={{ fontSize: 17, fontWeight: 600, color: 'var(--text-heading)', letterSpacing: 0.2 }}>{new Date(meeting.starts_at).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}</strong>
+                      {startsIn(meeting.starts_at, clockNow) && <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--abd-primary)' }}>{startsIn(meeting.starts_at, clockNow)}</span>}
+                    </div>
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <strong style={{ display: 'block', color: 'var(--text-heading)' }}>{meeting.client_name || meeting.title}</strong>
+                      <span style={metaStyle}>{meeting.client_name ? `${meeting.title} · ` : ''}{meeting.location || ''}</span>
                       {meeting.invite_sent_at && <span style={{ ...metaStyle, color: 'var(--success-text)' }}>זימון נשלח {formatWhen(meeting.invite_sent_at)}</span>}
                       {meeting.confirmed_at && <span style={{ ...metaStyle, color: 'var(--success-text)' }}>✓ הלקוח אישר הגעה</span>}
                     </div>
@@ -740,6 +804,7 @@ export default function MeetingsPage() {
                       <Button size="sm" variant="ghost" style={{ color: 'var(--destructive)' }} onClick={() => setMeetingToCancel(meeting)}>בטל פגישה</Button>
                     </div>
                   </article>
+                  </React.Fragment>
                 ))}
               </div>
             ) : (
@@ -905,6 +970,21 @@ const checkRowStyle: React.CSSProperties = { display: 'flex', alignItems: 'cente
 const inlineLinkStyle: React.CSSProperties = { border: 0, background: 'transparent', color: 'var(--abd-accent)', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, cursor: 'pointer', padding: 0, textDecoration: 'underline' }
 const noticeStyle: React.CSSProperties = { background: 'var(--bg-surface-sunken)', color: 'var(--text-heading)', border: '1px solid var(--separator)', borderRadius: 'var(--radius-lg)', padding: 12, marginBottom: 16, fontWeight: 600 }
 const meetingRowStyle: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, border: '1px solid var(--separator)', borderRadius: 'var(--radius-md)', padding: 12, background: 'var(--bg-canvas)' }
+const statChipStyle: React.CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: 6,
+  padding: '5px 12px',
+  borderRadius: 999,
+  border: '1px solid var(--separator)',
+  background: 'var(--bg-surface)',
+  color: 'var(--text-body)',
+  fontSize: 13,
+  fontWeight: 500,
+}
+
+const statNumStyle: React.CSSProperties = { fontSize: 14.5, fontWeight: 700, color: 'var(--text-heading)' }
+
 const metaStyle: React.CSSProperties = { display: 'block', color: 'var(--text-muted)', fontSize: 12.5, marginTop: 2 }
 const payloadStyle: React.CSSProperties = { display: 'grid', gap: 4, marginTop: 10, padding: 10, borderRadius: 'var(--radius-md)', background: 'var(--bg-surface)', border: '1px solid var(--separator)', fontSize: 13 }
 const choiceGridStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12, marginBottom: 14 }

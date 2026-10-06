@@ -23,7 +23,7 @@ export function MeetingSummaryDocument({ doc, variant = 'screen' }: { doc: Meeti
 
   return (
     <div style={{ display: 'grid', gap: 18, minWidth: 0 }}>
-      {doc.documentTitle && <h2 style={{ color: print ? '#111827' : 'var(--text-heading)', fontSize: 20, fontWeight: 700, margin: 0, overflowWrap: 'anywhere' }}>{doc.documentTitle}</h2>}
+      {doc.documentTitle && <h2 style={{ color: print ? '#111827' : 'var(--text-heading)', fontSize: 22, fontWeight: 700, margin: 0, overflowWrap: 'anywhere', fontFamily: 'var(--font-serif, serif)' }}>{doc.documentTitle}</h2>}
       {doc.clientLine && <p style={{ color: print ? '#4B5563' : 'var(--text-muted)', fontSize: 13.5, margin: 0 }}>{doc.clientLine}</p>}
 
       {doc.introText && (

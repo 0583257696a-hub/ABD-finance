@@ -115,11 +115,24 @@ export default function MeetingWorkspacePage({ params }: { params: Promise<{ id:
       return result.findings.filter(finding => finding.status !== 'DISMISSED' && finding.status !== 'RESOLVED').length
     } catch { return 0 }
   }, [storeFunds, storeInsurance])
+  // Summary readiness — five content checks; the % drives the fourth step's label
+  // and tells the advisor what is still missing before "סיים פגישה".
+  const readiness = useMemo(() => {
+    const checks: Array<{ label: string; done: boolean }> = [
+      { label: 'נתוני לקוח', done: Boolean(storeFunds.length || (meetingSummary.facts || []).some(fact => fact?.value?.trim())) },
+      { label: 'המלצות', done: Boolean(storeDeals.length || (meetingSummary.recommendations || []).some(item => item?.text?.trim())) },
+      { label: 'המשך טיפול', done: Boolean((meetingSummary.manualFollowUps || []).some(item => item?.text?.trim())) },
+      { label: 'הערות לפגישה', done: Boolean(Object.values(meetingSummary.editedSections || {}).some(value => String(value || '').trim())) },
+    ]
+    const done = checks.filter(check => check.done).length
+    return { percent: Math.round((done / checks.length) * 100), missing: checks.filter(check => !check.done).map(check => check.label) }
+  }, [storeFunds.length, storeDeals.length, meetingSummary])
+
   const stepStatus: Record<MeetingStep, string> = {
     portfolio: storeFunds.length || storeInsurance.length ? `${storeFunds.length} קופות${storeInsurance.length ? ` · ${storeInsurance.length} פוליסות` : ''}` : 'טרם יובא קובץ',
     analysis: storeFunds.length ? (flagCount ? `${flagCount} דגלים` : 'ללא דגלים') : '—',
     recommendations: storeDeals.length ? `${storeDeals.length} המלצות` : 'אין עדיין',
-    summary: (meetingSummary.recommendations?.length || meetingSummary.facts?.length) ? 'טיוטה' : 'ריק',
+    summary: readiness.percent > 0 ? `${readiness.percent}% מוכן` : 'ריק',
   }
   const stepIndex = STEPS.findIndex(item => item.id === step)
   const nextStep = STEPS[stepIndex + 1]
@@ -310,7 +323,7 @@ export default function MeetingWorkspacePage({ params }: { params: Promise<{ id:
           const done = index < stepIndex
           return (
             <button key={item.id} type="button" onClick={() => setStep(item.id)} style={stepButtonStyle(active, done)} aria-current={active ? 'step' : undefined}>
-              <span style={stepBadgeStyle(active, done)}>{done ? '✓' : index + 1}</span>
+              <span style={stepBadgeStyle(active, done)}>{done ? '✓' : String(index + 1).padStart(2, '0')}</span>
               <span style={{ display: 'grid', gap: 1, textAlign: 'start', minWidth: 0 }}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700 }}><Icon size={14} /> {item.label}</span>
                 <span style={{ fontSize: 11.5, color: active ? 'var(--abd-accent)' : 'var(--text-muted)', fontWeight: 500 }}>{stepStatus[item.id]}</span>
@@ -325,6 +338,26 @@ export default function MeetingWorkspacePage({ params }: { params: Promise<{ id:
         <main style={contentStyle} data-meeting-content>
           {step === 'portfolio' && (
             <div style={{ display: 'grid', gap: 14 }}>
+              {storeFunds.length > 0 && (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 10 }}>
+                  <div style={statCardStyle}>
+                    <span style={statCardLabelStyle}>סה״כ צבירה</span>
+                    <strong style={statCardValueStyle}>₪{Math.round(storeFunds.reduce((sum, fund) => sum + (Number(fund.currentBalance) || 0), 0)).toLocaleString('he-IL')}</strong>
+                  </div>
+                  <div style={statCardStyle}>
+                    <span style={statCardLabelStyle}>הפקדה חודשית</span>
+                    <strong style={statCardValueStyle}>₪{Math.round(storeFunds.reduce((sum, fund) => sum + (Number(fund.monthlyDeposit) || 0), 0)).toLocaleString('he-IL')}</strong>
+                  </div>
+                  <div style={statCardStyle}>
+                    <span style={statCardLabelStyle}>מוצרים ויצרנים</span>
+                    <strong style={statCardValueStyle}>{storeFunds.length} קופות · {new Set(storeFunds.map(fund => (fund.manufacturer || '').trim()).filter(Boolean)).size} יצרנים</strong>
+                  </div>
+                  <div style={{ ...statCardStyle, cursor: 'pointer' }} onClick={() => { setStep('analysis'); setAnalysisView('smart-agent') }} role="button" title="מעבר לממצאי Smart Agent">
+                    <span style={statCardLabelStyle}>ממצאי Smart Agent</span>
+                    <strong style={{ ...statCardValueStyle, color: flagCount ? 'var(--warning-text)' : 'var(--success-text)' }}>{flagCount ? `${flagCount} ממצאים` : 'ללא ממצאים'}</strong>
+                  </div>
+                </div>
+              )}
               <SegmentedControl<PortfolioView>
                 value={portfolioView}
                 onChange={setPortfolioView}
@@ -427,12 +460,15 @@ function stepButtonStyle(active: boolean, done: boolean): React.CSSProperties {
 }
 function stepBadgeStyle(active: boolean, done: boolean): React.CSSProperties {
   return {
-    width: 28, height: 28, borderRadius: 999, display: 'grid', placeItems: 'center', flexShrink: 0, fontWeight: 800, fontSize: 13,
+    minWidth: 30, height: 26, padding: '0 7px', borderRadius: 8, display: 'grid', placeItems: 'center', flexShrink: 0, fontWeight: 700, fontSize: 12.5, letterSpacing: 0.5,
     background: active ? 'var(--abd-accent)' : done ? 'var(--success-bg, #ECFDF5)' : 'var(--bg-surface)',
     color: active ? '#fff' : done ? 'var(--success-text, #065F46)' : 'var(--text-muted)',
     border: active ? '2px solid var(--abd-accent)' : done ? '2px solid var(--success, #10B981)' : '2px solid var(--separator)',
   }
 }
 const contentStyle: React.CSSProperties = { flex: 1, minWidth: 0, padding: 20, overflow: 'auto' }
+const statCardStyle: React.CSSProperties = { display: 'grid', gap: 3, padding: '12px 16px', background: 'var(--bg-surface)', border: '1px solid var(--separator)', borderRadius: 'var(--radius-md)', minWidth: 0 }
+const statCardLabelStyle: React.CSSProperties = { fontSize: 12.5, fontWeight: 500, color: 'var(--text-muted)' }
+const statCardValueStyle: React.CSSProperties = { fontSize: 18, fontWeight: 600, color: 'var(--text-heading)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }
 const notesInputStyle: React.CSSProperties = { width: '100%', border: '1px solid var(--separator)', borderRadius: 'var(--radius-md)', padding: 14, fontFamily: 'var(--font-main)', fontSize: 14, background: 'var(--bg-surface)', color: 'var(--text-heading)', resize: 'vertical', lineHeight: 1.7 }
 

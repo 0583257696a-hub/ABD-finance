@@ -9,6 +9,7 @@ html { direction: rtl; scroll-padding-top: 88px; }
 h1, h2, h3, label, [id] { scroll-margin-top: 88px; }
 body {
   font-family: var(--font-main);
+  font-variant-numeric: tabular-nums;
   background: var(--bg-shell);
   color: var(--text-body);
   -webkit-font-smoothing: antialiased;
