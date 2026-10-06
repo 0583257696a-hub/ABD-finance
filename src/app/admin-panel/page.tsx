@@ -187,7 +187,7 @@ export default function AdminPanelPage() {
 
         {(loadState === 'ready' || data.infrastructure) && (
           <>
-            {tab === 'dashboard' && <AdminDashboard stats={data.stats} users={data.users} tickets={data.tickets} onGo={setTab} />}
+            {tab === 'dashboard' && <AdminDashboard stats={data.stats} users={data.users} tickets={data.tickets} events={data.events} onGo={setTab} />}
             {tab === 'users' && <AdminUsers users={data.users} agencies={data.agencies} plans={data.infrastructure?.plans || []} currentAdminEmail={adminEmail} mode={data.usersMode} onChanged={refresh} />}
             {tab === 'agencies' && <AdminAgencies agencies={data.agencies} users={data.users} plans={data.infrastructure?.plans || []} onChanged={refresh} />}
             {tab === 'plans' && data.infrastructure && <AdminPlans infrastructure={data.infrastructure} users={data.users} onChanged={refresh} />}

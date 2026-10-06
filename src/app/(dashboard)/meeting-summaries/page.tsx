@@ -71,6 +71,14 @@ export default function MeetingSummariesHistoryPage() {
   const [toDelete, setToDelete] = useState<SummaryListItem | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [crmConnected, setCrmConnected] = useState(false)
+  const [wide, setWide] = useState(false)
+  useEffect(() => {
+    const media = window.matchMedia('(min-width: 1180px)')
+    const apply = () => setWide(media.matches)
+    const kick = window.setTimeout(apply, 0)
+    media.addEventListener('change', apply)
+    return () => { window.clearTimeout(kick); media.removeEventListener('change', apply) }
+  }, [])
   const [crmBusy, setCrmBusy] = useState(false)
   const toast = useToast()
   const [sendOpen, setSendOpen] = useState(false)
@@ -199,6 +207,59 @@ export default function MeetingSummariesHistoryPage() {
     return [summary.client_name, summary.title, formatDate(summary.meeting_ended_at || summary.created_at), sourceLabel(summary.source)].some(value => String(value || '').toLowerCase().includes(q))
   })
 
+  const viewerBody = openSummary ? (
+    <>
+      {sendOpen && (
+        <div style={{ display: 'grid', gap: 8, padding: 12, marginBottom: 14, background: 'var(--bg-surface-sunken)', border: '1px solid var(--separator)', borderRadius: 'var(--radius-lg)' }}>
+          <strong style={{ color: 'var(--text-heading)', fontSize: 14 }}>שליחת הסיכום ללקוח במייל</strong>
+          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', gap: 8, alignItems: 'end' }}>
+            <label style={{ display: 'grid', gap: 4, fontSize: 13, fontWeight: 600, color: 'var(--text-heading)' }}>
+              <span>אימייל הלקוח</span>
+              <input dir="ltr" type="email" value={sendTo} onChange={event => setSendTo(event.target.value)} placeholder="ריק = האימייל של הלקוח מהפגישה" style={{ minHeight: 40, border: '1px solid var(--separator)', borderRadius: 'var(--radius-md)', padding: '8px 12px', fontFamily: 'inherit', fontSize: 14, background: 'var(--bg-surface)', color: 'var(--text-heading)', width: '100%' }} />
+            </label>
+            <Button variant="primary" disabled={sending} onClick={() => void sendToClient()}>{sending ? 'שולח…' : 'שלח'}</Button>
+          </div>
+          <label style={{ display: 'grid', gap: 4, fontSize: 13, fontWeight: 600, color: 'var(--text-heading)' }}>
+            <span>הודעה אישית (לא חובה)</span>
+            <textarea rows={2} value={sendNote} onChange={event => setSendNote(event.target.value)} placeholder="שלום ישראל, מצורף סיכום הפגישה שלנו…" style={{ border: '1px solid var(--separator)', borderRadius: 'var(--radius-md)', padding: '8px 12px', fontFamily: 'inherit', fontSize: 14, background: 'var(--bg-surface)', color: 'var(--text-heading)', resize: 'vertical' }} />
+          </label>
+          <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>המייל כולל את הסיכום המלא והסתייגות מקצועית, ונשלח מהכתובת שלך עם Reply-To אליך.</span>
+        </div>
+      )}
+      {parsed && summaryHasContent(parsed) ? (
+        <MeetingSummaryDocument doc={parsed} />
+      ) : (
+        <EmptyState
+          icon={<FileText size={28} />}
+          title="הסיכום נשמר ריק"
+          description="הפגישה הסתיימה לפני שנטענו נתוני לקוח או שנכתב תוכן במסמך הסיכום, ולכן אין כאן מה להציג. ניתן למחוק את הרשומה."
+        />
+      )}
+    </>
+  ) : null
+
+  const viewerActions = openSummary ? (
+    <>
+      <Button variant="primary" onClick={() => { setSendTo(''); setSendOpen(true) }} title="שולח את הסיכום ללקוח במייל, מהכתובת שלך">
+        <Send size={15} /> שלח ללקוח
+      </Button>
+      <Button variant="secondary" onClick={() => openSummaryPdf(openSummary.id)}>
+        <Download size={16} /> PDF
+      </Button>
+      <Button variant="secondary" onClick={shareWhatsApp} title="פותח וואטסאפ עם תמצית הסיכום (המלצות והמשך טיפול) — בוחרים את איש הקשר שם">
+        <MessageCircle size={16} /> וואטסאפ
+      </Button>
+      {crmConnected && (
+        <Button variant="secondary" disabled={crmBusy} onClick={() => void syncToCrm()} title="שולח את הלקוח, הסיכום כהערה ומשימות ההמשך ל-CRM המחובר (לפי ההגדרות)">
+          <Database size={16} /> {crmBusy ? 'שולח…' : 'שלח ל-CRM'}
+        </Button>
+      )}
+      <Button variant="ghost" size="sm" style={{ marginInlineStart: 'auto', color: 'var(--destructive)' }} onClick={() => setToDelete(openSummary)}>
+        <Trash2 size={15} /> מחק
+      </Button>
+    </>
+  ) : null
+
   return (
     <div dir="rtl" style={{ fontFamily: 'var(--font-main)' }}>
       <Toolbar title="פגישות" subtitle="ארכיון הסיכומים שנשמרו בסיום כל פגישה — לחיצה על שורה פותחת את הסיכום" />
@@ -221,14 +282,15 @@ export default function MeetingSummariesHistoryPage() {
         </div>
       )}
       {visible.length ? (
-        <div style={{ display: 'grid', gap: 10 }}>
+        <div style={wide && openSummary ? { display: 'grid', gridTemplateColumns: 'minmax(290px, 360px) minmax(0, 1fr)', gap: 14, alignItems: 'start' } : undefined}>
+        <div style={{ display: 'grid', gap: 10, minWidth: 0 }}>
           {visible.map(summary => {
             const endedAt = summary.meeting_ended_at || summary.created_at
             const clientName = summary.client_name?.trim()
             return (
               <Surface
                 key={summary.id}
-                style={{ ...rowStyle, cursor: 'pointer', opacity: detailLoading ? 0.7 : 1 }}
+                style={{ ...rowStyle, cursor: 'pointer', opacity: detailLoading ? 0.7 : 1, ...(openSummary?.id === summary.id ? { outline: '2px solid var(--abd-primary)', outlineOffset: -1 } : {}) }}
                 onClick={() => void openDetail(summary.id)}
                 role="button"
                 tabIndex={0}
@@ -243,7 +305,7 @@ export default function MeetingSummariesHistoryPage() {
                     {summary.title || 'סיכום פגישה'} · {formatDate(endedAt)}{formatTime(endedAt) ? ` ${formatTime(endedAt)}` : ''}
                   </span>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }} onClick={event => event.stopPropagation()}>
+                <div style={{ display: wide && openSummary ? 'none' : 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }} onClick={event => event.stopPropagation()}>
                   <span title={summary.source === 'spontaneous' || !summary.source ? 'פגישה שנפתחה ידנית, ללא זימון מהיומן' : 'מקור הפגישה ביומן המחובר'}><StatusBadge tone="neutral" label={sourceLabel(summary.source)} /></span>
                   <Button variant="secondary" size="sm" onClick={() => openSummaryPdf(summary.id)} aria-label="הורדת הסיכום כ-PDF">
                     <Download size={15} /> PDF
@@ -256,6 +318,24 @@ export default function MeetingSummariesHistoryPage() {
             )
           })}
         </div>
+        {wide && openSummary && (
+          <Surface style={{ padding: 0, overflow: 'hidden', position: 'sticky', top: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', borderBottom: '1px solid var(--separator)' }}>
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <strong style={{ display: 'block', color: 'var(--text-heading)', fontSize: 15.5 }}>{openSummary.client_name?.trim() || 'ללא שם לקוח'}</strong>
+                <span style={metaStyle}>{openSummary.title || 'סיכום פגישה'} · {formatDate(openSummary.meeting_ended_at || openSummary.created_at)} · {sourceLabel(openSummary.source)}</span>
+              </div>
+              <Button variant="ghost" size="sm" onClick={() => setOpenSummary(null)} aria-label="סגירת התצוגה">✕</Button>
+            </div>
+            <div style={{ padding: 16, maxHeight: 'calc(100vh - 230px)', overflowY: 'auto' }}>
+              {viewerBody}
+            </div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', padding: '10px 16px', borderTop: '1px solid var(--separator)', background: 'var(--bg-surface-sunken)' }}>
+              {viewerActions}
+            </div>
+          </Surface>
+        )}
+        </div>
       ) : status === 'ready' && summaries.length ? (
         <Surface style={{ padding: 24 }}><EmptyState icon={<FileText size={30} />} title="לא נמצאו סיכומים" description="נסה חיפוש אחר." /></Surface>
       ) : status === 'ready' ? (
@@ -264,7 +344,7 @@ export default function MeetingSummariesHistoryPage() {
         </Surface>
       ) : null}
 
-      {openSummary && (
+      {openSummary && !wide && (
         <Sheet
           open
           onClose={() => setOpenSummary(null)}
@@ -272,57 +352,9 @@ export default function MeetingSummariesHistoryPage() {
           width="min(860px, calc(100vw - 32px))"
           title={openSummary.client_name?.trim() || 'ללא שם לקוח'}
           subtitle={`${openSummary.title || 'סיכום פגישה'} · ${formatDate(openSummary.meeting_ended_at || openSummary.created_at)} · ${sourceLabel(openSummary.source)}`}
-          footer={
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-              <Button variant="ghost" size="sm" onClick={() => setToDelete(openSummary)}>
-                <Trash2 size={15} /> מחיקת הסיכום
-              </Button>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <Button variant="secondary" onClick={() => setOpenSummary(null)}>סגירה</Button>
-                <Button variant="secondary" onClick={() => openSummaryPdf(openSummary.id)}>
-                  <Download size={16} /> PDF
-                </Button>
-                <Button variant="secondary" onClick={shareWhatsApp} title="פותח וואטסאפ עם תמצית הסיכום (המלצות והמשך טיפול) — בוחרים את איש הקשר שם">
-                  <MessageCircle size={16} /> וואטסאפ
-                </Button>
-                {crmConnected && (
-                  <Button variant="secondary" disabled={crmBusy} onClick={() => void syncToCrm()} title="שולח את הלקוח, הסיכום כהערה ומשימות ההמשך ל-CRM המחובר (לפי ההגדרות)">
-                    <Database size={16} /> {crmBusy ? 'שולח…' : 'שלח ל-CRM'}
-                  </Button>
-                )}
-                <Button variant="primary" onClick={() => { setSendTo(''); setSendOpen(true) }} title="שולח את הסיכום ללקוח במייל, מהכתובת שלך">
-                  <Send size={15} /> שלח ללקוח
-                </Button>
-              </div>
-            </div>
-          }
+          footer={<div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', width: '100%' }}>{viewerActions}<Button variant="secondary" onClick={() => setOpenSummary(null)}>סגירה</Button></div>}
         >
-          {sendOpen && (
-            <div style={{ display: 'grid', gap: 8, padding: 12, marginBottom: 14, background: 'var(--bg-surface-sunken)', border: '1px solid var(--separator)', borderRadius: 'var(--radius-lg)' }}>
-              <strong style={{ color: 'var(--text-heading)', fontSize: 14 }}>שליחת הסיכום ללקוח במייל</strong>
-              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', gap: 8, alignItems: 'end' }}>
-                <label style={{ display: 'grid', gap: 4, fontSize: 13, fontWeight: 600, color: 'var(--text-heading)' }}>
-                  <span>אימייל הלקוח</span>
-                  <input dir="ltr" type="email" value={sendTo} onChange={event => setSendTo(event.target.value)} placeholder="ריק = האימייל של הלקוח מהפגישה" style={{ minHeight: 40, border: '1px solid var(--separator)', borderRadius: 'var(--radius-md)', padding: '8px 12px', fontFamily: 'inherit', fontSize: 14, background: 'var(--bg-surface)', color: 'var(--text-heading)', width: '100%' }} />
-                </label>
-                <Button variant="primary" disabled={sending} onClick={() => void sendToClient()}>{sending ? 'שולח…' : 'שלח'}</Button>
-              </div>
-              <label style={{ display: 'grid', gap: 4, fontSize: 13, fontWeight: 600, color: 'var(--text-heading)' }}>
-                <span>הודעה אישית (לא חובה)</span>
-                <textarea rows={2} value={sendNote} onChange={event => setSendNote(event.target.value)} placeholder="שלום ישראל, מצורף סיכום הפגישה שלנו…" style={{ border: '1px solid var(--separator)', borderRadius: 'var(--radius-md)', padding: '8px 12px', fontFamily: 'inherit', fontSize: 14, background: 'var(--bg-surface)', color: 'var(--text-heading)', resize: 'vertical' }} />
-              </label>
-              <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>המייל כולל את הסיכום המלא (תמצית נתונים, המלצות, המשך טיפול) והסתייגות מקצועית, ונשלח מהכתובת שלך עם Reply-To אליך.</span>
-            </div>
-          )}
-          {parsed && summaryHasContent(parsed) ? (
-            <MeetingSummaryDocument doc={parsed} />
-          ) : (
-            <EmptyState
-              icon={<FileText size={28} />}
-              title="הסיכום נשמר ריק"
-              description="הפגישה הסתיימה לפני שנטענו נתוני לקוח או שנכתב תוכן במסמך הסיכום, ולכן אין כאן מה להציג. ניתן למחוק את הרשומה."
-            />
-          )}
+          {viewerBody}
         </Sheet>
       )}
 

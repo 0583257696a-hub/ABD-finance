@@ -386,8 +386,8 @@ function CirclePalette({ colors, fallback }: { colors: string[]; fallback: strin
   const list = colors.length ? colors : fallback
   return (
     <div style={circleRowStyle}>
-      {list.map(color => (
-        <i key={color} title={color} style={{ ...logoColorCircleStyle, background: color }} />
+      {list.map((color, colorIndex) => (
+        <i key={`${colorIndex}-${color}`} title={color} style={{ ...logoColorCircleStyle, background: color }} />
       ))}
     </div>
   )

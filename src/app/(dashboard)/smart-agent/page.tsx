@@ -11,6 +11,7 @@ import { useWorkspaceStore } from '@/lib/store/workspaceStore'
 import {
   ENGINE_VERSION,
   loadStoredFindings,
+  portfolioRef,
   runAnalysis,
   storeFindings,
   type Finding,
@@ -40,6 +41,8 @@ export default function SmartAgentPage() {
   const hydrate = useWorkspaceStore(state => state.hydrate)
   const funds = useWorkspaceStore(state => state.funds)
   const insurancePolicies = useWorkspaceStore(state => state.insurancePolicies)
+  const trackingDeals = useWorkspaceStore(state => state.trackingDeals)
+  const setTrackingDeals = useWorkspaceStore(state => state.setTrackingDeals)
 
   const [findings, setFindings] = useState<Finding[]>([])
   const [ranAt, setRanAt] = useState<string | null>(null)
@@ -73,6 +76,40 @@ export default function SmartAgentPage() {
       storeFindings(next, ranAt || new Date().toISOString())
       return next
     })
+  }
+
+  /**
+   * "אשר" (design spec p.4): the finding is approved and handed to the
+   * recommendations step as a free-text DRAFT the advisor will phrase there.
+   * The engine never recommends a product — the draft only restates the
+   * finding's neutral possible action.
+   */
+  function approve(finding: Finding) {
+    setStatus(finding.id, 'ACTION_CREATED')
+    if ((trackingDeals as Array<{ findingId?: string }>).some(deal => deal.findingId === finding.id)) return
+    const fund = funds.find(item => portfolioRef(item.id || '') === finding.portfolioRef)
+    setTrackingDeals([
+      ...trackingDeals,
+      {
+        id: `${Date.now()}`,
+        fromFundId: fund?.id || '',
+        actionType: 'טיפול בקופה',
+        productType: fund?.productType || '',
+        manufacturer: fund?.manufacturer || '',
+        track: '',
+        reason: '',
+        amount: 0,
+        freeText: `${finding.possibleActions[0] || finding.title} (${finding.productLabel}).`,
+        source: 'smart-agent',
+        status: 'draft',
+        findingId: finding.id,
+      },
+    ] as typeof trackingDeals)
+  }
+
+  function unapprove(finding: Finding) {
+    setStatus(finding.id, 'REVIEWED')
+    setTrackingDeals((trackingDeals as Array<{ findingId?: string }>).filter(deal => deal.findingId !== finding.id) as typeof trackingDeals)
   }
 
   function dismiss(id: string) {
@@ -203,6 +240,15 @@ export default function SmartAgentPage() {
                       <Button size="sm" variant="secondary" disabled={aiBusyId === finding.id} onClick={() => void explainWithAi(finding)}>
                         {aiBusyId === finding.id ? 'יוצר הסבר…' : 'הסבר לי (AI)'}
                       </Button>
+                      {(finding.status === 'NEW' || finding.status === 'REVIEWED' || finding.status === 'DISCUSSED') && (
+                        <Button size="sm" variant="primary" onClick={() => approve(finding)}>אשר</Button>
+                      )}
+                      {finding.status === 'ACTION_CREATED' && (
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, color: 'var(--success-text)', fontSize: 13, fontWeight: 600 }}>
+                          ✓ אושר · הועבר כטיוטה להמלצות
+                          <Button size="sm" variant="ghost" onClick={() => unapprove(finding)}>בטל</Button>
+                        </span>
+                      )}
                       {finding.status === 'NEW' && <Button size="sm" variant="ghost" onClick={() => setStatus(finding.id, 'REVIEWED')}>סמן כנסקר</Button>}
                       {(finding.status === 'NEW' || finding.status === 'REVIEWED') && <Button size="sm" variant="ghost" onClick={() => setStatus(finding.id, 'DISCUSSED')}>נדון עם הלקוח</Button>}
                       <Button size="sm" variant="ghost" onClick={() => setStatus(finding.id, 'RESOLVED')}>טופל</Button>

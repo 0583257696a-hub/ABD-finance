@@ -199,6 +199,8 @@ export default function MeetingWorkspacePage({ params }: { params: Promise<{ id:
   // Computed from the start timestamp every tick (not an accumulating counter), so it stays right after the tab was in the background.
   const duration = useMemo(() => formatDuration(meeting?.started_at ?? null), [meeting?.started_at, tick])
 
+  const [confirmEnd, setConfirmEnd] = useState(false)
+
   async function endMeeting() {
     if (!meeting || ending) return
     setEnding(true)
@@ -289,7 +291,7 @@ export default function MeetingWorkspacePage({ params }: { params: Promise<{ id:
           <Button variant="ghost" size="sm" onClick={() => setDetailsOpen(true)} title="פרטי הפגישה" aria-label="פרטי הפגישה">
             <Settings size={15} />
           </Button>
-          <Button variant="primary" size="sm" disabled={ending} onClick={() => void endMeeting()}>
+          <Button variant="primary" size="sm" disabled={ending} onClick={() => setConfirmEnd(true)}>
             <Square size={13} style={{ marginLeft: 6 }} /> {ending ? 'מסיים…' : 'סיים פגישה'}
           </Button>
           <Button variant="ghost" size="sm" title="התנתק מהמערכת" onClick={() => setConfirmLogout(true)}>
@@ -306,6 +308,19 @@ export default function MeetingWorkspacePage({ params }: { params: Promise<{ id:
           </div>
         </div>
       )}
+      <Dialog
+        open={confirmEnd}
+        title="לסיים את הפגישה?"
+        description={[
+          'הסיכום יישמר בארכיון, משימות ההמשך ייפתחו, ונתוני הלקוח ינוקו מהדפדפן.',
+          flagCount ? `${flagCount} ממצאי Smart Agent עדיין ממתינים להחלטה.` : '',
+          readiness.missing.length ? `חסר בסיכום: ${readiness.missing.join(', ')}.` : '',
+        ].filter(Boolean).join(' ')}
+        confirmLabel="סיים ושמור"
+        cancelLabel="חזרה לפגישה"
+        onConfirm={() => { setConfirmEnd(false); void endMeeting() }}
+        onCancel={() => setConfirmEnd(false)}
+      />
       <Dialog
         open={confirmLogout}
         title="להתנתק באמצע הפגישה?"

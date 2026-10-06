@@ -291,7 +291,7 @@ function buildAutoRecommendations(funds: Fund[], trackingDeals: Record<string, u
     const source = fundById.get(String(action.fromFundId || ''))
     return {
       id: `action-${action.id}`,
-      text: formatRecommendationLine({
+      text: String(action.freeText || '').trim() || formatRecommendationLine({
         actionType: String(action.actionType || ''),
         sourceProductType: source?.productType,
         sourceManufacturer: source?.manufacturer,

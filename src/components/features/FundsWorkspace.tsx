@@ -691,6 +691,15 @@ export default function FundsWorkspace() {
 
   async function handleFiles(files: FileList | null) {
     if (!files?.length) return
+    // Friendly rejection with a code (design spec p.15) — the #1 user mistake is a PDF statement.
+    const wrongType = Array.from(files).find(file => /.(pdf|docx?|png|jpe?g)$/i.test(file.name))
+    if (wrongType) {
+      setStatusTone('error')
+      setStatus(`לא הצלחנו לקרוא את "${wrongType.name}" — נראה שזה לא קובץ מסלקה. יש להוריד מהמסלקה את הקובץ בפורמט XML או ZIP (קוד: PARSE-415).`)
+      toast('קובץ לא מתאים — נדרש XML או ZIP מהמסלקה', 'error')
+      if (inputRef.current) inputRef.current.value = ''
+      return
+    }
     setStatusTone('neutral')
     setStatus(`מייבא ${files.length} קבצים...`)
     try {

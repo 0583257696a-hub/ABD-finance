@@ -3,19 +3,21 @@
 import { ArrowLeft } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Surface } from '@/components/ui/Surface'
-import { KpiTile, SectionTitle, StatusPill, formatDate, USER_STATUS, TICKET_STATUS, type AdminUser, type Stats, type Ticket } from './shared'
+import { KpiTile, SectionTitle, StatusPill, formatDate, USER_STATUS, TICKET_STATUS, type AdminUser, type AuditEvent, type Stats, type Ticket } from './shared'
 
 /**
  * Dashboard: real counters from D1 plus the two queues that need a human —
  * users waiting for approval and open support tickets — each with a jump
  * to the tab that handles them. Nothing here is a placeholder metric.
  */
-export function AdminDashboard({ stats, users, tickets, onGo }: {
+export function AdminDashboard({ stats, users, tickets, events = [], onGo }: {
   stats: Stats | null
   users: AdminUser[]
   tickets: Ticket[]
+  events?: AuditEvent[]
   onGo: (tab: 'users' | 'support' | 'agencies' | 'security') => void
 }) {
+  const recent = events.slice(0, 8)
   const pending = users.filter(user => user.status === 'pending_approval').slice(0, 6)
   const openTickets = tickets.filter(ticket => ticket.status !== 'closed').slice(0, 6)
 
@@ -34,6 +36,21 @@ export function AdminDashboard({ stats, users, tickets, onGo }: {
         </div>
       ) : (
         <Surface padding={16}><p style={{ margin: 0, color: 'var(--text-muted)' }}>המערכת פועלת ללא מסד נתונים — אין מדדים להצגה.</p></Surface>
+      )}
+
+      {recent.length > 0 && (
+        <Surface padding={18}>
+          <SectionTitle actions={<Button size="sm" variant="ghost" onClick={() => onGo('security')}>יומן מלא <ArrowLeft size={14} /></Button>}>פעילות אחרונה</SectionTitle>
+          <div style={{ display: 'grid', gap: 4 }}>
+            {recent.map(event => (
+              <div key={event.id} style={{ display: 'flex', alignItems: 'baseline', gap: 10, padding: '6px 8px', borderRadius: 8, fontSize: 13 }}>
+                <span style={{ color: 'var(--text-muted)', flexShrink: 0, fontSize: 12 }}>{formatDate(event.created_at, true)}</span>
+                <span style={{ color: event.action.includes('fail') || event.action.includes('error') ? 'var(--destructive-text)' : 'var(--text-heading)', fontWeight: 600, flexShrink: 0, direction: 'ltr' }}>{event.action}</span>
+                <span style={{ color: 'var(--text-body)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{event.actor_email || ''}{event.target_id ? ` → ${event.target_id}` : ''}</span>
+              </div>
+            ))}
+          </div>
+        </Surface>
       )}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 14 }}>

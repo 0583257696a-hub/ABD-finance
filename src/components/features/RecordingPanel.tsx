@@ -71,10 +71,22 @@ export function RecordingPanel({ open, onOpenChange, meetingId, clientName }: { 
     return () => window.clearInterval(handle)
   }, [recState])
 
+  const secondsRef = useRef(0)
+  useEffect(() => { secondsRef.current = seconds }, [seconds])
+  const transcriptRef = useRef<HTMLTextAreaElement>(null)
+  const [autoScroll, setAutoScroll] = useState(true)
+  useEffect(() => {
+    if (autoScroll && transcriptRef.current) transcriptRef.current.scrollTop = transcriptRef.current.scrollHeight
+  }, [transcript, autoScroll])
+
   const appendTranscript = useCallback((text: string) => {
     if (!text.trim()) return
     const current = useWorkspaceStore.getState().meetingSummary
-    setMeetingSummary({ ...current, transcript: `${current.transcript ? `${current.transcript}\n` : ''}${text.trim()}` })
+    const elapsed = secondsRef.current
+    const stamp = stateRef.current !== 'idle' && elapsed > 0
+      ? `[${String(Math.floor(elapsed / 60)).padStart(2, '0')}:${String(elapsed % 60).padStart(2, '0')}] `
+      : ''
+    setMeetingSummary({ ...current, transcript: `${current.transcript ? `${current.transcript}\n` : ''}${stamp}${text.trim()}` })
   }, [setMeetingSummary])
 
   const transcribeBlob = useCallback(async (blob: Blob) => {
@@ -232,7 +244,12 @@ export function RecordingPanel({ open, onOpenChange, meetingId, clientName }: { 
               <h3 style={h3}>תמליל</h3>
               <Button variant="secondary" size="sm" disabled={extracting || transcript.trim().length < 20} onClick={() => void extract()}><Sparkles size={14} /> {extracting ? 'מפיק…' : 'הפק הצעות מהשיחה'}</Button>
             </div>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'flex-end', fontSize: 12, color: 'var(--text-muted)', cursor: 'pointer' }}>
+              <input type="checkbox" checked={autoScroll} onChange={event => setAutoScroll(event.target.checked)} style={{ width: 13, height: 13 }} />
+              גלילה אוטומטית
+            </label>
             <textarea
+              ref={transcriptRef}
               value={transcript}
               onChange={event => setMeetingSummary({ ...useWorkspaceStore.getState().meetingSummary, transcript: event.target.value })}
               rows={10}
